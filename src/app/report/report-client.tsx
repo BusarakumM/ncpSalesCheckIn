@@ -20,33 +20,9 @@ type Row = {
 };
 
 const DATA: Row[] = [
-  {
-    date: "2025-06-16",
-    checkin: "10.00",
-    checkout: "11.00",
-    location: "โลตัสบางกะปิ",
-    detail: "เยี่ยมร้าน",
-    image: "photo-1001.jpg",
-    status: "completed",
-  },
-  {
-    date: "2025-06-16",
-    checkin: "11.30",
-    checkout: "13.21",
-    location: "เซเว่น บางรักพลี",
-    detail: "เยี่ยมร้าน",
-    image: "photo-1002.jpg",
-    status: "incomplete",
-  },
-  {
-    date: "2025-06-16",
-    checkin: "13.24",
-    checkout: "",
-    location: "แม็คโคร บางคูวัด",
-    detail: "เยี่ยมร้าน",
-    image: "photo-1003.jpg",
-    status: "ongoing",
-  },
+  { date: "2025-06-16", checkin: "10.00", checkout: "11.00", location: "โลตัสบางกะปิ", detail: "เยี่ยมร้าน", image: "photo-1001.jpg", status: "completed" },
+  { date: "2025-06-16", checkin: "11.30", checkout: "13.21", location: "เซเว่น บางรักพลี", detail: "เยี่ยมร้าน", image: "photo-1002.jpg", status: "incomplete" },
+  { date: "2025-06-16", checkin: "13.24", checkout: "",      location: "แม็คโคร บางคูวัด", detail: "เยี่ยมร้าน", image: "photo-1003.jpg", status: "ongoing" },
 ];
 
 export default function ReportClient({ homeHref }: { homeHref: string }) {
@@ -80,22 +56,22 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
     const lines = filtered.map((r) => [
       r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.image, r.status,
     ]);
-    const csv = [header, ...lines].map(row =>
-      row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")
-    ).join("\n");
+    const csv = [header, ...lines]
+      .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "report.csv"; // works everywhere; switch to real .xlsx later
+    a.download = "report.csv";
     a.click();
     URL.revokeObjectURL(url);
   }
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
-      <div className="mx-auto max-w-md px-4 pt-4 pb-10">
+      <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
         {/* Header with Home icon */}
         <div className="flex items-center gap-2">
           <Link
@@ -105,13 +81,13 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
           >
             <span className="text-xl">🏠</span>
           </Link>
-          <h1 className="mx-auto text-2xl font-extrabold">Report</h1>
+          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">Report</h1>
         </div>
 
         {/* Filter */}
         <div className="mt-4">
           <div className="text-sm font-medium mb-2">Filter : Date</div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="mb-1 block">From</Label>
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
@@ -124,7 +100,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
           <div className="mt-3 flex justify-center">
             <Button
               onClick={onOk}
-              className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20"
+              className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10"
             >
               OK
             </Button>
@@ -133,17 +109,17 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
 
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="overflow-auto bg-white border border-black/20">
-            <Table>
+          <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
+            <Table className="min-w-[820px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[110px]">Date/Time</TableHead>
-                  <TableHead>Check-in time</TableHead>
-                  <TableHead>Check-out time</TableHead>
-                  <TableHead className="min-w-[140px]">Location name</TableHead>
-                  <TableHead>Activity detail</TableHead>
-                  <TableHead>Image uri</TableHead>
-                  <TableHead className="min-w-[110px]">Status</TableHead>
+                  <TableHead className="min-w-[120px]">Date/Time</TableHead>
+                  <TableHead className="min-w-[120px]">Check-in</TableHead>
+                  <TableHead className="min-w-[120px]">Check-out</TableHead>
+                  <TableHead className="min-w-[160px]">Location name</TableHead>
+                  <TableHead className="min-w-[180px]">Activity detail</TableHead>
+                  <TableHead className="min-w-[160px]">Image uri</TableHead>
+                  <TableHead className="min-w-[120px]">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,11 +156,13 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
         </div>
 
         {/* Export */}
-        <div className="mt-6 flex flex-col items-center gap-2">
-          <div className="text-sm text-gray-700">Export file<br/>.xlsx</div>
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-700 text-center sm:text-left">
+            Export file <br className="sm:hidden" /> .xlsx
+          </div>
           <button
             onClick={exportCsv}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50 self-center sm:self-auto"
             title="Export"
           >
             ➜

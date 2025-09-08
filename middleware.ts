@@ -13,6 +13,7 @@ export function middleware(req: NextRequest) {
     "/icons",
     "/offline",
   ];
+  
 
   const isPublic =
     // listed routes

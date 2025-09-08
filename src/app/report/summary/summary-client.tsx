@@ -20,7 +20,6 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
-  // In the future, use from/to to fetch filtered data.
   const rows = DATA;
 
   const kpis = useMemo(() => {
@@ -34,7 +33,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
-      <div className="mx-auto max-w-md px-4 pt-4 pb-10">
+      <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
         {/* Header with Home icon */}
         <div className="flex items-center gap-2">
           <Link
@@ -44,13 +43,15 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           >
             <span className="text-xl">🏠</span>
           </Link>
-          <h1 className="mx-auto text-2xl font-extrabold">Sales Supports Summary</h1>
+          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">
+            Sales Supports Summary
+          </h1>
         </div>
 
         {/* Filter */}
         <div className="mt-4">
           <div className="text-sm font-medium mb-2">Filter : Date</div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="mb-1 block">From</Label>
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
@@ -61,83 +62,90 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
             </div>
           </div>
           <div className="mt-3 flex justify-center">
-            <Button className="rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20">
+            <Button className="rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 px-6 sm:px-10">
               OK
             </Button>
           </div>
         </div>
 
         {/* KPI row */}
-        <div className="mt-5 grid grid-cols-5 gap-3 items-stretch">
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3 items-stretch">
           {/* Members (avatar + big number) */}
-          <Card className="col-span-1 border-none bg-transparent shadow-none">
+          <Card className="border-none bg-transparent shadow-none">
             <CardContent className="flex flex-col items-center p-0">
-              <div className="h-10 w-10 rounded-full bg-black/80 mb-1" />
-              <div className="text-2xl font-extrabold">{kpis.members}</div>
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/80 mb-1" />
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.members}</div>
             </CardContent>
           </Card>
 
           {/* Total */}
-          <Card className="col-span-1 border-none bg-transparent shadow-none">
+          <Card className="border-none bg-transparent shadow-none">
             <CardContent className="p-0 text-center">
               <div className="text-sm">Total</div>
-              <div className="text-2xl font-extrabold">{kpis.total}</div>
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.total}</div>
             </CardContent>
           </Card>
 
           {/* Completed (green) */}
-          <Card className="col-span-1 border-none bg-[#BFD9C8]">
-            <CardContent className="p-2 text-center">
+          <Card className="border-none bg-[#BFD9C8]">
+            <CardContent className="p-2 sm:p-3 text-center">
               <div className="text-sm opacity-80">Completed</div>
-              <div className="text-2xl font-extrabold">{kpis.completed}</div>
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.completed}</div>
             </CardContent>
           </Card>
 
           {/* Incomplete (red) */}
-          <Card className="col-span-1 border-none bg-[#E9A0A0]">
-            <CardContent className="p-2 text-center">
+          <Card className="border-none bg-[#E9A0A0]">
+            <CardContent className="p-2 sm:p-3 text-center">
               <div className="text-sm opacity-80">Incomplete</div>
-              <div className="text-2xl font-extrabold">{kpis.incomplete}</div>
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.incomplete}</div>
             </CardContent>
           </Card>
 
           {/* Ongoing (yellow) */}
-          <Card className="col-span-1 border-none bg-[#F3E099]">
-            <CardContent className="p-2 text-center">
+          <Card className="border-none bg-[#F3E099]">
+            <CardContent className="p-2 sm:p-3 text-center">
               <div className="text-sm opacity-80">Ongoing</div>
-              <div className="text-2xl font-extrabold">{kpis.ongoing}</div>
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.ongoing}</div>
             </CardContent>
           </Card>
         </div>
 
         {/* Summary Table (beige panel with rounded rows) */}
         <div className="mt-6 rounded-3xl bg-[#D9CDAF] p-4">
-          <h2 className="mb-3 text-center text-xl font-extrabold">Summary Table</h2>
+          <h2 className="mb-3 text-center text-lg sm:text-xl font-extrabold">Summary Table</h2>
 
-          {/* Header row */}
-          <div className="grid grid-cols-5 px-2 pb-2 text-sm font-medium">
-            <div>Sale support name</div>
-            <div className="text-center">Task total</div>
-            <div className="text-center">Completed</div>
-            <div className="text-center">Incomplete</div>
-            <div className="text-center">Ongoing</div>
-          </div>
-
-          <div className="space-y-3">
-            {rows.map((r) => (
-              <div
-                key={r.name}
-                className="grid grid-cols-5 items-center rounded-2xl bg-white px-3 py-3 shadow-sm"
-              >
-                <div className="truncate">{r.name}</div>
-                <div className="text-center font-semibold">{r.total}</div>
-                <div className="text-center font-semibold">{r.completed}</div>
-                <div className="text-center font-semibold">{r.incomplete}</div>
-                <div className="text-center font-semibold">{r.ongoing}</div>
+          {/* Wrap in horizontal scroll on small screens */}
+          <div className="overflow-x-auto">
+            {/* Use a min-width grid so columns don't squish on phones */}
+            <div className="min-w-[680px]">
+              {/* Header row */}
+              <div className="grid grid-cols-5 px-2 pb-2 text-sm font-medium">
+                <div>Sale support name</div>
+                <div className="text-center">Task total</div>
+                <div className="text-center">Completed</div>
+                <div className="text-center">Incomplete</div>
+                <div className="text-center">Ongoing</div>
               </div>
-            ))}
+
+              <div className="space-y-3">
+                {rows.map((r) => (
+                  <div
+                    key={r.name}
+                    className="grid grid-cols-5 items-center rounded-2xl bg-white px-3 py-3 shadow-sm"
+                  >
+                    <div className="truncate">{r.name}</div>
+                    <div className="text-center font-semibold">{r.total}</div>
+                    <div className="text-center font-semibold">{r.completed}</div>
+                    <div className="text-center font-semibold">{r.incomplete}</div>
+                    <div className="text-center font-semibold">{r.ongoing}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
   );

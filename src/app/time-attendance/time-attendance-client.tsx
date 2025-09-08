@@ -13,54 +13,18 @@ type Row = {
   date: string;        // yyyy-mm-dd
   checkin: string;     // HH.mm
   checkout: string;    // HH.mm or ""
-  imageIn?: string;    // filename or URL
-  imageOut?: string;   // filename or URL
-  status?: string;     // e.g., "Sick leave"
-  remark?: string;     // free text
-  name: string;        // sales support name
+  imageIn?: string;
+  imageOut?: string;
+  status?: string;
+  remark?: string;
+  name: string;
 };
 
 const DATA: Row[] = [
-  {
-    date: "2025-06-16",
-    checkin: "10.00",
-    checkout: "11.00",
-    imageIn: "",
-    imageOut: "",
-    status: "",
-    remark: "เข้าช้าหน่อย เพราะรถติด",
-    name: "นาย A",
-  },
-  {
-    date: "2025-06-16",
-    checkin: "11.30",
-    checkout: "13.21",
-    imageIn: "",
-    imageOut: "",
-    status: "",
-    remark: "",
-    name: "นาย B",
-  },
-  {
-    date: "2025-06-16",
-    checkin: "13.24",
-    checkout: "",
-    imageIn: "",
-    imageOut: "",
-    status: "",
-    remark: "ลืม check-out",
-    name: "นาย C",
-  },
-  {
-    date: "2025-06-16",
-    checkin: "",
-    checkout: "",
-    imageIn: "",
-    imageOut: "",
-    status: "Sick leave",
-    remark: "",
-    name: "นาย D",
-  },
+  { date: "2025-06-16", checkin: "10.00", checkout: "11.00", imageIn: "", imageOut: "", status: "", remark: "เข้าช้าหน่อย เพราะรถติด", name: "นาย A" },
+  { date: "2025-06-16", checkin: "11.30", checkout: "13.21", imageIn: "", imageOut: "", status: "", remark: "", name: "นาย B" },
+  { date: "2025-06-16", checkin: "13.24", checkout: "",      imageIn: "", imageOut: "", status: "", remark: "ลืม check-out", name: "นาย C" },
+  { date: "2025-06-16", checkin: "",      checkout: "",      imageIn: "", imageOut: "", status: "Sick leave", remark: "", name: "นาย D" },
 ];
 
 export default function TimeAttendanceClient({ homeHref }: { homeHref: string }) {
@@ -89,24 +53,10 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
 
   function exportCsv() {
     const header = [
-      "Date/Time",
-      "Check-in time",
-      "Check-out time",
-      "Image Check-in",
-      "Image check-out",
-      "Status/leave",
-      "Remark",
-      "Sales Support Name",
+      "Date/Time","Check-in time","Check-out time","Image Check-in","Image check-out","Status/leave","Remark","Sales Support Name",
     ];
     const lines = filtered.map((r) => [
-      r.date,
-      r.checkin || "-",
-      r.checkout || "-",
-      r.imageIn || "",
-      r.imageOut || "",
-      r.status || "",
-      r.remark || "",
-      r.name,
+      r.date, r.checkin || "-", r.checkout || "-", r.imageIn || "", r.imageOut || "", r.status || "", r.remark || "", r.name,
     ]);
     const csv = [header, ...lines]
       .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -123,7 +73,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
-      <div className="mx-auto max-w-md px-4 pt-4 pb-10">
+      <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
         {/* Header with Home icon */}
         <div className="flex items-center gap-2">
           <Link
@@ -133,13 +83,15 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
           >
             <span className="text-xl">🏠</span>
           </Link>
-          <h1 className="mx-auto text-2xl font-extrabold">Time Attendance report</h1>
+          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">
+            Time Attendance report
+          </h1>
         </div>
 
         {/* Filters */}
         <div className="mt-4 space-y-3">
           <div className="text-sm font-medium">Filter : Date</div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="mb-1 block">From</Label>
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
@@ -151,12 +103,17 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
           </div>
 
           <div className="text-sm font-medium">Filter : Sales Support Name</div>
-          <Input value={qName} onChange={(e) => setQName(e.target.value)} className="bg-white" />
+          <Input
+            placeholder="Search by name"
+            value={qName}
+            onChange={(e) => setQName(e.target.value)}
+            className="bg-white"
+          />
 
           <div className="mt-2 flex justify-center">
             <Button
               onClick={onOk}
-              className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20"
+              className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10"
             >
               OK
             </Button>
@@ -165,17 +122,18 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
 
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="overflow-auto bg-white border border-black/20">
-            <Table>
+          <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
+            {/* keep enough width so columns don't squish on phones */}
+            <Table className="min-w-[900px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[110px]">Date/Time</TableHead>
-                  <TableHead>Check-in time</TableHead>
-                  <TableHead>Check-out time</TableHead>
-                  <TableHead>Image Check-in</TableHead>
-                  <TableHead>Image check-out</TableHead>
-                  <TableHead>Status/leave</TableHead>
-                  <TableHead>Remark</TableHead>
+                  <TableHead className="min-w-[120px]">Date/Time</TableHead>
+                  <TableHead className="min-w-[120px]">Check-in</TableHead>
+                  <TableHead className="min-w-[120px]">Check-out</TableHead>
+                  <TableHead className="min-w-[160px]">Image Check-in</TableHead>
+                  <TableHead className="min-w-[160px]">Image check-out</TableHead>
+                  <TableHead className="min-w-[140px]">Status/leave</TableHead>
+                  <TableHead className="min-w-[200px]">Remark</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -190,9 +148,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                     <TableRow key={i}>
                       <TableCell>
                         {new Date(r.date).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
+                          day: "2-digit", month: "short", year: "numeric",
                         })}
                       </TableCell>
                       <TableCell>{r.checkin || "-"}</TableCell>
@@ -210,13 +166,13 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
         </div>
 
         {/* Export */}
-        <div className="mt-6 flex flex-col items-center gap-2">
-          <div className="text-sm text-gray-700">
-            Export file<br />.xlsx
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-700 text-center sm:text-left">
+            Export file <br className="sm:hidden" /> .xlsx
           </div>
           <button
             onClick={exportCsv}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50 self-center sm:self-auto"
             title="Export"
           >
             ➜

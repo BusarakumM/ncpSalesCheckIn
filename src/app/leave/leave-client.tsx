@@ -26,18 +26,16 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       return;
     }
     setRows((r) => [...r, { dt, type, reason }]);
-    // keep inputs or clear—here we clear reason only (like quick multi add)
     setReason("");
   }
 
   function onSubmit() {
-    // TODO: send to /api/leave
     alert("Submitted (mock).");
   }
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
-      <div className="mx-auto max-w-md px-4 pt-4 pb-10">
+      <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl">
         {/* Header with Home icon */}
         <div className="flex items-center gap-2">
           <Link
@@ -47,44 +45,46 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
           >
             <span className="text-xl">🏠</span>
           </Link>
-          <h1 className="mx-auto text-2xl font-extrabold">Leave</h1>
+          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold">
+            Leave
+          </h1>
         </div>
 
         {/* Form */}
         <div className="mt-5 space-y-4">
           <div>
-            <div className="text-sm font-semibold">Date/Time :</div>
+            <div className="text-sm sm:text-base font-semibold">Date/Time :</div>
             <Input
               type="datetime-local"
               value={dt}
               onChange={(e) => setDt(e.target.value)}
-              className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60"
+              className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
             />
           </div>
 
           <div>
-            <div className="text-sm font-semibold">Leave Type:</div>
+            <div className="text-sm sm:text-base font-semibold">Leave Type:</div>
             <Input
               placeholder="ลากิจ / ลาป่วย / ลาพักร้อน …"
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60"
+              className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
             />
           </div>
 
           <div>
-            <div className="text-sm font-semibold">Reason:</div>
+            <div className="text-sm sm:text-base font-semibold">Reason:</div>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="mt-1 min-h-[150px] border-black/10 bg-[#BFD9C8]"
+              className="mt-1 min-h-[140px] sm:min-h-[160px] border-black/10 bg-[#BFD9C8]"
             />
           </div>
 
           <div className="flex justify-center">
             <Button
               onClick={onSave}
-              className="rounded-full bg-[#BFD9C8] px-8 text-gray-900 hover:bg-[#b3d0bf] border border-black/20"
+              className="w-full sm:w-auto rounded-full bg-[#BFD9C8] px-8 text-gray-900 hover:bg-[#b3d0bf] border border-black/20"
             >
               Save
             </Button>
@@ -97,9 +97,9 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
             <Table>
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[140px]">Date/Time</TableHead>
-                  <TableHead className="min-w-[120px]">Leave type</TableHead>
-                  <TableHead>Reason</TableHead>
+                  <TableHead className="min-w-[160px]">Date/Time</TableHead>
+                  <TableHead className="min-w-[140px]">Leave type</TableHead>
+                  <TableHead className="min-w-[220px]">Reason</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -113,7 +113,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
                   rows.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell>{r.dt.replace("T", " ")}</TableCell>
-                      <TableCell>{r.type}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{r.type}</TableCell>
                       <TableCell className="whitespace-pre-wrap">{r.reason}</TableCell>
                     </TableRow>
                   ))
@@ -127,7 +127,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
         <div className="mt-6 flex justify-center">
           <Button
             onClick={onSubmit}
-            className="rounded-full bg-[#E8CC5C] px-10 text-gray-900 hover:bg-[#e3c54a] border border-black/20"
+            className="w-full sm:w-auto rounded-full bg-[#E8CC5C] px-10 text-gray-900 hover:bg-[#e3c54a] border border-black/20"
           >
             Submit
           </Button>
