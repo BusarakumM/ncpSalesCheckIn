@@ -9,14 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import LogoBadge from "@/components/LogoBadge";
 
-<Image
-  src="/illustrations/log-in.png"
-  alt="Sign in illustration"
-  width={128}
-  height={128}
-  priority
-/>
-
 
 export default function SignInPage() {
   const [user, setUser] = useState("");
@@ -47,7 +39,7 @@ export default function SignInPage() {
         {/* Illustration */}
         <div className="flex justify-center mb-4">
           <Image
-            src={loginImg}
+            src="/illustrations/log-in.png"
             alt="Sign in illustration"
             width={128}
             height={128}
