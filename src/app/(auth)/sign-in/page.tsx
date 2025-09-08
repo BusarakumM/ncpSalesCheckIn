@@ -39,7 +39,7 @@ export default function SignInPage() {
         {/* Illustration */}
         <div className="flex justify-center mb-4">
           <Image
-            src="/illustrations/log-in.png"
+            src="/illustrations/login.png"
             alt="Sign in illustration"
             width={128}
             height={128}
