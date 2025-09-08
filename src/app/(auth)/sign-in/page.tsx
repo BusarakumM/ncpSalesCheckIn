@@ -8,6 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import LogoBadge from "@/components/LogoBadge";
+import loginImg from "@/public/illustrations/log-in.png";
+
+<Image
+  src={loginImg}
+  alt="Sign in illustration"
+  width={128}
+  height={128}
+  priority
+/>
 
 
 export default function SignInPage() {
@@ -39,7 +48,7 @@ export default function SignInPage() {
         {/* Illustration */}
         <div className="flex justify-center mb-4">
           <Image
-            src="/illustrations/log-in.png"
+            src={loginImg}
             alt="Sign in illustration"
             width={128}
             height={128}
