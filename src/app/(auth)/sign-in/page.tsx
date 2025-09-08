@@ -8,10 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import LogoBadge from "@/components/LogoBadge";
-import loginImg from "@/public/illustrations/log-in.png";
 
 <Image
-  src={loginImg}
+  src="/illustrations/log-in.png"
   alt="Sign in illustration"
   width={128}
   height={128}

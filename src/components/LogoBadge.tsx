@@ -1,5 +1,5 @@
 import Image from "next/image";
-import logo from "@/public/brand/salescheckin.png";
+
 
 export default function LogoBadge({
   className = "",
@@ -9,7 +9,7 @@ export default function LogoBadge({
   return (
     <div className={`inline-flex items-center gap-3 ${className}`}>
       <Image
-        src={logo} // ✅ use the imported image here
+        src="/brand/salescheckin.png"
         alt="NCP Sales Support Check-In"
         width={size}
         height={Math.round(size * 1.52)}
