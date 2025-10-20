@@ -1,22 +1,26 @@
 import { NextResponse } from "next/server";
+import { resolveUserRole } from "@/lib/roleResolver";
 
 type Body = { user?: string; email?: string; password?: string };
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Body;
 
-  // For now, accept any credentials and pick role by heuristic
-  const name = body.user?.trim() || "Supervisor";
-  const email = (body.email || "").toLowerCase();
+  const resolution = await resolveUserRole({
+    email: body.email || body.user,
+    user: body.user,
+    password: body.password,
+  });
 
-  // Decide role – customize this however you like
-  const isSupervisor =
-    name.toLowerCase().includes("supervisor") ||
-    email === "supervisor@ncp.co.th";
+  const res = NextResponse.json({
+    ok: true,
+    role: resolution.role,
+    name: resolution.name,
+    email: resolution.email,
+    metadata: resolution.metadata,
+    resolution: resolution.resolution,
+  });
 
-  const res = NextResponse.json({ ok: true, role: isSupervisor ? "SUPERVISOR" : "AGENT" });
-
-  // Basic demo cookies
   res.cookies.set("session", "1", {
     httpOnly: true,
     sameSite: "lax",
@@ -24,9 +28,20 @@ export async function POST(req: Request) {
     maxAge: 60 * 60 * 24 * 7,
     secure: process.env.NODE_ENV === "production",
   });
-  res.cookies.set("role", isSupervisor ? "SUPERVISOR" : "AGENT", { path: "/", sameSite: "lax" });
-  res.cookies.set("name", name, { path: "/", sameSite: "lax" });
-  if (email) res.cookies.set("email", email, { path: "/", sameSite: "lax" });
+
+  res.cookies.set("role", resolution.role, { path: "/", sameSite: "lax" });
+  res.cookies.set("name", resolution.name, { path: "/", sameSite: "lax" });
+
+  if (resolution.email) {
+    res.cookies.set("email", resolution.email, { path: "/", sameSite: "lax" });
+  }
+
+  const { employeeNo, supervisorEmail, province, channel } = resolution.metadata;
+  if (employeeNo) res.cookies.set("employeeNo", employeeNo, { path: "/", sameSite: "lax" });
+  if (supervisorEmail) res.cookies.set("supervisorEmail", supervisorEmail, { path: "/", sameSite: "lax" });
+  if (province) res.cookies.set("province", province, { path: "/", sameSite: "lax" });
+  if (channel) res.cookies.set("channel", channel, { path: "/", sameSite: "lax" });
+  if (resolution.metadata?.district) res.cookies.set("district", resolution.metadata.district, { path: "/", sameSite: "lax" });
 
   return res;
 }

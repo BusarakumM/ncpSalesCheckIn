@@ -32,6 +32,11 @@ export function middleware(req: NextRequest) {
   const session = req.cookies.get("session")?.value;
   const role = req.cookies.get("role")?.value;
 
+  // Allow splash page at root for unauthenticated users
+  if (!session && pathname === "/") {
+    return NextResponse.next();
+  }
+
   if (!session) {
     const url = req.nextUrl.clone();
     url.pathname = "/sign-in";

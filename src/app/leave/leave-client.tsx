@@ -29,8 +29,23 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     setReason("");
   }
 
-  function onSubmit() {
-    alert("Submitted (mock).");
+  async function onSubmit() {
+    try {
+      if (rows.length === 0) return alert("No items to submit.");
+      // Submit each row to backend (server will enrich with user cookies)
+      for (const r of rows) {
+        await fetch("/api/pa/leave", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dt: r.dt, type: r.type, reason: r.reason }),
+        });
+      }
+      alert("Submitted.");
+      setRows([]);
+      setDt(""); setType(""); setReason("");
+    } catch (e: any) {
+      alert(e?.message || "Submit failed");
+    }
   }
 
   return (

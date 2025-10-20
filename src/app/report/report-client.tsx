@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,51 +10,71 @@ import {
 } from "@/components/ui/table";
 
 type Row = {
-  date: string;        // yyyy-mm-dd
-  checkin: string;     // HH.mm
-  checkout: string;    // HH.mm or ""
+  date: string;
+  checkin?: string;
+  checkout?: string;
   location: string;
-  detail: string;
-  image: string;       // image url or filename
+  detail?: string;
+  image?: string;
   status: "completed" | "incomplete" | "ongoing";
+  district?: string;
+  checkinGps?: string;
+  checkoutGps?: string;
+  distanceKm?: number;
 };
 
-const DATA: Row[] = [
-  { date: "2025-06-16", checkin: "10.00", checkout: "11.00", location: "โลตัสบางกะปิ", detail: "เยี่ยมร้าน", image: "photo-1001.jpg", status: "completed" },
-  { date: "2025-06-16", checkin: "11.30", checkout: "13.21", location: "เซเว่น บางรักพลี", detail: "เยี่ยมร้าน", image: "photo-1002.jpg", status: "incomplete" },
-  { date: "2025-06-16", checkin: "13.24", checkout: "",      location: "แม็คโคร บางคูวัด", detail: "เยี่ยมร้าน", image: "photo-1003.jpg", status: "ongoing" },
-];
+const DATA: Row[] = [];
 
 export default function ReportClient({ homeHref }: { homeHref: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [submitted, setSubmitted] = useState<{ from?: string; to?: string }>({});
+  const [rows, setRows] = useState<Row[]>([]);
+  const [qDistrict, setQDistrict] = useState("");
+  const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
+  const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
 
-  const filtered = useMemo(() => {
-    const f = submitted.from ? new Date(submitted.from) : null;
-    const t = submitted.to ? new Date(submitted.to) : null;
-    return DATA.filter((r) => {
-      const d = new Date(r.date);
-      if (f && d < f) return false;
-      if (t && d > t) return false;
-      return true;
-    });
-  }, [submitted]);
-
-  function onOk() {
-    setSubmitted({ from, to });
+  function mapUrl(coord?: string) {
+    if (!coord || !GMAPS_KEY) return "";
+    const q = encodeURIComponent(coord);
+    return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=160x120&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
   }
-
   function statusClass(s: Row["status"]) {
     if (s === "completed") return "bg-[#6EC3A1] text-white";
     if (s === "incomplete") return "bg-[#E9A0A0] text-black";
     return "bg-[#E7D6B9] text-black";
   }
 
+  async function load() {
+    const res = await fetch("/api/pa/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to, district: qDistrict }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load report");
+    const mapped: Row[] = (data.rows || []).map((r: any) => ({
+      date: r.date,
+      checkin: r.checkin,
+      checkout: r.checkout,
+      location: r.location,
+      detail: r.detail,
+      image: r.imageOut || r.imageIn || r.image,
+      status: r.status,
+      district: r.district,
+      checkinGps: r.checkinGps,
+      checkoutGps: r.checkoutGps,
+      distanceKm: r.distanceKm,
+    }));
+    setRows(mapped);
+  }
+
+  useEffect(() => { load().catch(() => {}); }, []);
+
+
   function exportCsv() {
-    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "Image uri", "Status"];
-    const lines = filtered.map((r) => [
-      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.image, r.status,
+    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image uri", "Status"];
+    const lines = rows.map((r) => [
+      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.image, r.status,
     ]);
     const csv = [header, ...lines]
       .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -87,19 +107,23 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
         {/* Filter */}
         <div className="mt-4">
           <div className="text-sm font-medium mb-2">Filter : Date</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <Label className="mb-1 block">From</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
-            </div>
-            <div>
-              <Label className="mb-1 block">To</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <Label className="mb-1 block">From</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
           </div>
+          <div>
+            <Label className="mb-1 block">To</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
+          </div>
+          <div>
+            <Label className="mb-1 block">District</Label>
+            <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} placeholder="District" className="bg-white" />
+          </div>
+        </div>
           <div className="mt-3 flex justify-center">
             <Button
-              onClick={onOk}
+              onClick={load}
               className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10"
             >
               OK
@@ -118,19 +142,23 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[120px]">Check-out</TableHead>
                   <TableHead className="min-w-[160px]">Location name</TableHead>
                   <TableHead className="min-w-[180px]">Activity detail</TableHead>
+                  <TableHead className="min-w-[140px]">District</TableHead>
+                  <TableHead className="min-w-[140px]">In GPS</TableHead>
+                  <TableHead className="min-w-[140px]">Out GPS</TableHead>
+                  <TableHead className="min-w-[120px]">Distance (km)</TableHead>
                   <TableHead className="min-w-[160px]">Image uri</TableHead>
                   <TableHead className="min-w-[120px]">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-gray-500">
                       No data for the selected range
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((r, i) => (
+                  rows.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell>
                         {new Date(r.date).toLocaleDateString("en-GB", {
@@ -139,8 +167,39 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                       </TableCell>
                       <TableCell>{r.checkin}</TableCell>
                       <TableCell>{r.checkout || "-"}</TableCell>
-                      <TableCell>{r.location}</TableCell>
+                      <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
                       <TableCell>{r.detail}</TableCell>
+                      <TableCell>{r.district || ""}</TableCell>
+                      <TableCell>
+                        {r.checkinGps ? (
+                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkinGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                            {r.checkinGps}
+                          </a>
+                        ) : ("")}
+                        {r.checkinGps && GMAPS_KEY ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {r.checkoutGps ? (
+                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkoutGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                            {r.checkoutGps}
+                          </a>
+                        ) : ("")}
+                        {r.checkoutGps && GMAPS_KEY ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {r.distanceKm != null ? (
+                          <span className={MAX_KM && r.distanceKm > MAX_KM ? "text-red-700 font-semibold" : ""}>
+                            {r.distanceKm.toFixed(3)}
+                            {MAX_KM && r.distanceKm > MAX_KM ? " !" : ""}
+                          </span>
+                        ) : ""}
+                      </TableCell>
                       <TableCell className="truncate">{r.image}</TableCell>
                       <TableCell>
                         <span className={`inline-flex w-full justify-center rounded px-2 py-1 text-sm font-medium ${statusClass(r.status)}`}>
@@ -172,3 +231,12 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

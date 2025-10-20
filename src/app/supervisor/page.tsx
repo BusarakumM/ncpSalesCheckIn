@@ -1,19 +1,26 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import LogoBadge from "@/components/LogoBadge";
 import Image from "next/image";
 import { CalendarDays, Users, BarChart3, FileText, Clock } from "lucide-react";
 
 export default async function SupervisorPage() {
-  const name = (await cookies()).get("name")?.value || "Supervisor";
-  const email = (await cookies()).get("email")?.value || "supervisor@ncp.co.th";
+  const c = await cookies();
+  const role = c.get("role")?.value;
+  if (role !== "SUPERVISOR") {
+    redirect("/home");
+  }
+  const name = c.get("name")?.value || "Supervisor";
+  const email = c.get("email")?.value || "supervisor@ncp.co.th";
 
   const tiles = [
     { href: "/calendar",        title: "Calendar",                 bg: "bg-[#CFE4DD]", icon: CalendarDays, span2: false },
     { href: "/activity",        title: "Sales Support\nActivity",  bg: "bg-[#E6D8B9]", icon: Users,        span2: false },
     { href: "/report/summary",  title: "Sales Supports\nSummary",  bg: "bg-[#CFE4DD]", icon: BarChart3,     span2: false },
     { href: "/report",          title: "Report",                   bg: "bg-[#E6D8B9]", icon: FileText,      span2: false },
-    { href: "/time-attendance", title: "Time Attendance\nReport",  bg: "bg-[#CFE4DD]", icon: Clock,         span2: true  },
+    { href: "/leave/manage",    title: "Leave\nSubmissions",       bg: "bg-[#CFE4DD]", icon: FileText,      span2: false },
+    { href: "/time-attendance", title: "Time Attendance\nReport",  bg: "bg-[#E6D8B9]", icon: Clock,         span2: false },
   ];
 
   return (

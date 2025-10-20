@@ -120,3 +120,52 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Simple "walking" effect for the logo image */
+@keyframes walk-bob {
+  0% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(0.6deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(2px) rotate(-0.6deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes shadow-pulse {
+  0% { transform: translateX(-50%) scale(1); opacity: 0.35; }
+  50% { transform: translateX(-50%) scale(0.9); opacity: 0.25; }
+  100% { transform: translateX(-50%) scale(1); opacity: 0.35; }
+}
+
+.logo-walking .logo-img {
+  animation: walk-bob 1s ease-in-out infinite;
+  transform-origin: 50% 85%;
+}
+
+.logo-walking .logo-shadow {
+  background: rgba(0,0,0,0.25);
+  filter: blur(2px);
+  animation: shadow-pulse 1s ease-in-out infinite;
+}
+
+/* Splash scene: person walking across the earth */
+@keyframes earth-rock {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(1.2deg) scale(1.005); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+@keyframes walk-path-x {
+  0% { transform: translateX(-40%); }
+  100% { transform: translateX(40%); }
+}
+
+@keyframes orbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.earth-animate { animation: earth-rock 8s ease-in-out infinite; }
+.walker-path { animation: walk-path-x 5s ease-in-out infinite alternate; display: inline-block; }
+.walker-orbit { position: absolute; inset: 0; transform-origin: 50% 50%; animation: orbit 8s linear infinite; }
+.walker-counter { transform-origin: 50% 50%; animation: orbit 8s linear infinite reverse; }
+.walker-img { animation: walk-bob 1s ease-in-out infinite; transform-origin: 50% 85%; }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,25 +12,48 @@ import {
 
 type Row = {
   date: string;
-  checkin: string;
-  checkout: string;
+  checkin?: string;
+  checkout?: string;
   location: string;
-  detail: string;
+  detail?: string;
   status: "completed" | "incomplete" | "ongoing";
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
+  district?: string;
+  checkinGps?: string;
+  checkoutGps?: string;
+  distanceKm?: number;
 };
 
-const DATA: Row[] = [
-  { date: "2025-06-16", checkin: "10.00", checkout: "11.00", location: "โลตัสบางกะปิ", detail: "เยี่ยมร้าน", status: "completed", name: "นาย A", email: "a@ncp.co.th" },
-  { date: "2025-06-16", checkin: "11.30", checkout: "13.21", location: "เซเว่น บางรักพลี", detail: "เยี่ยมร้าน", status: "incomplete", name: "นาย B", email: "b@ncp.co.th" },
-  { date: "2025-06-16", checkin: "13.24", checkout: "", location: "แม็คโคร บางคูวัด", detail: "เยี่ยมร้าน", status: "ongoing", name: "นาย C", email: "c@ncp.co.th" },
-];
+const DATA: Row[] = [];
 
 export default function ActivityClient({ homeHref }: { homeHref: string }) {
   const [qName, setQName] = useState("");
   const [qDate, setQDate] = useState("");
 
+  const [rows, setRows] = useState<Row[]>([]);
+  const [qDistrict, setQDistrict] = useState("");
+  const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
+  const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
+
+  function mapUrl(coord?: string) {
+    if (!coord || !GMAPS_KEY) return "";
+    const q = encodeURIComponent(coord);
+    return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=160x120&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
+  }
+
+  async function fetchRows() {
+    const payload: any = {};
+    if (qName) payload.name = qName;
+    if (qDate) { payload.from = qDate; payload.to = qDate; }
+    if (qDistrict) payload.district = qDistrict;
+    const res = await fetch('/api/pa/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to load');
+    setRows(data.rows as Row[]);
+  }
+
+  useEffect(() => { fetchRows().catch(() => {}); }, []);
   const filtered = useMemo(() => {
     return DATA.filter((r) => {
       const nameMatch =
@@ -66,7 +89,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
         </div>
 
         {/* Filters */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <Label>Sales support name</Label>
             <Input
@@ -85,11 +108,19 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
               className="bg-white"
             />
           </div>
+          <div>
+            <Label>District</Label>
+            <Input
+              placeholder="District"
+              value={qDistrict}
+              onChange={(e) => setQDistrict(e.target.value)}
+              className="bg-white"
+            />
+          </div>
         </div>
 
         <div className="mt-3 flex justify-center">
-          <Button className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10">
-            Search
+          <Button onClick={fetchRows} className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10">\r\n            Search
           </Button>
         </div>
 
@@ -104,18 +135,22 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                   <TableHead>Check-out</TableHead>
                   <TableHead className="min-w-[160px]">Location</TableHead>
                   <TableHead className="min-w-[160px]">Detail</TableHead>
+                  <TableHead className="min-w-[140px]">District</TableHead>
+                  <TableHead className="min-w-[140px]">In GPS</TableHead>
+                  <TableHead className="min-w-[140px]">Out GPS</TableHead>
+                  <TableHead className="min-w-[120px]">Distance (km)</TableHead>
                   <TableHead className="min-w-[120px]">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-gray-500">
                       No results
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((r, i) => (
+                  rows.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell>
                         {new Date(r.date).toLocaleDateString("en-GB", {
@@ -124,10 +159,41 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                           year: "numeric",
                         })}
                       </TableCell>
-                      <TableCell>{r.checkin}</TableCell>
+                      <TableCell>{r.checkin || "-"}</TableCell>
                       <TableCell>{r.checkout || "-"}</TableCell>
-                      <TableCell>{r.location}</TableCell>
-                      <TableCell>{r.detail}</TableCell>
+                      <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
+                      <TableCell>{r.detail || ""}</TableCell>
+                      <TableCell>{r.district || ""}</TableCell>
+                      <TableCell>
+                        {r.checkinGps ? (
+                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkinGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                            {r.checkinGps}
+                          </a>
+                        ) : ("")}
+                        {r.checkinGps && GMAPS_KEY ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {r.checkoutGps ? (
+                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkoutGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                            {r.checkoutGps}
+                          </a>
+                        ) : ("")}
+                        {r.checkoutGps && GMAPS_KEY ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {r.distanceKm != null ? (
+                          <span className={MAX_KM && r.distanceKm > MAX_KM ? "text-red-700 font-semibold" : ""}>
+                            {r.distanceKm.toFixed(3)}
+                            {MAX_KM && r.distanceKm > MAX_KM ? " !" : ""}
+                          </span>
+                        ) : ""}
+                      </TableCell>
                       <TableCell>
                         <span
                           className={`inline-flex w-full justify-center rounded px-2 py-1 text-sm font-medium ${rowBg(
@@ -158,3 +224,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     </div>
   );
 }
+
+
+
+
+

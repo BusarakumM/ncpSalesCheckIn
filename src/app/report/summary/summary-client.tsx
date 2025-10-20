@@ -1,26 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 // ---- Mock data (per your screenshot) ----
-type Row = { name: string; total: number; completed: number; incomplete: number; ongoing: number };
-const DATA: Row[] = [
-  { name: "นาย A", total: 3, completed: 3, incomplete: 0, ongoing: 0 },
-  { name: "นาย B", total: 3, completed: 0, incomplete: 0, ongoing: 3 },
-  { name: "นาย C", total: 3, completed: 3, incomplete: 0, ongoing: 0 },
-  { name: "นาย D", total: 3, completed: 0, incomplete: 3, ongoing: 0 },
-];
+type Row = { name: string; district?: string; total: number; completed: number; incomplete: number; ongoing: number };
+const DATA: Row[] = [];
 
 export default function SummaryClient({ homeHref }: { homeHref: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [qDistrict, setQDistrict] = useState("");
 
-  const rows = DATA;
+  
+  const [rows, setRows] = useState<Row[]>([]);
+
+  async function load() {
+    const res = await fetch("/api/pa/report/summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to, district: qDistrict })
+    });
+    const data = await res.json();
+    if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load summary");
+    setRows(data.summary as Row[]);
+  }
+
+  useEffect(() => { load().catch(() => {}); }, []);
 
   const kpis = useMemo(() => {
     const members = rows.length;
@@ -51,7 +61,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
         {/* Filter */}
         <div className="mt-4">
           <div className="text-sm font-medium mb-2">Filter : Date</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label className="mb-1 block">From</Label>
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
@@ -60,9 +70,13 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               <Label className="mb-1 block">To</Label>
               <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
             </div>
+            <div>
+              <Label className="mb-1 block">District</Label>
+              <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} placeholder="District" className="bg-white" />
+            </div>
           </div>
           <div className="mt-3 flex justify-center">
-            <Button className="rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 px-6 sm:px-10">
+            <Button onClick={load} className="rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 px-6 sm:px-10">
               OK
             </Button>
           </div>
@@ -120,8 +134,9 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
             {/* Use a min-width grid so columns don't squish on phones */}
             <div className="min-w-[680px]">
               {/* Header row */}
-              <div className="grid grid-cols-5 px-2 pb-2 text-sm font-medium">
+              <div className="grid grid-cols-6 px-2 pb-2 text-sm font-medium">
                 <div>Sale support name</div>
+                <div className="text-center">District</div>
                 <div className="text-center">Task total</div>
                 <div className="text-center">Completed</div>
                 <div className="text-center">Incomplete</div>
@@ -129,12 +144,13 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               </div>
 
               <div className="space-y-3">
-                {rows.map((r) => (
+                {rows.length === 0 ? (<div className="text-center text-gray-600">No data</div>) : rows.map((r) => (
                   <div
                     key={r.name}
-                    className="grid grid-cols-5 items-center rounded-2xl bg-white px-3 py-3 shadow-sm"
+                    className="grid grid-cols-6 items-center rounded-2xl bg-white px-3 py-3 shadow-sm"
                   >
                     <div className="truncate">{r.name}</div>
+                    <div className="text-center font-semibold">{r.district || ""}</div>
                     <div className="text-center font-semibold">{r.total}</div>
                     <div className="text-center font-semibold">{r.completed}</div>
                     <div className="text-center font-semibold">{r.incomplete}</div>
@@ -146,7 +162,38 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           </div>
         </div>
 
+        {/* Export */}
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-700 text-center sm:text-left">
+            Export summary CSV
+          </div>
+          <button
+            onClick={() => {
+              const header = ["Name","District","Total","Completed","Incomplete","Ongoing"];
+              const lines = rows.map((r) => [r.name, r.district || "", r.total, r.completed, r.incomplete, r.ongoing]);
+              const csv = [header, ...lines]
+                .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+                .join("\n");
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "summary.csv";
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50 self-center sm:self-auto"
+            title="Export"
+          >
+            ?
+          </button>
+        </div>
+
       </div>
     </div>
   );
 }
+
+
+
+

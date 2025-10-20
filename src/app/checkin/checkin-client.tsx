@@ -99,7 +99,6 @@ export default function CheckinClient({ homeHref }: { homeHref: string }) {
                   CHECK
                 </Link>
               </div>
-
               {/* Tablet+ layout (grid) */}
               <div className="hidden sm:grid grid-cols-[36px_1fr_auto] items-center gap-4">
                 <div className="text-center font-semibold">{t.id}</div>
