@@ -56,10 +56,10 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   useEffect(() => { fetchRows().catch(() => {}); }, []);
   const filtered = useMemo(() => {
     return DATA.filter((r) => {
-      const nameMatch =
-        !qName ||
-        r.name.toLowerCase().includes(qName.toLowerCase()) ||
-        r.email.toLowerCase().includes(qName.toLowerCase());
+      const n = (r.name || "").toLowerCase();
+      const e = (r.email || "").toLowerCase();
+      const q = qName.toLowerCase();
+      const nameMatch = !qName || n.includes(q) || e.includes(q);
       const dateMatch = !qDate || r.date === qDate;
       return nameMatch && dateMatch;
     });
