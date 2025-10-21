@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import LogoBadge from "@/components/LogoBadge";
 
 type Task = {
-  id: number;
+  id: string;
   location: string;
   status: "In Progress" | "Completed" | "Not start yet";
   date: string; // yyyy-mm-dd
@@ -39,7 +39,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
         const data = (await res.json()) as { ok: boolean; rows?: Array<{ date: string; location: string; status: 'completed' | 'incomplete' | 'ongoing' }> };
         if (!data?.ok) throw new Error('Failed to load activities');
         const mapped: Task[] = (data.rows || []).map((r, i) => ({
-          id: i + 1,
+          id: typeof window !== 'undefined' ? encodeURIComponent(btoa(`${email || ''}|${r.date}|${r.location || ''}`)) : String(i + 1),
           location: r.location || 'Location',
           date: r.date,
           status: r.status === 'completed' ? 'Completed' : 'In Progress',

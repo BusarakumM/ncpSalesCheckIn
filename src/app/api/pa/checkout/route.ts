@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { addRowToTableByObject, graphTables } from "@/lib/graph";
+import { addRowToTableByObject, graphTables, getTableHeaders, getTableValues } from "@/lib/graph";
 
 export async function POST(req: Request) {
   try {
@@ -48,7 +48,32 @@ export async function POST(req: Request) {
     };
 
     await addRowToTableByObject(graphTables.checkout(), rowObj);
-    return NextResponse.json({ ok: true });
+
+    // Compute current status by checking if a matching check-in exists
+    let status: "incomplete" | "completed" = "incomplete";
+    try {
+      const ciTbl = graphTables.checkin();
+      const [headers, rows] = await Promise.all([getTableHeaders(ciTbl), getTableValues(ciTbl)]);
+      const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+      const id = { iso: idx("checkinISO"), email: idx("email"), location: idx("locationName") };
+      const targetDate = enriched.checkout ? new Date(enriched.checkout).toISOString().slice(0, 10) : "";
+      const email = String(enriched.email || "");
+      const location = String(enriched.locationName || "");
+      if (id.iso >= 0) {
+        for (const r of rows) {
+          const iso = String(r[id.iso] || "");
+          const d = iso ? new Date(iso).toISOString().slice(0, 10) : "";
+          const e = id.email >= 0 ? String(r[id.email] || "") : "";
+          const loc = id.location >= 0 ? String(r[id.location] || "") : "";
+          if (d === targetDate && (!email || e === email) && (!location || loc === location)) {
+            status = "completed";
+            break;
+          }
+        }
+      }
+    } catch {}
+
+    return NextResponse.json({ ok: true, status });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Checkout failed" }, { status: 500 });
   }

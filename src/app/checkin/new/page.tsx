@@ -111,7 +111,7 @@ export default function NewTaskPage() {
     try {
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
-      await submitCheckin({
+      const resp = await submitCheckin({
         checkin: checkinTime,
         locationName,
         gps,
@@ -120,6 +120,8 @@ export default function NewTaskPage() {
         jobDetail,
         photoUrl: uploadedUrl,
       });
+      const st = resp?.status ? String(resp.status) : "";
+      alert(st ? `Saved (${st})` : "Saved");
       router.replace("/checkin");
     } catch (e: any) {
       alert(e?.message || "Submit failed");
@@ -138,13 +140,15 @@ export default function NewTaskPage() {
     try {
       let uploadedUrl: string | null = null;
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
-      await submitCheckout({
+      const resp = await submitCheckout({
         checkout: checkoutTime,
         checkoutGps,
         checkoutAddress,
         checkoutPhotoUrl: uploadedUrl,
         locationName,
       });
+      const st = resp?.status ? String(resp.status) : "";
+      alert(st ? `Saved (${st})` : "Saved");
       router.replace("/checkin");
     } catch (e: any) {
       alert(e?.message || "Submit failed");

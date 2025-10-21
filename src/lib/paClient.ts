@@ -66,20 +66,24 @@ export async function uploadPhoto(file: File): Promise<string> {
   return data.url as string;
 }
 
-export async function submitCheckin(payload: any) {
+export async function submitCheckin(payload: any): Promise<{ ok: true; status?: string }>{
   const res = await fetch("/api/pa/checkin", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error("Check-in failed");
+  const data = await res.json().catch(() => null as any);
+  if (!res.ok || !data?.ok) throw new Error(data?.error || "Check-in failed");
+  return data as { ok: true; status?: string };
 }
 
-export async function submitCheckout(payload: any) {
+export async function submitCheckout(payload: any): Promise<{ ok: true; status?: string }>{
   const res = await fetch("/api/pa/checkout", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error("Checkout failed");
+  const data = await res.json().catch(() => null as any);
+  if (!res.ok || !data?.ok) throw new Error(data?.error || "Checkout failed");
+  return data as { ok: true; status?: string };
 }
 
 export async function submitLeave(payload: any) {

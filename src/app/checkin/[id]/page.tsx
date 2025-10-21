@@ -27,15 +27,59 @@ export default function TaskDetailPage() {
   const galleryFileRef = useRef<HTMLInputElement | null>(null);
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
   const checkoutGalleryFileRef = useRef<HTMLInputElement | null>(null);
+  const [hasExistingCheckin, setHasExistingCheckin] = useState(false);
+  const [hasExistingCheckout, setHasExistingCheckout] = useState(false);
 
-  // Prefill current datetime (local) as check-in time
+  // Try to load existing task by stable key (email|date|location); otherwise default time to now
   useEffect(() => {
-    const now = new Date();
-    const isoLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 16); // yyyy-MM-ddTHH:mm
-    setCheckinTime(isoLocal);
-  }, []);
+    let cancelled = false;
+    async function load() {
+      try {
+        let decoded = "";
+        try { decoded = typeof atob === 'function' ? atob(decodeURIComponent(id)) : ""; } catch {}
+        const parts = decoded.split("|");
+        const email = parts[0] || "";
+        const date = parts[1] || "";
+        const location = parts.slice(2).join("|");
+        if (email && date) {
+          const res = await fetch('/api/pa/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: date, to: date, email }) });
+          const data = await res.json();
+          if (res.ok && data?.ok && Array.isArray(data.rows)) {
+            const row = (data.rows as any[]).find((r) => (r.location || "") === (location || ""));
+            if (row && !cancelled) {
+              setLocationName(row.location || "");
+              setGps(row.checkinGps || "");
+              setCheckoutGps(row.checkoutGps || "");
+              setJobDetail(row.detail || "");
+              if (row.imageIn) setPhotoUrl(row.imageIn);
+              if (row.imageOut) setCheckoutPhotoUrl(row.imageOut);
+              const toLocalInput = (d: string, t?: string) => {
+                if (!d || !t) return "";
+                const [hh, mm] = String(t).split(":");
+                const dt = new Date(`${d}T${hh.padStart(2,'0')}:${mm.padStart(2,'0')}:00`);
+                const isoLocal = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+                return isoLocal;
+              };
+              setCheckinTime(toLocalInput(row.date, row.checkin));
+              setCheckoutTime(toLocalInput(row.date, row.checkout));
+              setHasExistingCheckin(!!row.checkin);
+              setHasExistingCheckout(!!row.checkout);
+              return;
+            }
+          }
+        }
+      } catch {}
+      if (!cancelled) {
+        const now = new Date();
+        const isoLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+        setCheckinTime(isoLocal);
+        setHasExistingCheckin(false);
+        setHasExistingCheckout(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
 
   async function reverseGeocode(lat: number, lon: number): Promise<string> {
     try {
@@ -113,7 +157,7 @@ export default function TaskDetailPage() {
     try {
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
-      await submitCheckin({
+      const resp = await submitCheckin({
         id,
         checkin: checkinTime,
         locationName,
@@ -122,6 +166,8 @@ export default function TaskDetailPage() {
         jobDetail,
         photoUrl: uploadedUrl,
       });
+      const st = resp?.status ? String(resp.status) : "";
+      alert(st ? `Saved (${st})` : "Saved");
       router.replace("/checkin");
     } catch (e: any) {
       alert(e?.message || "Submit failed");
@@ -132,13 +178,16 @@ export default function TaskDetailPage() {
     try {
       let uploadedUrl: string | null = null;
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
-      await submitCheckout({
+      const resp = await submitCheckout({
         id,
         checkout: checkoutTime,
         checkoutGps,
         checkoutAddress,
+        locationName,
         checkoutPhotoUrl: uploadedUrl,
       });
+      const st = resp?.status ? String(resp.status) : "";
+      alert(st ? `Saved (${st})` : "Saved");
       router.replace("/checkin");
     } catch (e: any) {
       alert(e?.message || "Submit failed");
@@ -255,6 +304,34 @@ export default function TaskDetailPage() {
             className="hidden"
             onChange={onPickPhoto}
           />
+          <button
+            type="button"
+            onClick={() => galleryFileRef.current?.click()}
+            className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50"
+            title="Attach from gallery"
+          >
+            Attach photo
+          </button>
+          <input
+            ref={galleryFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onPickPhoto}
+          />
+        </div>
+
+        {/* Status label */}
+        <div className="-mt-1 mb-2 flex justify-center">
+          {hasExistingCheckin ? (
+            hasExistingCheckout ? (
+              <span className="inline-flex items-center rounded-full bg-[#6EC3A1] text-white px-3 py-1 text-xs sm:text-sm">Completed</span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-[#E7D6B9] text-black px-3 py-1 text-xs sm:text-sm">Ongoing</span>
+            )
+          ) : (
+            <span className="inline-flex items-center rounded-full bg-gray-200 text-gray-800 px-3 py-1 text-xs sm:text-sm">Not started</span>
+          )}
         </div>
 
         {/* Photo preview (kept stable with aspect ratio) */}
@@ -275,7 +352,9 @@ export default function TaskDetailPage() {
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
             onClick={onSubmitCheckin}
-            className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20"
+            disabled={hasExistingCheckin}
+            className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+            title={hasExistingCheckin ? "Check-in already submitted" : undefined}
           >
             Submit Check-in
           </Button>
@@ -343,6 +422,21 @@ export default function TaskDetailPage() {
                 type="file"
                 accept="image/*"
                 capture="environment"
+                className="hidden"
+                onChange={onPickCheckoutPhoto}
+              />
+              <button
+                type="button"
+                onClick={() => checkoutGalleryFileRef.current?.click()}
+                className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50"
+                title="Attach from gallery"
+              >
+                Attach photo
+              </button>
+              <input
+                ref={checkoutGalleryFileRef}
+                type="file"
+                accept="image/*"
                 className="hidden"
                 onChange={onPickCheckoutPhoto}
               />
