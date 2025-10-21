@@ -421,23 +421,32 @@ export async function findUserByEmail(email: string): Promise<{
   district?: string;
 } | null> {
   const table = graphTables.users();
-  const rows = await getTableValues(table);
-  // Expected order: [email, role, name, employeeNo, supervisorEmail, province, channel, district]
-  const idx = { email: 0, role: 1, name: 2, employeeNo: 3, supervisorEmail: 4, province: 5, channel: 6, district: 7 } as const;
+  const [headers, rows] = await Promise.all([getTableHeaders(table), getTableValues(table)]);
+  const idx = (name: string) => headers.findIndex((h) => String(h).trim().toLowerCase() === name.toLowerCase());
+  const cols = {
+    email: idx("email"),
+    role: idx("role"),
+    name: idx("name"),
+    employeeNo: idx("employeeNo"),
+    supervisorEmail: idx("supervisorEmail"),
+    province: idx("province"),
+    channel: idx("channel"),
+    district: idx("district"),
+  };
   const target = email.trim().toLowerCase();
   for (const r of rows) {
-    const em = String(r[idx.email] || "").trim().toLowerCase();
+    const em = cols.email >= 0 ? String(r[cols.email] || "").trim().toLowerCase() : "";
     if (!em) continue;
     if (em === target) {
       return {
-        email: String(r[idx.email] || "").trim(),
-        role: String(r[idx.role] || "").trim() as any,
-        name: String(r[idx.name] || "").trim(),
-        employeeNo: String(r[idx.employeeNo] || "").trim(),
-        supervisorEmail: String(r[idx.supervisorEmail] || "").trim(),
-        province: String(r[idx.province] || "").trim(),
-        channel: String(r[idx.channel] || "").trim(),
-        district: String(r[idx.district] || "").trim(),
+        email: cols.email >= 0 ? String(r[cols.email] || "").trim() : "",
+        role: cols.role >= 0 ? (String(r[cols.role] || "").trim() as any) : undefined,
+        name: cols.name >= 0 ? String(r[cols.name] || "").trim() : undefined,
+        employeeNo: cols.employeeNo >= 0 ? String(r[cols.employeeNo] || "").trim() : undefined,
+        supervisorEmail: cols.supervisorEmail >= 0 ? String(r[cols.supervisorEmail] || "").trim() : undefined,
+        province: cols.province >= 0 ? String(r[cols.province] || "").trim() : undefined,
+        channel: cols.channel >= 0 ? String(r[cols.channel] || "").trim() : undefined,
+        district: cols.district >= 0 ? String(r[cols.district] || "").trim() : undefined,
       };
     }
   }
