@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import LogoBadge from "@/components/LogoBadge";
 
@@ -12,18 +12,50 @@ type Task = {
   date: string; // yyyy-mm-dd
 };
 
-const MOCK: Task[] = [
-  { id: 1, location: "Location", status: "In Progress",   date: "2025-06-16" },
-  { id: 2, location: "Location", status: "Completed",     date: "2025-06-16" },
-  { id: 3, location: "Location", status: "Not start yet", date: "2025-06-16" },
-];
+function todayUtcDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
-export default function CheckinClient({ homeHref }: { homeHref: string }) {
-  const [qDate, setQDate] = useState("");
-  const filtered = useMemo(
-    () => (!qDate ? MOCK : MOCK.filter((t) => t.date === qDate)),
-    [qDate]
-  );
+export default function CheckinClient({ homeHref, email }: { homeHref: string; email: string }) {
+  const [qDate, setQDate] = useState<string>(todayUtcDate());
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const payload = { from: qDate, to: qDate, email } as any;
+        const res = await fetch('/api/pa/activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          cache: 'no-store',
+        });
+        if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to load activities'));
+        const data = (await res.json()) as { ok: boolean; rows?: Array<{ date: string; location: string; status: 'completed' | 'incomplete' | 'ongoing' }> };
+        if (!data?.ok) throw new Error('Failed to load activities');
+        const mapped: Task[] = (data.rows || []).map((r, i) => ({
+          id: i + 1,
+          location: r.location || 'Location',
+          date: r.date,
+          status: r.status === 'completed' ? 'Completed' : 'In Progress',
+        }));
+        if (!cancelled) setTasks(mapped);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || 'Failed to load');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [qDate, email]);
+
+  const filtered = useMemo(() => tasks, [tasks]);
 
   function statusStyles(s: Task["status"]) {
     if (s === "Completed") return "bg-[#6EC3A1] text-white px-2 py-0.5 rounded text-xs sm:text-sm";
@@ -77,7 +109,13 @@ export default function CheckinClient({ homeHref }: { homeHref: string }) {
 
         {/* List */}
         <div className="mt-4 space-y-3">
-          {filtered.map((t) => (
+          {loading ? (
+            <div className="text-sm text-gray-700">Loading...</div>
+          ) : error ? (
+            <div className="text-sm text-red-700">{error}</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-sm text-gray-700">No tasks for this date</div>
+          ) : filtered.map((t) => (
             <div
               key={t.id}
               className={`rounded-2xl px-4 py-3 shadow-sm border border-black/10 ${rowBg(t.status)}`}
