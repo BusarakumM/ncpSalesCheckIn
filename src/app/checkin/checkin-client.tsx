@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import LogoBadge from "@/components/LogoBadge";
 
 type Task = {
-  id: string;
+  id: string; // encoded stable key for URL
+  no: number; // display number
   location: string;
   status: "In Progress" | "Completed" | "Not start yet";
   date: string; // yyyy-mm-dd
@@ -40,6 +41,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
         if (!data?.ok) throw new Error('Failed to load activities');
         const mapped: Task[] = (data.rows || []).map((r, i) => ({
           id: typeof window !== 'undefined' ? encodeURIComponent(btoa(`${email || ''}|${r.date}|${r.location || ''}`)) : String(i + 1),
+          no: i + 1,
           location: r.location || 'Location',
           date: r.date,
           status: r.status === 'completed' ? 'Completed' : 'In Progress',
@@ -123,7 +125,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
               {/* Mobile layout (stacked) */}
               <div className="flex sm:hidden items-start gap-3">
                 <div className="min-w-[32px] h-8 rounded-md bg-white/70 text-center leading-8 font-semibold text-gray-800">
-                  {t.id}
+                  {t.no}
                 </div>
                 <div className="flex-1">
                   <div className="font-medium text-base">{t.location}</div>
@@ -139,7 +141,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
               </div>
               {/* Tablet+ layout (grid) */}
               <div className="hidden sm:grid grid-cols-[36px_1fr_auto] items-center gap-4">
-                <div className="text-center font-semibold">{t.id}</div>
+                <div className="text-center font-semibold">{t.no}</div>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="font-medium text-lg">{t.location}</div>
