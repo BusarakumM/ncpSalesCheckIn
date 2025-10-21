@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import NavBar from "../components/NavBar";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import InstallPrompt from "@/components/InstallPrompt";
 
 export const metadata: Metadata = {
   title: "NCP Sales Support",
@@ -24,6 +25,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-[#F7F4EA] antialiased">
         <ServiceWorkerRegister />
+        <InstallPrompt />
         {children}
       </body>
     </html>
