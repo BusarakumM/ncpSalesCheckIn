@@ -29,6 +29,13 @@ export function middleware(req: NextRequest) {
 
   if (isPublic) return NextResponse.next();
 
+  // Allow all API routes to pass through without middleware redirects.
+  // APIs can handle auth and return JSON errors themselves. This prevents
+  // fetch() calls from being redirected to HTML (e.g., /sign-in).
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   const session = req.cookies.get("session")?.value;
   const role = req.cookies.get("role")?.value;
 
