@@ -21,6 +21,7 @@ type Row = {
   checkinGps?: string;
   checkoutGps?: string;
   distanceKm?: number;
+  remark?: string;
 };
 
 const DATA: Row[] = [];
@@ -64,6 +65,13 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
       checkinGps: r.checkinGps,
       checkoutGps: r.checkoutGps,
       distanceKm: r.distanceKm,
+      remark: (() => {
+        const d = typeof r.distanceKm === 'number' ? r.distanceKm : null;
+        if (d != null && isFinite(d) && MAX_KM && d > MAX_KM) {
+          return "Checkout location differs from check-in";
+        }
+        return "";
+      })(),
     }));
     setRows(mapped);
   }
@@ -72,9 +80,9 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
 
 
   function exportCsv() {
-    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image uri", "Status"];
+    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image uri", "Remark", "Status"];
     const lines = rows.map((r) => [
-      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.image, r.status,
+      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.image, r.remark || "", r.status,
     ]);
     const csv = [header, ...lines]
       .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -134,7 +142,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
           <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
-            <Table className="min-w-[820px] text-sm">
+            <Table className="min-w-[980px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="min-w-[120px]">Date/Time</TableHead>
@@ -147,6 +155,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[180px]">Out GPS</TableHead>
                   <TableHead className="min-w-[120px]">Distance (km)</TableHead>
                   <TableHead className="min-w-[160px]">Image</TableHead>
+                  <TableHead className="min-w-[220px]">Remark</TableHead>
                   <TableHead className="min-w-[120px]">Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -206,6 +215,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                           </span>
                         ) : ""}
                       </TableCell>
+                      <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
                       <TableCell>
                         {r.image ? (
                           <a href={r.image} target="_blank" rel="noopener noreferrer">
