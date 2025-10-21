@@ -12,6 +12,14 @@ export async function POST(req: Request) {
     password: body.password,
   });
 
+  // Enforce simple credential: email + employeeNo as password, when available
+  const expectedEmpNo = resolution.metadata?.employeeNo?.toString().trim();
+  const providedPwd = (body.password || "").toString().trim();
+  // If we know the employeeNo for this email, require it to match the provided password
+  if (expectedEmpNo && providedPwd !== expectedEmpNo) {
+    return NextResponse.json({ ok: false, error: "Invalid email or password" }, { status: 401 });
+  }
+
   const res = NextResponse.json({
     ok: true,
     role: resolution.role,
