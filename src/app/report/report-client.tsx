@@ -146,7 +146,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[140px]">In GPS</TableHead>
                   <TableHead className="min-w-[140px]">Out GPS</TableHead>
                   <TableHead className="min-w-[120px]">Distance (km)</TableHead>
-                  <TableHead className="min-w-[160px]">Image uri</TableHead>
+                  <TableHead className="min-w-[160px]">Image</TableHead>
                   <TableHead className="min-w-[120px]">Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -200,7 +200,14 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                           </span>
                         ) : ""}
                       </TableCell>
-                      <TableCell className="truncate">{r.image}</TableCell>
+                      <TableCell>
+                        {r.image ? (
+                          <a href={r.image} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={r.image} alt="activity" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                          </a>
+                        ) : ("")}
+                      </TableCell>
                       <TableCell>
                         <span className={`inline-flex w-full justify-center rounded px-2 py-1 text-sm font-medium ${statusClass(r.status)}`}>
                           {r.status}

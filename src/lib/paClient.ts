@@ -1,4 +1,4 @@
-async function fileToBase64(file: File): Promise<string> {
+async function fileToBase64(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -15,13 +15,47 @@ async function fileToBase64(file: File): Promise<string> {
   });
 }
 
+async function resizeImageToJpegBase64(file: File, maxSide = 240, quality = 0.75): Promise<string> {
+  // Use an offscreen canvas to resize to a smaller JPEG, keeping aspect ratio.
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = (e) => reject(new Error("Failed to load image"));
+      i.src = url;
+    });
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    if (!iw || !ih) {
+      return await fileToBase64(file);
+    }
+    const scale = Math.min(1, maxSide / Math.max(iw, ih));
+    const tw = Math.max(1, Math.round(iw * scale));
+    const th = Math.max(1, Math.round(ih * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return await fileToBase64(file);
+    ctx.drawImage(img, 0, 0, tw, th);
+    const blob: Blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', quality);
+    });
+    return await fileToBase64(blob);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export async function uploadPhoto(file: File): Promise<string> {
   // Guard extremely large files to avoid memory pressure in the browser
   const maxBytes = 8 * 1024 * 1024; // 8MB
   if (file.size > maxBytes) {
     throw new Error("Photo is too large. Please pick an image under 8MB.");
   }
-  const b64 = await fileToBase64(file);
+  // Resize to a small 240p-ish long side before upload
+  const b64 = await resizeImageToJpegBase64(file, 240, 0.75);
   const res = await fetch("/api/pa/upload-photo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

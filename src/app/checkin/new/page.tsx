@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { submitCheckin, submitCheckout, uploadPhoto } from "@/lib/paClient";
+import { useRouter } from "next/navigation";
 
 export default function NewTaskPage() {
+  const router = useRouter();
   const [checkinTime, setCheckinTime] = useState("");
   const [checkoutTime, setCheckoutTime] = useState("");
   const [locationName, setLocationName] = useState("");
@@ -22,7 +24,9 @@ export default function NewTaskPage() {
   const [checkoutPhotoUrl, setCheckoutPhotoUrl] = useState<string | null>(null);
   const [checkoutPhotoFile, setCheckoutPhotoFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const galleryFileRef = useRef<HTMLInputElement | null>(null);
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
+  const checkoutGalleryFileRef = useRef<HTMLInputElement | null>(null);
 
   // Prefill current datetime as check-in time
   useEffect(() => {
@@ -116,7 +120,7 @@ export default function NewTaskPage() {
         jobDetail,
         photoUrl: uploadedUrl,
       });
-      alert("Check-in submitted");
+      router.replace("/checkin");
     } catch (e: any) {
       alert(e?.message || "Submit failed");
     }
@@ -141,7 +145,7 @@ export default function NewTaskPage() {
         checkoutPhotoUrl: uploadedUrl,
         locationName,
       });
-      alert("Checkout submitted");
+      router.replace("/checkin");
     } catch (e: any) {
       alert(e?.message || "Submit failed");
     }
@@ -246,6 +250,21 @@ export default function NewTaskPage() {
             className="hidden"
             onChange={onPickPhoto}
           />
+          <button
+            type="button"
+            onClick={() => galleryFileRef.current?.click()}
+            className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50"
+            title="Attach from gallery"
+          >
+            Attach photo
+          </button>
+          <input
+            ref={galleryFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onPickPhoto}
+          />
         </div>
 
         {/* Photo preview */}
@@ -337,6 +356,21 @@ export default function NewTaskPage() {
                 type="file"
                 accept="image/*"
                 capture="environment"
+                className="hidden"
+                onChange={onPickCheckoutPhoto}
+              />
+              <button
+                type="button"
+                onClick={() => checkoutGalleryFileRef.current?.click()}
+                className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50"
+                title="Attach from gallery"
+              >
+                Attach photo
+              </button>
+              <input
+                ref={checkoutGalleryFileRef}
+                type="file"
+                accept="image/*"
                 className="hidden"
                 onChange={onPickCheckoutPhoto}
               />

@@ -201,8 +201,22 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                           </span>
                         ) : ""}
                       </TableCell>
-                      <TableCell className="truncate">{r.imageIn || ""}</TableCell>
-                      <TableCell className="truncate">{r.imageOut || ""}</TableCell>
+                      <TableCell>
+                        {r.imageIn ? (
+                          <a href={r.imageIn} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={r.imageIn} alt="check-in" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                          </a>
+                        ) : ("")}
+                      </TableCell>
+                      <TableCell>
+                        {r.imageOut ? (
+                          <a href={r.imageOut} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={r.imageOut} alt="check-out" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                          </a>
+                        ) : ("")}
+                      </TableCell>
                       <TableCell>{r.status || ""}</TableCell>
                       <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
