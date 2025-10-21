@@ -13,6 +13,7 @@ export default function TaskDetailPage() {
   const router = useRouter();
   const [checkinTime, setCheckinTime] = useState("");
   const [checkoutTime, setCheckoutTime] = useState("");
+  const [displayTitle, setDisplayTitle] = useState<string>("Task");
   const [locationName, setLocationName] = useState("");
   const [gps, setGps] = useState<string>("");
   const [checkinAddress, setCheckinAddress] = useState<string>("");
@@ -41,6 +42,10 @@ export default function TaskDetailPage() {
         const email = parts[0] || "";
         const date = parts[1] || "";
         const location = parts.slice(2).join("|");
+        if (date || location) {
+          const dDisp = date ? new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
+          setDisplayTitle([location || "Task", dDisp].filter(Boolean).join(" — "));
+        }
         if (email && date) {
           const res = await fetch('/api/pa/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: date, to: date, email }) });
           const data = await res.json();
@@ -75,6 +80,7 @@ export default function TaskDetailPage() {
         setCheckinTime(isoLocal);
         setHasExistingCheckin(false);
         setHasExistingCheckout(false);
+        setDisplayTitle("New Task");
       }
     }
     load();
@@ -207,7 +213,7 @@ export default function TaskDetailPage() {
             <span className="text-xl">←</span>
           </Link>
           <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">
-            Task No. {id}
+            {displayTitle}
           </h1>
         </div>
 
