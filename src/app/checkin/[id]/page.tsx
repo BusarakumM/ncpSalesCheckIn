@@ -14,7 +14,9 @@ export default function TaskDetailPage() {
   const [checkoutTime, setCheckoutTime] = useState("");
   const [locationName, setLocationName] = useState("");
   const [gps, setGps] = useState<string>("");
+  const [checkinAddress, setCheckinAddress] = useState<string>("");
   const [checkoutGps, setCheckoutGps] = useState<string>("");
+  const [checkoutAddress, setCheckoutAddress] = useState<string>("");
   const [jobDetail, setJobDetail] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -32,11 +34,33 @@ export default function TaskDetailPage() {
     setCheckinTime(isoLocal);
   }, []);
 
+  async function reverseGeocode(lat: number, lon: number): Promise<string> {
+    try {
+      const res = await fetch(`/api/maps/geocode?lat=${lat}&lon=${lon}`, { cache: "no-store" });
+      if (!res.ok) return "";
+      const data = await res.json();
+      return data?.address || "";
+    } catch {
+      return "";
+    }
+  }
+
+  const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY as string | undefined;
+  function mapUrl(coord?: string) {
+    if (!coord || !GMAPS_KEY) return "";
+    const q = encodeURIComponent(coord);
+    return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=320x200&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
+  }
+
   function captureGPS() {
     if (!("geolocation" in navigator)) return alert("Geolocation not supported");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGps(`${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`);
+        const lat = pos.coords.latitude.toFixed(6);
+        const lon = pos.coords.longitude.toFixed(6);
+        const coord = `${lat}, ${lon}`;
+        setGps(coord);
+        reverseGeocode(parseFloat(lat), parseFloat(lon)).then((addr) => setCheckinAddress(addr || ""));
       },
       (err) => alert(err.message),
       { enableHighAccuracy: true, timeout: 15000 }
@@ -55,7 +79,11 @@ export default function TaskDetailPage() {
     if (!("geolocation" in navigator)) return alert("Geolocation not supported");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setCheckoutGps(`${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`);
+        const lat = pos.coords.latitude.toFixed(6);
+        const lon = pos.coords.longitude.toFixed(6);
+        const coord = `${lat}, ${lon}`;
+        setCheckoutGps(coord);
+        reverseGeocode(parseFloat(lat), parseFloat(lon)).then((addr) => setCheckoutAddress(addr || ""));
       },
       (err) => alert(err.message),
       { enableHighAccuracy: true, timeout: 15000 }
@@ -87,6 +115,7 @@ export default function TaskDetailPage() {
         checkin: checkinTime,
         locationName,
         gps,
+        checkinAddress,
         jobDetail,
         photoUrl: uploadedUrl,
       });
@@ -104,6 +133,7 @@ export default function TaskDetailPage() {
         id,
         checkout: checkoutTime,
         checkoutGps,
+        checkoutAddress,
         checkoutPhotoUrl: uploadedUrl,
       });
       alert("Checkout submitted");
@@ -166,6 +196,15 @@ export default function TaskDetailPage() {
                 Get GPS
               </Button>
             </div>
+            {checkinAddress ? (
+              <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkinAddress}>
+                {checkinAddress}
+              </div>
+            ) : null}
+            {gps && GMAPS_KEY ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={mapUrl(gps)} alt="check-in map" className="mt-2 rounded border border-black/10" />
+            ) : null}
           </div>
         </div>
 
@@ -258,6 +297,15 @@ export default function TaskDetailPage() {
                     Get GPS
                   </Button>
                 </div>
+                {checkoutAddress ? (
+                  <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkoutAddress}>
+                    {checkoutAddress}
+                  </div>
+                ) : null}
+                {checkoutGps && GMAPS_KEY ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={mapUrl(checkoutGps)} alt="checkout map" className="mt-2 rounded border border-black/10" />
+                ) : null}
               </div>
             </div>
 
