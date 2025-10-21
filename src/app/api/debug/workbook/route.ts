@@ -21,11 +21,14 @@ async function sampleFor(tableName: string) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const url = new URL(req.url);
+    const key = url.searchParams.get("key") || "";
     const c = await cookies();
     const role = c.get("role")?.value;
-    if (role !== "SUPERVISOR") {
+    const debugKey = process.env.DEBUG_KEY || "";
+    if (!(role === "SUPERVISOR" || (debugKey && key === debugKey))) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
@@ -59,4 +62,3 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: e?.message || "Workbook debug failed" }, { status: 500 });
   }
 }
-
