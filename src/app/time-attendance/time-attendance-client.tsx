@@ -21,6 +21,8 @@ type Row = {
   district?: string;
   checkinGps?: string;
   checkoutGps?: string;
+  checkinAddress?: string;
+  checkoutAddress?: string;
   distanceKm?: number;
 };
 
@@ -177,6 +179,9 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                             {r.checkinGps}
                           </a>
                          ) : ("")}
+                        {r.checkinAddress ? (
+                          <div className="mt-1 text-xs text-gray-700" title={r.checkinAddress}>{r.checkinAddress}</div>
+                        ) : null}
                         {r.checkinGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
@@ -188,6 +193,9 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                             {r.checkoutGps}
                           </a>
                          ) : ("")}
+                        {r.checkoutAddress ? (
+                          <div className="mt-1 text-xs text-gray-700" title={r.checkoutAddress}>{r.checkoutAddress}</div>
+                        ) : null}
                         {r.checkoutGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />

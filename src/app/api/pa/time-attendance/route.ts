@@ -48,6 +48,8 @@ export async function POST(req: Request) {
         district: a.district || "",
         checkinGps: a.checkinGps || "",
         checkoutGps: a.checkoutGps || "",
+        checkinAddress: a.checkinAddress || "",
+        checkoutAddress: a.checkoutAddress || "",
         distanceKm: a.distanceKm ?? undefined,
       })),
       ...leaveRows,

@@ -143,8 +143,8 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[160px]">Location name</TableHead>
                   <TableHead className="min-w-[180px]">Activity detail</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
-                  <TableHead className="min-w-[140px]">In GPS</TableHead>
-                  <TableHead className="min-w-[140px]">Out GPS</TableHead>
+                  <TableHead className="min-w-[180px]">In GPS</TableHead>
+                  <TableHead className="min-w-[180px]">Out GPS</TableHead>
                   <TableHead className="min-w-[120px]">Distance (km)</TableHead>
                   <TableHead className="min-w-[160px]">Image</TableHead>
                   <TableHead className="min-w-[120px]">Status</TableHead>
@@ -176,6 +176,9 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                             {r.checkinGps}
                           </a>
                         ) : ("")}
+                        {(r as any).checkinAddress ? (
+                          <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinAddress}>{(r as any).checkinAddress}</div>
+                        ) : null}
                         {r.checkinGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
@@ -187,6 +190,9 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                             {r.checkoutGps}
                           </a>
                         ) : ("")}
+                        {(r as any).checkoutAddress ? (
+                          <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutAddress}>{(r as any).checkoutAddress}</div>
+                        ) : null}
                         {r.checkoutGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />

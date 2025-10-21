@@ -175,6 +175,8 @@ export type ActivityRow = {
   district?: string;
   checkinGps?: string;
   checkoutGps?: string;
+  checkinAddress?: string;
+  checkoutAddress?: string;
   checkinLat?: number;
   checkinLon?: number;
   checkoutLat?: number;
@@ -221,6 +223,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       iso: findIdx(ciHeaders, "checkinISO", 0),
       location: findIdx(ciHeaders, "locationName", 1),
       gps: findIdx(ciHeaders, "gps", 2),
+      address: findIdx(ciHeaders, "checkinAddress", null),
       lat: findIdx(ciHeaders, "checkinLat", null),
       lon: findIdx(ciHeaders, "checkinLon", null),
       title: findIdx(ciHeaders, "jobTitle", 3),
@@ -234,6 +237,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       iso: findIdx(coHeaders, "checkoutISO", 0),
       location: findIdx(coHeaders, "locationName", 1),
       gps: findIdx(coHeaders, "checkoutGps", 2),
+      address: findIdx(coHeaders, "checkoutAddress", null),
       lat: findIdx(coHeaders, "checkoutLat", null),
       lon: findIdx(coHeaders, "checkoutLon", null),
       photo: findIdx(coHeaders, "checkoutPhotoUrl", 3),
@@ -291,6 +295,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       imageIn: String(idx.ci.photo != null ? r[idx.ci.photo] || "" : ""),
       district: String(idx.ci.district != null ? r[idx.ci.district] || "" : ""),
       checkinGps: gpsStr,
+      checkinAddress: String(idx.ci.address != null ? r[idx.ci.address] || "" : ""),
       checkinLat: parsed?.lat,
       checkinLon: parsed?.lon,
     });
@@ -319,6 +324,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       if (!row.email) row.email = email;
       if (!row.district) row.district = String(idx.co.district != null ? r[idx.co.district] || "" : "");
       row.checkoutGps = gpsStr;
+      row.checkoutAddress = String(idx.co.address != null ? r[idx.co.address] || "" : "");
       row.checkoutLat = parsed?.lat;
       row.checkoutLon = parsed?.lon;
       if (row.checkinLat != null && row.checkinLon != null && row.checkoutLat != null && row.checkoutLon != null) {
@@ -335,6 +341,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
         imageOut: String(idx.co.photo != null ? r[idx.co.photo] || "" : ""),
         district: String(idx.co.district != null ? r[idx.co.district] || "" : ""),
         checkoutGps: gpsStr,
+        checkoutAddress: String(idx.co.address != null ? r[idx.co.address] || "" : ""),
         checkoutLat: parsed?.lat,
         checkoutLon: parsed?.lon,
       });
