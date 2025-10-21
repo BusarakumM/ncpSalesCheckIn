@@ -190,7 +190,9 @@ export default function NewTaskPage() {
             type="datetime-local"
             value={checkinTime}
             onChange={(e) => setCheckinTime(e.target.value)}
-            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"\r\n            disabled={isSubmitting || submittedCheckin}\r\n          />
+            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+            disabled={isSubmitting || submittedCheckin}
+          />
         </div>
 
         {/* Location Name */}
@@ -199,7 +201,9 @@ export default function NewTaskPage() {
           <Input
             value={locationName}
             onChange={(e) => setLocationName(e.target.value)}
-            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"\r\n            disabled={isSubmitting || submittedCheckin}\r\n          />
+            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+            disabled={isSubmitting || submittedCheckin}
+          />
         </div>
 
         {/* GPS */}
@@ -220,7 +224,10 @@ export default function NewTaskPage() {
               <Button
                 onClick={getGPS}
                 variant="outline"
-                className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"\r\n                disabled={isSubmitting || submittedCheckin}>\r\n                Get GPS
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={isSubmitting || submittedCheckin}
+              >
+                Get GPS
               </Button>
             </div>
           </div>
@@ -233,7 +240,9 @@ export default function NewTaskPage() {
             placeholder="Title / short description"
             value={jobTitle}
             onChange={(e) => setJobTitle(e.target.value)}
-            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"\r\n            disabled={isSubmitting || submittedCheckin}\r\n          />
+            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+            disabled={isSubmitting || submittedCheckin}
+          />
           <Textarea
             placeholder="More details…"
             value={jobDetail}
@@ -249,7 +258,7 @@ export default function NewTaskPage() {
             type="button"
             onClick={() => fileRef.current?.click()}
             className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-          >\n            disabled={isSubmitting || submittedCheckin}
+           disabled={isSubmitting || submittedCheckin}>
             📷
           </button>
           <input
@@ -265,7 +274,7 @@ export default function NewTaskPage() {
             onClick={() => galleryFileRef.current?.click()}
             className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
             title="Attach from gallery"
-          >\n            disabled={isSubmitting || submittedCheckin}
+           disabled={isSubmitting || submittedCheckin}>
             Attach photo
           </button>
           <input
@@ -343,7 +352,9 @@ export default function NewTaskPage() {
                   <Button
                     onClick={getCheckoutGPS}
                     variant="outline"
-                    className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"\r\n                disabled={isSubmitting || submittedCheckin}>\r\n                Get GPS
+                    className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={isSubmitting || submittedCheckin}>
+                Get GPS
                   </Button>
                 </div>
               </div>
@@ -417,6 +428,7 @@ export default function NewTaskPage() {
     </div>
   );
 }
+
 
 
 
