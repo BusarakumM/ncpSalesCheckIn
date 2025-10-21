@@ -453,6 +453,32 @@ export async function findUserByEmail(email: string): Promise<{
   return null;
 }
 
+// ---- Debug/drive helpers ----
+export async function listDriveChildren(path?: string) {
+  const siteId = env("GRAPH_SITE_ID");
+  const base = path
+    ? `/sites/${siteId}/drive/root:/${encodePath(path)}:/children`
+    : `/sites/${siteId}/drive/root/children`;
+  const r = await graphFetch(base);
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`Drive list failed ${r.status}: ${txt}`);
+  }
+  const data = (await r.json()) as any;
+  return Array.isArray(data?.value) ? data.value : [];
+}
+
+export async function getDriveItemMeta(path: string) {
+  const siteId = env("GRAPH_SITE_ID");
+  const url = `/sites/${siteId}/drive/root:/${encodePath(path)}`;
+  const r = await graphFetch(url);
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`Drive item failed ${r.status}: ${txt}`);
+  }
+  return (await r.json()) as any;
+}
+
 // Company holidays: [dateISO, name, type, description]
 export async function listHolidays(from?: string, to?: string): Promise<Array<{ date: string; name: string; type?: string; description?: string }>> {
   const tbl = graphTables.holidays();
