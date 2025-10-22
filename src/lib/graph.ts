@@ -492,22 +492,67 @@ export async function listHolidays(from?: string, to?: string): Promise<Array<{ 
   const [headers, rows] = await Promise.all([getTableHeaders(tbl), getTableValues(tbl)]);
   const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
   const id = { date: idx("dateISO"), name: idx("name"), type: idx("type"), description: idx("description") };
-  let items = rows.map((r) => ({
-    date: String(id.date >= 0 ? r[id.date] : r[0] || ""),
-    name: String(id.name >= 0 ? r[id.name] : r[1] || ""),
-    type: id.type >= 0 ? String(r[id.type] || "") : "",
-    description: id.description >= 0 ? String(r[id.description] || "") : "",
-  }));
+  function parseDateAny(v: any): Date | null {
+    if (v == null) return null;
+    // Excel serial number (days since 1899-12-30)
+    if (typeof v === 'number' && isFinite(v)) {
+      const base = Date.UTC(1899, 11, 30);
+      return new Date(base + Math.round(v) * 86400000);
+    }
+    const s = String(v).trim();
+    if (!s) return null;
+    // ISO or locale-parseable
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    // dd/mm/yyyy
+    const m = s.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/);
+    if (m) {
+      const dd = parseInt(m[1], 10), mm = parseInt(m[2], 10) - 1, yyyy = parseInt(m[3], 10);
+      const d = new Date(Date.UTC(yyyy, mm, dd));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    // mm/dd/yyyy
+    const m2 = s.match(/^([0-1]?\d)\/([0-3]?\d)\/(\d{4})$/);
+    if (m2) {
+      const mm = parseInt(m2[1], 10) - 1, dd = parseInt(m2[2], 10), yyyy = parseInt(m2[3], 10);
+      const d = new Date(Date.UTC(yyyy, mm, dd));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function toISODate(d: Date | null): string {
+    if (!d) return "";
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  let items = rows.map((r) => {
+    const rawDate = id.date >= 0 ? (r[id.date] as any) : (r[0] as any);
+    const parsed = parseDateAny(rawDate);
+    return {
+      date: parsed ? toISODate(parsed) : String(rawDate || ""),
+      name: String(id.name >= 0 ? r[id.name] : r[1] || ""),
+      type: id.type >= 0 ? String(r[id.type] || "") : "",
+      description: id.description >= 0 ? String(r[id.description] || "") : "",
+      _dt: parsed,
+    } as any;
+  });
   if (from) {
     const f = new Date(from);
-    items = items.filter((x) => new Date(x.date) >= f);
+    items = items.filter((x: any) => (x._dt ? x._dt >= f : false));
   }
   if (to) {
     const t = new Date(to);
-    items = items.filter((x) => new Date(x.date) <= t);
+    items = items.filter((x: any) => (x._dt ? x._dt <= t : false));
   }
-  items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  return items;
+  items.sort((a: any, b: any) => ((a._dt?.getTime() || 0) - (b._dt?.getTime() || 0)));
+  return items.map(({ _dt, ...rest }: any) => rest);
 }
 
 // Day-offs table: [email, dateISO, leaveType, remark, by, createdAt]
