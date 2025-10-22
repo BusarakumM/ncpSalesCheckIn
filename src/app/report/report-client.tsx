@@ -15,7 +15,8 @@ type Row = {
   checkout?: string;
   location: string;
   detail?: string;
-  image?: string;
+  imageIn?: string;
+  imageOut?: string;
   status: "completed" | "incomplete" | "ongoing";
   district?: string;
   checkinGps?: string;
@@ -59,7 +60,8 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
       checkout: r.checkout,
       location: r.location,
       detail: r.detail,
-      image: r.imageOut || r.imageIn || r.image,
+      imageIn: r.imageIn || "",
+      imageOut: r.imageOut || r.image || "",
       status: r.status,
       district: r.district,
       checkinGps: r.checkinGps,
@@ -80,9 +82,9 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
 
 
   function exportCsv() {
-    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image uri", "Remark", "Status"];
+    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "Remark", "Status"];
     const lines = rows.map((r) => [
-      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.image, r.remark || "", r.status,
+      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.imageIn || "", r.imageOut || "", r.remark || "", r.status,
     ]);
     const csv = [header, ...lines]
       .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -142,7 +144,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
           <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
-            <Table className="min-w-[980px] text-sm">
+            <Table className="min-w-[1120px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="min-w-[120px]">Date/Time</TableHead>
@@ -154,7 +156,8 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[180px]">In GPS</TableHead>
                   <TableHead className="min-w-[180px]">Out GPS</TableHead>
                   <TableHead className="min-w-[120px]">Distance (km)</TableHead>
-                  <TableHead className="min-w-[160px]">Image</TableHead>
+                  <TableHead className="min-w-[160px]">Image Check-in</TableHead>
+                  <TableHead className="min-w-[160px]">Image check-out</TableHead>
                   <TableHead className="min-w-[220px]">Remark</TableHead>
                   <TableHead className="min-w-[120px]">Status</TableHead>
                 </TableRow>
@@ -217,10 +220,18 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                       </TableCell>
                       <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
                       <TableCell>
-                        {r.image ? (
-                          <a href={r.image} target="_blank" rel="noopener noreferrer">
+                        {r.imageIn ? (
+                          <a href={r.imageIn} target="_blank" rel="noopener noreferrer">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={r.image} alt="activity" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                            <img src={r.imageIn} alt="check-in" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                          </a>
+                        ) : ("")}
+                      </TableCell>
+                      <TableCell>
+                        {r.imageOut ? (
+                          <a href={r.imageOut} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={r.imageOut} alt="check-out" className="mt-1 h-20 w-auto rounded border border-black/10" />
                           </a>
                         ) : ("")}
                       </TableCell>
