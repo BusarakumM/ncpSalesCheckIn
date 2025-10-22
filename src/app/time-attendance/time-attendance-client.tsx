@@ -138,7 +138,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
 
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
+          <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             {/* keep enough width so columns don't squish on phones */}
             <Table className="min-w-[900px] text-sm">
               <TableHeader>

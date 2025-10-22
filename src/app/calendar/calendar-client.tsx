@@ -168,7 +168,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         <Card className="mt-4 border-none bg-[#E0D4B9]">
           <CardContent className="pt-4">
             <h2 className="text-lg font-bold mb-3">Company Holidays</h2>
-            <div className="overflow-x-auto rounded-md border border-black/10 bg-white">
+            <div className="overflow-x-auto overflow-y-auto max-h-[240px] rounded-md border border-black/10 bg-white">
               <Table className="min-w-[480px] text-sm">
                 <TableHeader>
                   <TableRow className="[&>*]:bg-[#C6E0CF]">
