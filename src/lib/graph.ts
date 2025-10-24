@@ -182,6 +182,7 @@ export type ActivityRow = {
   checkoutLat?: number;
   checkoutLon?: number;
   distanceKm?: number;
+  issues?: string[]; // server-side flags for diagnostics
 };
 
 function toDatePart(iso: string | undefined): string {
@@ -270,6 +271,13 @@ export async function listActivities(params: { from?: string; to?: string; name?
     return normalizeLatLon(lat, lon);
   }
 
+  function getMaxDistanceKm(): number | undefined {
+    const raw = process.env.MAX_DISTANCE_KM ?? process.env.NEXT_PUBLIC_MAX_DISTANCE_KM;
+    if (!raw) return undefined;
+    const n = Number(raw);
+    return isFinite(n) && n > 0 ? n : undefined;
+  }
+
   function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
     const R = 6371; // Earth radius in km
     const dLat = (b.lat - a.lat) * Math.PI / 180;
@@ -307,7 +315,11 @@ export async function listActivities(params: { from?: string; to?: string; name?
       checkinAddress: String(idx.ci.address != null ? r[idx.ci.address] || "" : ""),
       checkinLat: parsed?.lat,
       checkinLon: parsed?.lon,
+      issues: (!parsed && gpsStr) ? ["invalid_checkin_gps"] : [],
     });
+    if (!parsed && gpsStr) {
+      console.warn("Invalid check-in GPS", { key, gps: gpsStr });
+    }
   }
 
   for (const r of coRows) {
@@ -334,8 +346,20 @@ export async function listActivities(params: { from?: string; to?: string; name?
       row.checkoutAddress = String(idx.co.address != null ? r[idx.co.address] || "" : "");
       row.checkoutLat = parsed?.lat;
       row.checkoutLon = parsed?.lon;
+      if (!parsed && gpsStr) {
+        row.issues = Array.isArray(row.issues) ? [...row.issues, "invalid_checkout_gps"] : ["invalid_checkout_gps"];
+        console.warn("Invalid check-out GPS", { key, gps: gpsStr });
+      }
       if (row.checkinLat != null && row.checkinLon != null && row.checkoutLat != null && row.checkoutLon != null) {
-        row.distanceKm = haversineKm({ lat: row.checkinLat, lon: row.checkinLon }, { lat: row.checkoutLat, lon: row.checkoutLon });
+        const d = haversineKm({ lat: row.checkinLat, lon: row.checkinLon }, { lat: row.checkoutLat, lon: row.checkoutLon });
+        const cap = getMaxDistanceKm();
+        if (cap != null && d > cap) {
+          row.issues = Array.isArray(row.issues) ? [...row.issues, "distance_over_threshold"] : ["distance_over_threshold"];
+          console.warn("Distance exceeds cap; hiding distance", { key, distanceKm: d, cap, from: { lat: row.checkinLat, lon: row.checkinLon }, to: { lat: row.checkoutLat, lon: row.checkoutLon } });
+          row.distanceKm = undefined;
+        } else {
+          row.distanceKm = d;
+        }
       }
     } else {
       map.set(key, {
@@ -351,7 +375,11 @@ export async function listActivities(params: { from?: string; to?: string; name?
         checkoutAddress: String(idx.co.address != null ? r[idx.co.address] || "" : ""),
         checkoutLat: parsed?.lat,
         checkoutLon: parsed?.lon,
+        issues: (!parsed && gpsStr) ? ["invalid_checkout_gps"] : [],
       });
+      if (!parsed && gpsStr) {
+        console.warn("Invalid check-out GPS", { key, gps: gpsStr });
+      }
     }
   }
 
