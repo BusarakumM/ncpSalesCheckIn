@@ -249,14 +249,25 @@ export async function listActivities(params: { from?: string; to?: string; name?
 
   const map = new Map<Key, ActivityRow>();
 
+  function normalizeLatLon(lat?: number, lon?: number): { lat: number; lon: number } | undefined {
+    if (lat == null || lon == null) return undefined;
+    if (!isFinite(lat) || !isFinite(lon)) return undefined;
+    // If latitude is out of range but longitude looks like a latitude, swap them
+    if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
+      const t = lat; lat = lon; lon = t;
+    }
+    // Reject invalid coordinates
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return undefined;
+    return { lat, lon };
+  }
+
   function parseGps(s?: string): { lat: number; lon: number } | undefined {
     if (!s) return undefined;
     const m = String(s).trim().split(/\s*,\s*/);
     if (m.length !== 2) return undefined;
     const lat = Number(m[0]);
     const lon = Number(m[1]);
-    if (!isFinite(lat) || !isFinite(lon)) return undefined;
-    return { lat, lon };
+    return normalizeLatLon(lat, lon);
   }
 
   function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
@@ -280,9 +291,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
     const key = keyOf(email, date, location);
     const gpsStr = idx.ci.gps != null ? String(r[idx.ci.gps] || "") : "";
     const parsed = idx.ci.lat != null && idx.ci.lon != null
-      ? (isFinite(Number(r[idx.ci.lat])) && isFinite(Number(r[idx.ci.lon]))
-          ? { lat: Number(r[idx.ci.lat]), lon: Number(r[idx.ci.lon]) }
-          : undefined)
+      ? normalizeLatLon(Number(r[idx.ci.lat]), Number(r[idx.ci.lon]))
       : parseGps(gpsStr);
     map.set(key, {
       date,
@@ -311,9 +320,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
     const key = keyOf(email, date, location);
     const gpsStr = idx.co.gps != null ? String(r[idx.co.gps] || "") : "";
     const parsed = idx.co.lat != null && idx.co.lon != null
-      ? (isFinite(Number(r[idx.co.lat])) && isFinite(Number(r[idx.co.lon]))
-          ? { lat: Number(r[idx.co.lat]), lon: Number(r[idx.co.lon]) }
-          : undefined)
+      ? normalizeLatLon(Number(r[idx.co.lat]), Number(r[idx.co.lon]))
       : parseGps(gpsStr);
     const row = map.get(key);
     if (row) {
