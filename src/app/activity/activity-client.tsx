@@ -136,8 +136,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[160px]">Location</TableHead>
                   <TableHead className="min-w-[160px]">Detail</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
-                  <TableHead className="min-w-[180px]">In GPS</TableHead>
-                  <TableHead className="min-w-[180px]">Out GPS</TableHead>
+                  <TableHead className="min-w-[180px]">In gps</TableHead>
+                  <TableHead className="min-w-[180px]">Out gps</TableHead>
                   <TableHead className="min-w-[120px]">Distance (km)</TableHead>
                   <TableHead className="min-w-[120px]">Status</TableHead>
                 </TableRow>
