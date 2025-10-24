@@ -103,20 +103,20 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
             />
           </div>
           <div>
-            <Label>Date range</Label>
-            <div className="mt-1 grid grid-cols-2 gap-2">
+            <Label className="block mb-1">Date range</Label>
+            <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Input
                 type="date"
                 value={qFrom}
                 onChange={(e) => setQFrom(e.target.value)}
-                className="bg-white"
+                className="bg-white w-full min-w-0"
                 placeholder="From"
               />
               <Input
                 type="date"
                 value={qTo}
                 onChange={(e) => setQTo(e.target.value)}
-                className="bg-white"
+                className="bg-white w-full min-w-0"
                 placeholder="To"
               />
             </div>
