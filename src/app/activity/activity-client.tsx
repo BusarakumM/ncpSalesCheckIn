@@ -194,12 +194,19 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                         ) : null}
                       </TableCell>
                       <TableCell>
-                        {r.distanceKm != null ? (
-                          <span className={MAX_KM && r.distanceKm > MAX_KM ? "text-red-700 font-semibold" : ""}>
-                            {r.distanceKm.toFixed(3)}
-                            {MAX_KM && r.distanceKm > MAX_KM ? " !" : ""}
-                          </span>
-                        ) : ""}
+                        {r.checkoutGps ? (
+                          r.distanceKm != null ? (
+                            <span className={MAX_KM && r.distanceKm > MAX_KM ? "text-red-700 font-semibold" : ""}>
+                              {r.distanceKm.toFixed(3)}
+                              {MAX_KM && r.distanceKm > MAX_KM ? " !" : ""}
+                            </span>
+                          ) : (
+                            ""
+                          )
+                        ) : (
+                          // No checkout GPS to compare
+                          "No check out GPS"
+                        )}
                       </TableCell>
                       <TableCell>
                         <span
