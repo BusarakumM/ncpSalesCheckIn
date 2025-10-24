@@ -355,11 +355,9 @@ export async function listActivities(params: { from?: string; to?: string; name?
         const cap = getMaxDistanceKm();
         if (cap != null && d > cap) {
           row.issues = Array.isArray(row.issues) ? [...row.issues, "distance_over_threshold"] : ["distance_over_threshold"];
-          console.warn("Distance exceeds cap; hiding distance", { key, distanceKm: d, cap, from: { lat: row.checkinLat, lon: row.checkinLon }, to: { lat: row.checkoutLat, lon: row.checkoutLon } });
-          row.distanceKm = undefined;
-        } else {
-          row.distanceKm = d;
+          console.warn("Distance exceeds cap", { key, distanceKm: d, cap, from: { lat: row.checkinLat, lon: row.checkinLon }, to: { lat: row.checkoutLat, lon: row.checkoutLon } });
         }
+        row.distanceKm = d;
       }
     } else {
       map.set(key, {
