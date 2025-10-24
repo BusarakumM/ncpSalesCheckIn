@@ -120,8 +120,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
         </div>
 
         <div className="mt-3 flex justify-center">
-          <Button onClick={fetchRows} className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10">\r\n            Search
-          </Button>
+          <Button onClick={fetchRows} className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10">Search</Button>
         </div>
 
         {/* Table */}
