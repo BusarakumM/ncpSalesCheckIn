@@ -55,6 +55,36 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     setRows(data.rows as Row[]);
   }
 
+  function exportCsv() {
+    const header = [
+      "Date","Check-in","Check-out","Location","Detail","District","Sales Support Name","In GPS","Out GPS","Distance (km)","Status"
+    ];
+    const lines = rows.map((r) => [
+      r.date,
+      r.checkin || "-",
+      r.checkout || "-",
+      r.location || "",
+      r.detail || "",
+      r.district || "",
+      r.name || "",
+      r.checkinGps || "",
+      r.checkoutGps || "",
+      r.distanceKm != null ? r.distanceKm.toFixed(3) : "",
+      r.status || "",
+    ]);
+    const csv = [header, ...lines]
+      .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "activity.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   useEffect(() => { fetchRows().catch(() => {}); }, []);
   const filtered = useMemo(() => {
     return DATA.filter((r) => {
@@ -138,6 +168,11 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
 
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
+          <div className="mb-2 flex justify-end">
+            <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
+              Export
+            </Button>
+          </div>
           <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             <Table className="min-w-[700px] text-sm">
               <TableHeader>
@@ -148,6 +183,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[160px]">Location</TableHead>
                   <TableHead className="min-w-[160px]">Detail</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
+                  <TableHead className="min-w-[180px]">Sales Support Name</TableHead>
                   <TableHead className="min-w-[180px]">In gps</TableHead>
                   <TableHead className="min-w-[180px]">Out gps</TableHead>
                   <TableHead className="min-w-[120px]">Distance (km)</TableHead>
@@ -157,7 +193,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500">
+                    <TableCell colSpan={11} className="text-center text-gray-500">
                       No results
                     </TableCell>
                   </TableRow>
@@ -176,6 +212,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                       <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
                       <TableCell>{r.detail || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
+                      <TableCell>{r.name || ""}</TableCell>
                       <TableCell>
                         {r.checkinGps ? (
                           <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkinGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
