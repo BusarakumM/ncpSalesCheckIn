@@ -214,8 +214,13 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                       <TableCell>{r.district || ""}</TableCell>
                       <TableCell>{r.name || ""}</TableCell>
                       <TableCell>
+                        {(r as any).checkinLocation || r.location ? (
+                          <div className="text-xs text-gray-700" title={(r as any).checkinLocation || r.location}>
+                            Location: {(r as any).checkinLocation || r.location}
+                          </div>
+                        ) : null}
                         {r.checkinGps ? (
-                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkinGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkinGps)}`} target="_blank" rel="noopener noreferrer" className="mt-1 block text-blue-700 underline">
                             {r.checkinGps}
                           </a>
                         ) : ("")}
@@ -223,29 +228,24 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                         {(r as any).checkinAddress ? (
                           <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinAddress}>{(r as any).checkinAddress}</div>
                         ) : null}
-                        {(r as any).checkinLocation || r.location ? (
-                          <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinLocation || r.location}>
-                            Location: {(r as any).checkinLocation || r.location}
-                          </div>
-                        ) : null}
                         {r.checkinGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
                         ) : null}
                       </TableCell>
                       <TableCell>
+                        {(r as any).checkoutLocation ? (
+                          <div className="text-xs text-gray-700" title={(r as any).checkoutLocation}>
+                            Location: {(r as any).checkoutLocation}
+                          </div>
+                        ) : null}
                         {r.checkoutGps ? (
-                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkoutGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkoutGps)}`} target="_blank" rel="noopener noreferrer" className="mt-1 block text-blue-700 underline">
                             {r.checkoutGps}
                           </a>
                         ) : ("")}
                         {(r as any).checkoutAddress ? (
                           <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutAddress}>{(r as any).checkoutAddress}</div>
-                        ) : null}
-                        {(r as any).checkoutLocation ? (
-                          <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutLocation}>
-                            Location: {(r as any).checkoutLocation}
-                          </div>
                         ) : null}
                         {r.checkoutGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
