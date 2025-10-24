@@ -223,6 +223,11 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                         {(r as any).checkinAddress ? (
                           <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinAddress}>{(r as any).checkinAddress}</div>
                         ) : null}
+                        {(r as any).checkinLocation || r.location ? (
+                          <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinLocation || r.location}>
+                            Location: {(r as any).checkinLocation || r.location}
+                          </div>
+                        ) : null}
                         {r.checkinGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
@@ -236,6 +241,11 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                         ) : ("")}
                         {(r as any).checkoutAddress ? (
                           <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutAddress}>{(r as any).checkoutAddress}</div>
+                        ) : null}
+                        {(r as any).checkoutLocation ? (
+                          <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutLocation}>
+                            Location: {(r as any).checkoutLocation}
+                          </div>
                         ) : null}
                         {r.checkoutGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element

@@ -166,6 +166,8 @@ export type ActivityRow = {
   checkin?: string; // HH:mm or ISO
   checkout?: string; // HH:mm or ISO
   location: string;
+  checkinLocation?: string;
+  checkoutLocation?: string;
   detail?: string;
   status: "completed" | "incomplete" | "ongoing";
   name?: string;
@@ -305,6 +307,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       date,
       checkin: time,
       location,
+      checkinLocation: location,
       detail: String(idx.ci.detail != null ? r[idx.ci.detail] || "" : ""),
       status: "ongoing",
       name,
@@ -338,6 +341,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
     if (row) {
       row.checkout = time;
       row.status = row.checkin ? "completed" : "incomplete";
+      row.checkoutLocation = location || row.checkoutLocation;
       row.imageOut = String(idx.co.photo != null ? r[idx.co.photo] || "" : "");
       if (!row.name) row.name = name;
       if (!row.email) row.email = email;
@@ -364,6 +368,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
         date,
         checkout: time,
         location,
+        checkoutLocation: location,
         status: "incomplete",
         name,
         email,
