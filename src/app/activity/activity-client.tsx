@@ -29,7 +29,8 @@ const DATA: Row[] = [];
 
 export default function ActivityClient({ homeHref }: { homeHref: string }) {
   const [qName, setQName] = useState("");
-  const [qDate, setQDate] = useState("");
+  const [qFrom, setQFrom] = useState("");
+  const [qTo, setQTo] = useState("");
 
   const [rows, setRows] = useState<Row[]>([]);
   const [qDistrict, setQDistrict] = useState("");
@@ -45,7 +46,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   async function fetchRows() {
     const payload: any = {};
     if (qName) payload.name = qName;
-    if (qDate) { payload.from = qDate; payload.to = qDate; }
+    if (qFrom) payload.from = qFrom;
+    if (qTo) payload.to = qTo;
     if (qDistrict) payload.district = qDistrict;
     const res = await fetch('/api/pa/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await res.json();
@@ -60,10 +62,11 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
       const e = (r.email || "").toLowerCase();
       const q = qName.toLowerCase();
       const nameMatch = !qName || n.includes(q) || e.includes(q);
-      const dateMatch = !qDate || r.date === qDate;
-      return nameMatch && dateMatch;
+      const fromOk = !qFrom || r.date >= qFrom;
+      const toOk = !qTo || r.date <= qTo;
+      return nameMatch && fromOk && toOk;
     });
-  }, [qName, qDate]);
+  }, [qName, qFrom, qTo]);
 
   function rowBg(status: Row["status"]) {
     if (status === "completed") return "bg-[#6EC3A1] text-white"; // green
@@ -100,13 +103,23 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
             />
           </div>
           <div>
-            <Label>Date</Label>
-            <Input
-              type="date"
-              value={qDate}
-              onChange={(e) => setQDate(e.target.value)}
-              className="bg-white"
-            />
+            <Label>Date range</Label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <Input
+                type="date"
+                value={qFrom}
+                onChange={(e) => setQFrom(e.target.value)}
+                className="bg-white"
+                placeholder="From"
+              />
+              <Input
+                type="date"
+                value={qTo}
+                onChange={(e) => setQTo(e.target.value)}
+                className="bg-white"
+                placeholder="To"
+              />
+            </div>
           </div>
           <div>
             <Label>District</Label>
