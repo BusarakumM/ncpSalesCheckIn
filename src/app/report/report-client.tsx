@@ -165,7 +165,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500">
+                    <TableCell colSpan={13} className="text-center text-gray-500">
                       No data for the selected range
                     </TableCell>
                   </TableRow>
@@ -218,7 +218,6 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                           </span>
                         ) : ""}
                       </TableCell>
-                      <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
                       <TableCell>
                         {r.imageIn ? (
                           <a href={r.imageIn} target="_blank" rel="noopener noreferrer">
@@ -235,6 +234,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                           </a>
                         ) : ("")}
                       </TableCell>
+                      <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
                       <TableCell>
                         <span className={`inline-flex w-full justify-center rounded px-2 py-1 text-sm font-medium ${statusClass(r.status)}`}>
                           {r.status}
