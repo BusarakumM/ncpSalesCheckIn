@@ -23,6 +23,7 @@ export default function NewTaskPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [checkoutPhotoUrl, setCheckoutPhotoUrl] = useState<string | null>(null);
   const [checkoutPhotoFile, setCheckoutPhotoFile] = useState<File | null>(null);
+  const [checkoutRemark, setCheckoutRemark] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const galleryFileRef = useRef<HTMLInputElement | null>(null);
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
@@ -66,6 +67,35 @@ export default function NewTaskPage() {
     if (!coord || !GMAPS_KEY) return "";
     const q = encodeURIComponent(coord);
     return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=320x200&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
+  }
+
+  function toLatLonPair(coord?: string): [number, number] | null {
+    if (!coord) return null;
+    const parts = coord.split(',');
+    if (parts.length < 2) return null;
+    const lat = Number(parts[0].trim());
+    const lon = Number(parts[1].trim());
+    if (!isFinite(lat) || !isFinite(lon)) return null;
+    return [lat, lon];
+  }
+
+  function distanceKm(a: [number, number], b: [number, number]) {
+    const R = 6371; // km
+    const dLat = (b[0] - a[0]) * Math.PI / 180;
+    const dLon = (b[1] - a[1]) * Math.PI / 180;
+    const la1 = a[0] * Math.PI / 180;
+    const la2 = b[0] * Math.PI / 180;
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLon = Math.sin(dLon / 2);
+    const h = sinDLat * sinDLat + Math.cos(la1) * Math.cos(la2) * sinDLon * sinDLon;
+    const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    return R * c;
+  }
+
+  function maxDistanceKm(): number {
+    const v = (process.env.NEXT_PUBLIC_MAX_DISTANCE_KM as unknown as string) || "0.5";
+    const n = Number(v);
+    return isFinite(n) && n > 0 ? n : 0.5;
   }
 
   // Typeahead search when typing in Location input
@@ -277,6 +307,33 @@ export default function NewTaskPage() {
       .toISOString()
       .slice(0, 16);
     setCheckoutTime(iso);
+    setCheckoutRemark("");
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude.toFixed(6);
+          const lon = pos.coords.longitude.toFixed(6);
+          const coord = `${lat}, ${lon}`;
+          setCheckoutGps(coord);
+          const addr = await reverseGeocode(parseFloat(lat), parseFloat(lon));
+          setCheckoutAddress(addr || "");
+          const a = toLatLonPair(gps);
+          const b = toLatLonPair(coord);
+          if (a && b) {
+            const d = distanceKm(a, b);
+            const threshold = maxDistanceKm();
+            if (d > threshold) {
+              const meters = Math.round(d * 1000);
+              setCheckoutRemark(`Checkout location differs by ~${meters} m (>${threshold} km)`);
+            }
+          }
+        },
+        () => {
+          // ignore error; user can still submit manually
+        },
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    }
   }
 
   async function onSubmitCheckout() {
@@ -290,6 +347,7 @@ export default function NewTaskPage() {
         checkoutAddress,
         checkoutPhotoUrl: uploadedUrl,
         locationName,
+        checkoutRemark,
       });
       const st = resp?.status ? String(resp.status) : "";
       alert(st ? `Saved (${st})` : "Saved");
@@ -581,18 +639,9 @@ export default function NewTaskPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={mapUrl(checkoutGps)} alt="checkout map" className="mt-2 rounded border border-black/10" />
                 ) : null}
-                <div className="mt-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                    onClick={() => { if (gps) setCheckoutGps(gps); if (checkinAddress) setCheckoutAddress(checkinAddress); }}
-                    disabled={isSubmitting || submittedCheckin}
-                    title="Use the same location as Check-in"
-                  >
-                    Use check-in location
-                  </Button>
-                </div>
+                {checkoutRemark ? (
+                  <div className="mt-2 text-xs text-red-700">{checkoutRemark}</div>
+                ) : null}
               </div>
             </div>
 

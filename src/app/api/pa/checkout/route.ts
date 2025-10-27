@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       locationName: enriched.locationName ?? "",
       checkoutGps: enriched.checkoutGps ?? "",
       checkoutAddress: enriched.checkoutAddress ?? "",
+      checkoutRemark: enriched.checkoutRemark ?? "",
       checkoutPhotoUrl: enriched.checkoutPhotoUrl ?? "",
       email: enriched.email ?? "",
       name: enriched.name ?? "",
