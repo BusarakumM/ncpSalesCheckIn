@@ -578,7 +578,6 @@ export default function NewTaskPage() {
             ref={fileRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={onPickPhoto}
             disabled={isSubmitting || submittedCheckin}
@@ -675,7 +674,6 @@ export default function NewTaskPage() {
                 ref={checkoutFileRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 onChange={onPickCheckoutPhoto}
                 disabled={isSubmitting || submittedCheckout}
