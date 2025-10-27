@@ -185,7 +185,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
             className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50 self-center sm:self-auto"
             title="Export"
           >
-            ?
+            ➜
           </button>
         </div>
 
