@@ -569,7 +569,9 @@ export default function NewTaskPage() {
             type="button"
             onClick={() => fileRef.current?.click()}
             className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-           disabled={isSubmitting || submittedCheckin}>
+            disabled={isSubmitting || submittedCheckin}
+            title="Take or attach photo"
+          >
             📷
           </button>
           <input
@@ -578,22 +580,8 @@ export default function NewTaskPage() {
             accept="image/*"
             capture="environment"
             className="hidden"
-            onChange={onPickPhoto} disabled={isSubmitting || submittedCheckin}
-          />
-          <button
-            type="button"
-            onClick={() => galleryFileRef.current?.click()}
-            className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Attach from gallery"
-           disabled={isSubmitting || submittedCheckin}>
-            Attach photo
-          </button>
-          <input
-            ref={galleryFileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onPickPhoto} disabled={isSubmitting || submittedCheckin}
+            onChange={onPickPhoto}
+            disabled={isSubmitting || submittedCheckin}
           />
         </div>
 
@@ -678,7 +666,9 @@ export default function NewTaskPage() {
                 type="button"
                 onClick={() => checkoutFileRef.current?.click()}
                 className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-              >\n                disabled={isSubmitting || submittedCheckout}
+                title="Take or attach photo"
+                disabled={isSubmitting || submittedCheckout}
+              >
                 📷
               </button>
               <input
@@ -687,22 +677,8 @@ export default function NewTaskPage() {
                 accept="image/*"
                 capture="environment"
                 className="hidden"
-                onChange={onPickCheckoutPhoto} disabled={isSubmitting || submittedCheckout}
-              />
-              <button
-                type="button"
-                onClick={() => checkoutGalleryFileRef.current?.click()}
-                className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                title="Attach from gallery"
-              >\n                disabled={isSubmitting || submittedCheckout}
-                Attach photo
-              </button>
-              <input
-                ref={checkoutGalleryFileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onPickCheckoutPhoto} disabled={isSubmitting || submittedCheckout}
+                onChange={onPickCheckoutPhoto}
+                disabled={isSubmitting || submittedCheckout}
               />
             </div>
 

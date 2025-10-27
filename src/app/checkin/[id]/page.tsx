@@ -598,14 +598,15 @@ export default function TaskDetailPage() {
           />
         </div>
 
-        {/* Take a picture bar */}
+        {/* Take a picture */}
         <div className="mt-3 rounded-md border border-black/10 bg-[#D8CBAF]/70 px-4 py-2 text-center font-semibold">
           <span className="text-sm sm:text-base">Take a picture</span>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
             className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Open camera" disabled={hasExistingCheckin || isSubmitting}
+            title="Take or attach photo"
+            disabled={hasExistingCheckin || isSubmitting}
           >
             📷
           </button>
@@ -614,23 +615,6 @@ export default function TaskDetailPage() {
             type="file"
             accept="image/*"
             capture="environment"
-            className="hidden"
-            onChange={onPickPhoto}
-            disabled={hasExistingCheckin || isSubmitting}
-          />
-          <button
-            type="button"
-            onClick={() => galleryFileRef.current?.click()}
-            className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Attach from gallery"
-            disabled={hasExistingCheckin || isSubmitting}
-          >
-            Attach photo
-          </button>
-          <input
-            ref={galleryFileRef}
-            type="file"
-            accept="image/*"
             className="hidden"
             onChange={onPickPhoto}
             disabled={hasExistingCheckin || isSubmitting}
@@ -721,40 +705,23 @@ export default function TaskDetailPage() {
               </div>
             </div>
 
-            {/* Checkout Take a picture bar */}
+            {/* Checkout Take a picture */}
             <div className="mt-3 rounded-md border border-black/10 bg-[#D8CBAF]/70 px-4 py-2 text-center font-semibold">
               <span className="text-sm sm:text-base">Checkout picture</span>
               <button
                 type="button"
                 onClick={() => checkoutFileRef.current?.click()}
                 className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                title="Open camera"
+                title="Take or attach photo"
                 disabled={hasExistingCheckout || isSubmitting}
               >
-                ??
+                📷
               </button>
               <input
                 ref={checkoutFileRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
-                className="hidden"
-                onChange={onPickCheckoutPhoto}
-                disabled={hasExistingCheckout || isSubmitting}
-              />
-              <button
-                type="button"
-                onClick={() => checkoutGalleryFileRef.current?.click()}
-                className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                title="Attach from gallery"
-                disabled={hasExistingCheckout || isSubmitting}
-              >
-                Attach photo
-              </button>
-              <input
-                ref={checkoutGalleryFileRef}
-                type="file"
-                accept="image/*"
                 className="hidden"
                 onChange={onPickCheckoutPhoto}
                 disabled={hasExistingCheckout || isSubmitting}
