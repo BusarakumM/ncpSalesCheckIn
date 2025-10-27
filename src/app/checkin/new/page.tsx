@@ -42,6 +42,7 @@ export default function NewTaskPage() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [checkoutOutOfArea, setCheckoutOutOfArea] = useState(false);
+  const [checkinCaptureAt, setCheckinCaptureAt] = useState<number | null>(null);
   // Auto-expire check-in location/GPS if not submitted within 10 minutes
   const checkinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -62,7 +63,7 @@ export default function NewTaskPage() {
         setGps("");
         setCheckinAddress("");
         alert("submit check-in timeout");
-      }, 10 * 60 * 1000);
+      }, 5 * 60 * 1000);
     }
     return () => {
       clearCheckinTimeout();
@@ -94,6 +95,10 @@ export default function NewTaskPage() {
     if (!coord || !GMAPS_KEY) return "";
     const q = encodeURIComponent(coord);
     return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=320x200&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
+  }
+
+  function isCheckinExpired(): boolean {
+    return checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000;
   }
 
   function toLatLonPair(coord?: string): [number, number] | null {
@@ -175,6 +180,7 @@ export default function NewTaskPage() {
         const lon = pos.coords.longitude.toFixed(6);
         const coord = `${lat}, ${lon}`;
         setGps(coord);
+        setCheckinCaptureAt(Date.now());
         // Try nearby place name first; fallback to reverse geocode formatted address
         (async () => {
           try {
@@ -237,6 +243,7 @@ export default function NewTaskPage() {
               lat = pos.coords.latitude.toFixed(6);
               lon = pos.coords.longitude.toFixed(6);
               setGps(`${lat}, ${lon}`);
+              setCheckinCaptureAt(Date.now());
               resolve();
             },
             () => resolve(),
@@ -264,6 +271,7 @@ export default function NewTaskPage() {
       const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
       setGps(coord);
       setCheckinAddress(p.address || "");
+      setCheckinCaptureAt(Date.now());
     }
     setLocationName(p.name);
     setPickerOpen(false);
@@ -305,6 +313,10 @@ export default function NewTaskPage() {
 
   async function onSubmitCheckin() {
     try {
+      if (checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000) {
+        alert("submit check-in timeout");
+        return;
+      }
       if (!locationName.trim()) {
         alert("Please enter a location name");
         return;
@@ -682,9 +694,9 @@ export default function NewTaskPage() {
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
             onClick={onSubmitCheckin}
-            disabled={!locationName.trim() || !photoFile || isSubmitting}
+            disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired()}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : undefined}
+            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : isCheckinExpired() ? "submit check-in timeout" : undefined}
           >
             Submit Check-in
           </Button>

@@ -42,7 +42,9 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
         const data = (await res.json()) as { ok: boolean; rows?: Array<{ date: string; location: string; status: 'completed' | 'incomplete' | 'ongoing' }> };
         if (!data?.ok) throw new Error('Failed to load activities');
         const mapped: Task[] = (data.rows || []).map((r, i) => ({
-          id: typeof window !== 'undefined' ? encodeURIComponent(btoa(`${email || ''}|${r.date}|${r.location || ''}|${r.checkin || ''}`)) : String(i + 1),
+          id: typeof window !== 'undefined'
+            ? encodeURIComponent(btoa(unescape(encodeURIComponent(`${email || ''}|${r.date}|${r.location || ''}|${r.checkin || ''}`))))
+            : String(i + 1),
           no: i + 1,
           location: r.location || 'Location',
           time: r.checkin || '',

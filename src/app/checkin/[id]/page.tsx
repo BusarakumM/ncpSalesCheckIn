@@ -62,7 +62,7 @@ export default function TaskDetailPage() {
         setGps("");
         setCheckinAddress("");
         alert("submit check-in timeout");
-      }, 10 * 60 * 1000);
+      }, 5 * 60 * 1000);
     }
     return () => {
       clearCheckinTimeout();
@@ -75,7 +75,11 @@ export default function TaskDetailPage() {
     async function load() {
       try {
         let decoded = "";
-        try { decoded = typeof atob === 'function' ? atob(decodeURIComponent(id)) : ""; } catch {}
+        try {
+          decoded = typeof atob === 'function'
+            ? decodeURIComponent(escape(atob(decodeURIComponent(id))))
+            : "";
+        } catch {}
         const parts = decoded.split("|");
         const email = parts[0] || "";
         const date = parts[1] || "";
@@ -185,6 +189,7 @@ export default function TaskDetailPage() {
         const lon = pos.coords.longitude.toFixed(6);
         const coord = `${lat}, ${lon}`;
         setGps(coord);
+        setCheckinCaptureAt(Date.now());
         (async () => {
           try {
             const near = await fetch(`/api/maps/nearby?lat=${lat}&lon=${lon}`, { cache: "no-store" });
@@ -310,6 +315,7 @@ export default function TaskDetailPage() {
       const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
       setGps(coord);
       setCheckinAddress(p.address || "");
+      setCheckinCaptureAt(Date.now());
     }
     setLocationName(p.name);
     setPickerOpen(false);
@@ -413,9 +419,14 @@ export default function TaskDetailPage() {
     );
   }
 
-  async function onSubmitCheckin() {
+async function onSubmitCheckin() {
     try {
       setIsSubmitting(true);
+      if (!hasExistingCheckin && checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000) {
+        alert("submit check-in timeout");
+        setIsSubmitting(false);
+        return;
+      }
       if (!locationName.trim()) {
         alert("Please enter a location name");
         setIsSubmitting(false);
@@ -731,7 +742,7 @@ export default function TaskDetailPage() {
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
             onClick={onSubmitCheckin}
-            disabled={hasExistingCheckin || !locationName.trim() || !photoFile || isSubmitting}
+            disabled={hasExistingCheckin || !locationName.trim() || !photoFile || isSubmitting || (!hasExistingCheckin && checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000)}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
             title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : hasExistingCheckin ? "Check-in already submitted" : undefined}
           >
