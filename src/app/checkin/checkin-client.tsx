@@ -58,6 +58,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
   }, [qDate, email]);
 
   const filtered = useMemo(() => tasks, [tasks]);
+  const hasInProgress = useMemo(() => filtered.some((t) => t.status === 'In Progress'), [filtered]);
 
   function statusStyles(s: Task["status"]) {
     if (s === "Completed") return "bg-[#6EC3A1] text-white px-2 py-0.5 rounded text-xs sm:text-sm";
@@ -101,8 +102,15 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
           <div className="flex sm:block">
             <Link
               href="/checkin/new"
-              className="ml-auto text-base sm:text-lg font-semibold text-[#6EBF8B] hover:opacity-90"
-              title="Create new task"
+              onClick={(e) => {
+                if (hasInProgress) {
+                  e.preventDefault();
+                  alert("กรุณา check-out ก่อน");
+                }
+              }}
+              aria-disabled={hasInProgress}
+              className={`ml-auto text-base sm:text-lg font-semibold ${hasInProgress ? 'text-gray-400 cursor-not-allowed' : 'text-[#6EBF8B] hover:opacity-90'}`}
+              title={hasInProgress ? "กรุณา check-out ก่อน" : "Create new task"}
             >
               + New
             </Link>
