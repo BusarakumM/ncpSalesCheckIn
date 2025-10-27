@@ -660,13 +660,15 @@ export default function TaskDetailPage() {
           >
             Submit Check-in
           </Button>
-          <Button
-            onClick={onCheckout}
-            className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            disabled={hasExistingCheckout || isSubmitting}
-          >
-            Check-out
-          </Button>
+          {hasExistingCheckin ? (
+            <Button
+              onClick={onCheckout}
+              className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={hasExistingCheckout || isSubmitting}
+            >
+              Check-out
+            </Button>
+          ) : null}
         </div>
 
         {/* Check-out time (auto) */}

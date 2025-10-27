@@ -615,12 +615,14 @@ export default function NewTaskPage() {
           >
             Submit Check-in
           </Button>
-          <Button
-            onClick={onCheckout}
-            className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20"
-          >
-            Check-out
-          </Button>
+          {submittedCheckin ? (
+            <Button
+              onClick={onCheckout}
+              className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20"
+            >
+              Check-out
+            </Button>
+          ) : null}
         </div>
 
         {/* Checkout time */}
