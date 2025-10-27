@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listActivities, getTableValues, graphTables } from "@/lib/graph";
+import { listActivities, listLeaves } from "@/lib/graph";
 
 export async function POST(req: Request) {
   try {
@@ -8,25 +8,23 @@ export async function POST(req: Request) {
 
     const activities = await listActivities({ from, to, name, email, district });
 
-    // Leave rows
-    const leaveTable = graphTables.leave();
-    const leaves = await getTableValues(leaveTable);
-    const idx = { dt: 0, type: 1, reason: 2, email: 3, name: 4, district: 9 } as const;
-
-    let leaveRows = leaves.map((r) => {
-      const iso = String(r[idx.dt] || "");
-      const d = new Date(iso);
-      const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+    // Leave rows (use header-based reader to avoid column index drift)
+    const leaveItems = await listLeaves({ from, to });
+    let leaveRows = leaveItems.map((r) => {
+      const d = new Date(r.date || "");
+      const date = isNaN(d.getTime())
+        ? ""
+        : `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
       return {
         date,
         checkin: "",
         checkout: "",
         imageIn: "",
         imageOut: "",
-        status: String(r[idx.type] || ""),
-        remark: String(r[idx.reason] || ""),
-        name: String(r[idx.name] || ""),
-        district: String(r[idx.district] || ""),
+        status: String(r.leaveType || ""),
+        remark: String(r.reason || ""),
+        name: String(r.name || ""),
+        district: String(r.district || ""),
       };
     });
     if (district) {
