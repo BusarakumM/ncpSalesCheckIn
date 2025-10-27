@@ -37,6 +37,10 @@ export default function TaskDetailPage() {
   const [placeResults, setPlaceResults] = useState<Array<{ name: string; address?: string; lat?: number; lon?: number }>>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  // Inline typeahead suggestions
+  const [suggestions, setSuggestions] = useState<Array<{ name: string; address?: string; lat?: number; lon?: number }>>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
 
   // Try to load existing task by stable key (email|date|location); otherwise default time to now
   useEffect(() => {
@@ -138,6 +142,45 @@ export default function TaskDetailPage() {
       { enableHighAccuracy: true, timeout: 15000 }
     );
   }
+
+  // Typeahead search when typing in Location input
+  useEffect(() => {
+    const q = locationName.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      setSuggestOpen(false);
+      return;
+    }
+    let cancelled = false;
+    const h = setTimeout(async () => {
+      try {
+        setSuggestLoading(true);
+        let lat: string | undefined;
+        let lon: string | undefined;
+        const parts = gps.split(',');
+        if (parts.length >= 2) {
+          lat = parts[0].trim();
+          lon = parts[1].trim();
+        }
+        const url = `/api/maps/search?q=${encodeURIComponent(q)}${lat && lon ? `&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled) {
+          const arr = Array.isArray(data?.results) ? data.results : [];
+          setSuggestions(arr);
+          setSuggestOpen(arr.length > 0);
+        }
+      } catch {
+        if (!cancelled) {
+          setSuggestions([]);
+          setSuggestOpen(false);
+        }
+      } finally {
+        if (!cancelled) setSuggestLoading(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(h); };
+  }, [locationName, gps]);
 
   async function searchPlaces() {
     if (!placeQuery.trim()) return;
@@ -336,11 +379,41 @@ export default function TaskDetailPage() {
           <div className="mt-2">
             <Input
               value={locationName}
-              onChange={(e) => setLocationName(e.target.value)}
+              onChange={(e) => { setLocationName(e.target.value); }}
               placeholder="Enter or pick a place"
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={hasExistingCheckin || isSubmitting}
+              onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
+              onBlur={() => { setTimeout(() => setSuggestOpen(false), 120); }}
             />
+            {suggestOpen && suggestions.length > 0 && (
+              <div className="mt-1 max-h-64 overflow-auto divide-y divide-black/10 bg-white rounded border border-black/10">
+                {suggestLoading && suggestions.length === 0 ? (
+                  <div className="p-2 text-sm">Searching…</div>
+                ) : (
+                  suggestions.slice(0, 10).map((p, i) => (
+                    <button
+                      key={`${p.name}-${i}`}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setLocationName(p.name);
+                        if (p.lat != null && p.lon != null) {
+                          const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
+                          setGps(coord);
+                          setCheckinAddress(p.address || '');
+                        }
+                        setSuggestOpen(false);
+                      }}
+                      className="w-full text-left p-2 hover:bg-[#F0F5F2]"
+                    >
+                      <div className="font-medium truncate">{p.name}</div>
+                      {p.address ? <div className="text-xs text-gray-600 truncate">{p.address}</div> : null}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
             {!locationName.trim() ? (
               <div className="mt-1 text-xs text-red-700">Please pick or enter a location</div>
             ) : null}
