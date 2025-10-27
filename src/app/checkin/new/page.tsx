@@ -71,11 +71,19 @@ export default function NewTaskPage() {
         const lon = pos.coords.longitude.toFixed(6);
         const coord = `${lat}, ${lon}`;
         setGps(coord);
-        reverseGeocode(parseFloat(lat), parseFloat(lon)).then((addr) => {
+        // Try nearby place name first; fallback to reverse geocode formatted address
+        (async () => {
+          try {
+            const near = await fetch(`/api/maps/nearby?lat=${lat}&lon=${lon}`, { cache: "no-store" });
+            if (near.ok) {
+              const j = await near.json();
+              if (j?.ok && j?.name) setLocationNameAuto(j.name);
+            }
+          } catch {}
+          const addr = await reverseGeocode(parseFloat(lat), parseFloat(lon));
           setCheckinAddress(addr || "");
-          // also populate auto location name when available
-          if (addr) setLocationNameAuto(addr);
-        });
+          if (!locationNameAuto && addr) setLocationNameAuto(addr);
+        })();
       },
       (err) => alert(err.message),
       { enableHighAccuracy: true, timeout: 15000 }
