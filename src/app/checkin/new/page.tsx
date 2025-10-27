@@ -35,6 +35,7 @@ export default function NewTaskPage() {
   const [placeQuery, setPlaceQuery] = useState("");
   const [placeResults, setPlaceResults] = useState<Array<{ name: string; address?: string; lat?: number; lon?: number }>>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   // Prefill current datetime as check-in time
   useEffect(() => {
@@ -288,7 +289,7 @@ export default function NewTaskPage() {
         </div>
 
         <div className="mt-4">
-          <div className="text-sm sm:text-base font-semibold">Location Name</div>
+          <div className="text-sm sm:text-base font-semibold">Location</div>
           <div className="mt-2">
             <Input
               value={locationName}
@@ -297,6 +298,9 @@ export default function NewTaskPage() {
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={isSubmitting || submittedCheckin}
             />
+            {!locationName.trim() ? (
+              <div className="mt-1 text-xs text-red-700">Please pick or enter a location</div>
+            ) : null}
             <div className="mt-2 flex gap-2">
               <Button
                 type="button"
@@ -355,19 +359,35 @@ export default function NewTaskPage() {
 
         {/* Selected Location details */}
         <div className="mt-4">
-          <div className="text-sm sm:text-base font-semibold">Selected Location</div>
-          <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[140px]">
-            <div className="text-sm sm:text-base break-words" title={gps || undefined}>{gps || "—"}</div>
-            {checkinAddress ? (
-              <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkinAddress}>
-                {checkinAddress}
+          <div className="flex items-center gap-2">
+            <div className="text-sm sm:text-base font-semibold">Selected Location</div>
+            <button
+              type="button"
+              onClick={() => setShowDetails((v) => !v)}
+              className="ml-auto inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-2 py-1 text-xs hover:bg-gray-50"
+            >
+              {showDetails ? "Hide details" : "Show details"}
+            </button>
+          </div>
+          <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[100px]">
+            <div className="text-sm sm:text-base font-semibold">
+              {locationName || "— No place selected"}
+            </div>
+            {showDetails && (
+              <div className="mt-2">
+                <div className="text-xs sm:text-sm break-words" title={gps || undefined}>GPS: {gps || "—"}</div>
+                {checkinAddress ? (
+                  <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkinAddress}>
+                    {checkinAddress}
+                  </div>
+                ) : null}
+                {gps && GMAPS_KEY ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={mapUrl(gps)} alt="check-in map" className="mt-2 rounded border border-black/10" />
+                ) : null}
               </div>
-            ) : null}
-            {gps && GMAPS_KEY ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={mapUrl(gps)} alt="check-in map" className="mt-2 rounded border border-black/10" />
-            ) : null}
-            <div className="mt-2 text-xs text-gray-700">Use "Pick place" or "Nearby" above to select.</div>
+            )}
+            <div className="mt-2 text-xs text-gray-700">Use Pick place or Nearby to choose a location, then edit the name if needed.</div>
           </div>
         </div>
 
@@ -446,7 +466,9 @@ export default function NewTaskPage() {
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
             onClick={onSubmitCheckin}
-            className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20"
+            disabled={!locationName.trim() || isSubmitting}
+            className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+            title={!locationName.trim() ? "Please enter a location name" : undefined}
           >
             Submit Check-in
           </Button>
@@ -558,7 +580,9 @@ export default function NewTaskPage() {
             <div className="mt-4">
               <Button
                 onClick={onSubmitCheckout}
-                className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20"
+                disabled={!locationName.trim() || isSubmitting}
+                className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                title={!locationName.trim() ? "Please enter a location name" : undefined}
               >
                 Submit Checkout
               </Button>
