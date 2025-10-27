@@ -14,9 +14,7 @@ export default function TaskDetailPage() {
   const [checkinTime, setCheckinTime] = useState("");
   const [checkoutTime, setCheckoutTime] = useState("");
   const [displayTitle, setDisplayTitle] = useState<string>("Task");
-  const [locationMode, setLocationMode] = useState<"auto" | "manual">("auto");
-  const [locationNameManual, setLocationNameManual] = useState("");
-  const [locationNameAuto, setLocationNameAuto] = useState("");
+  const [locationName, setLocationName] = useState("");
   const [gps, setGps] = useState<string>("");
   const [checkinAddress, setCheckinAddress] = useState<string>("");
   const [checkoutGps, setCheckoutGps] = useState<string>("");
@@ -60,9 +58,8 @@ export default function TaskDetailPage() {
           if (res.ok && data?.ok && Array.isArray(data.rows)) {
             const row = (data.rows as any[]).find((r) => (r.location || "") === (location || ""));
             if (row && !cancelled) {
-              // Preload manual name from existing row
-              setLocationNameManual(row.location || "");
-              setLocationMode(row.location ? "manual" : "auto");
+              // Preload name from existing row
+              setLocationName(row.location || "");
               setGps(row.checkinGps || "");
               setCheckoutGps(row.checkoutGps || "");
               setJobDetail(row.detail || "");
@@ -128,12 +125,12 @@ export default function TaskDetailPage() {
             const near = await fetch(`/api/maps/nearby?lat=${lat}&lon=${lon}`, { cache: "no-store" });
             if (near.ok) {
               const j = await near.json();
-              if (j?.ok && j?.name) setLocationNameAuto(j.name);
+              if (j?.ok && j?.name) setLocationName(j.name);
             }
           } catch {}
           const addr = await reverseGeocode(parseFloat(lat), parseFloat(lon));
           setCheckinAddress(addr || "");
-          if (!locationNameAuto && addr) setLocationNameAuto(addr);
+          if (!locationName && addr) setLocationName(addr);
         })();
       },
       (err) => alert(err.message),
@@ -210,8 +207,7 @@ export default function TaskDetailPage() {
       setGps(coord);
       setCheckinAddress(p.address || "");
     }
-    setLocationNameAuto(p.name);
-    setLocationMode("auto");
+    setLocationName(p.name);
     setPickerOpen(false);
   }
 
@@ -259,11 +255,10 @@ export default function TaskDetailPage() {
       setIsSubmitting(true);
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
-      const effectiveLocationName = (locationMode === "manual" ? locationNameManual : locationNameAuto) || locationNameManual || locationNameAuto || "";
       const resp = await submitCheckin({
         id,
         checkin: checkinTime,
-        locationName: effectiveLocationName,
+        locationName,
         gps,
         checkinAddress,
         jobDetail,
@@ -285,13 +280,12 @@ export default function TaskDetailPage() {
       setIsSubmitting(true);
       let uploadedUrl: string | null = null;
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
-      const effectiveLocationName = (locationMode === "manual" ? locationNameManual : locationNameAuto) || locationNameManual || locationNameAuto || "";
       const resp = await submitCheckout({
         id,
         checkout: checkoutTime,
         checkoutGps,
         checkoutAddress,
-        locationName: effectiveLocationName,
+        locationName,
         checkoutPhotoUrl: uploadedUrl,
       });
       const st = resp?.status ? String(resp.status) : "";
@@ -336,101 +330,68 @@ export default function TaskDetailPage() {
           </div>
         </div>
 
-        {/* Location Name (Auto vs Manual) */}
         <div className="mt-4">
           <div className="text-sm sm:text-base font-semibold">Location Name</div>
-          <div className="mt-2 inline-flex rounded-full border border-black/20 bg-white">
-            <button
-              type="button"
-              onClick={() => setLocationMode("auto")}
-              className={`px-3 py-1.5 text-sm rounded-full ${locationMode === "auto" ? "bg-[#D8CBAF]" : "bg-transparent"}`}
+          <div className="mt-2">
+            <Input
+              value={locationName}
+              onChange={(e) => setLocationName(e.target.value)}
+              placeholder="Enter or pick a place"
+              className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={hasExistingCheckin || isSubmitting}
-              title="Auto fill from GPS"
-            >
-              Auto (GPS)
-            </button>
-            <button
-              type="button"
-              onClick={() => setLocationMode("manual")}
-              className={`px-3 py-1.5 text-sm rounded-full ${locationMode === "manual" ? "bg-[#D8CBAF]" : "bg-transparent"}`}
-              disabled={hasExistingCheckin || isSubmitting}
-              title="Sales support manual fill"
-            >
-              Manual
-            </button>
-          </div>
-          {locationMode === "auto" ? (
-            <div className="mt-2">
-              <Input
-                value={locationNameAuto}
-                readOnly
-                placeholder="Pick place or Nearby to auto-fill"
-                className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+            />
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setPickerOpen((v) => !v); if (!pickerOpen) { setPlaceResults([]); } }}
+                className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
                 disabled={hasExistingCheckin || isSubmitting}
-              />
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setPickerOpen((v) => !v); if (!pickerOpen) { setPlaceResults([]); } }}
-                  className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
-                  disabled={hasExistingCheckin || isSubmitting}
-                  title="Search or pick nearby place"
-                >
-                  Pick place
-                </button>
-                <button
-                  type="button"
-                  onClick={loadNearby}
-                  className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
-                  disabled={hasExistingCheckin || isSubmitting}
-                  title="Load nearby places"
-                >
-                  Nearby
-                </button>
-              </div>
-              {pickerOpen && (
-                <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Search place (e.g., mall, company)"
-                      value={placeQuery}
-                      onChange={(e) => setPlaceQuery(e.target.value)}
-                      className="h-9 rounded-full border-black/10 bg-white"
-                    />
-                    <button type="button" onClick={searchPlaces} className="rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50" disabled={pickerLoading}>Search</button>
-                  </div>
-                  <div className="mt-2 max-h-56 overflow-auto divide-y divide-black/10 bg-white rounded">
-                    {pickerLoading ? (
-                      <div className="p-3 text-sm">Loading…</div>
-                    ) : placeResults.length === 0 ? (
-                      <div className="p-3 text-sm text-gray-700">No results</div>
-                    ) : (
-                      placeResults.map((p, i) => (
-                        <div key={`${p.name}-${i}`} className="p-2 flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{p.name}</div>
-                            {p.address ? <div className="text-xs text-gray-600 truncate">{p.address}</div> : null}
-                          </div>
-                          <button type="button" onClick={() => selectPlace(p)} className="rounded-full border border-black/20 bg-white px-3 py-1 text-sm hover:bg-gray-50">Select</button>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                title="Search or pick nearby place"
+              >
+                Pick place
+              </button>
+              <button
+                type="button"
+                onClick={loadNearby}
+                className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+                disabled={hasExistingCheckin || isSubmitting}
+                title="Load nearby places"
+              >
+                Nearby
+              </button>
+            </div>
+            {pickerOpen && (
+              <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search place (e.g., mall, company)"
+                    value={placeQuery}
+                    onChange={(e) => setPlaceQuery(e.target.value)}
+                    className="h-9 rounded-full border-black/10 bg-white"
+                  />
+                  <button type="button" onClick={searchPlaces} className="rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50" disabled={pickerLoading}>Search</button>
                 </div>
-              )}
-              <div className="mt-1 text-xs text-gray-700">Auto-filled from Google Maps Places/Geocoding</div>
-            </div>
-          ) : (
-            <div className="mt-2">
-              <Input
-                value={locationNameManual}
-                onChange={(e) => setLocationNameManual(e.target.value)}
-                placeholder="Enter location name"
-                className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-                disabled={hasExistingCheckin || isSubmitting}
-              />
-            </div>
-          )}
+                <div className="mt-2 max-h-56 overflow-auto divide-y divide-black/10 bg-white rounded">
+                  {pickerLoading ? (
+                    <div className="p-3 text-sm">Loading…</div>
+                  ) : placeResults.length === 0 ? (
+                    <div className="p-3 text-sm text-gray-700">No results</div>
+                  ) : (
+                    placeResults.map((p, i) => (
+                      <div key={`${p.name}-${i}`} className="p-2 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{p.name}</div>
+                          {p.address ? <div className="text-xs text-gray-600 truncate">{p.address}</div> : null}
+                        </div>
+                        <button type="button" onClick={() => selectPlace(p)} className="rounded-full border border-black/20 bg-white px-3 py-1 text-sm hover:bg-gray-50">Select</button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="mt-1 text-xs text-gray-700">Tip: pick a place and edit the name before saving</div>
+          </div>
         </div>
 
         {/* Selected Location details */}
