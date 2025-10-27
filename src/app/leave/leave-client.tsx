@@ -20,6 +20,22 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   // saved rows (local mock)
   const [rows, setRows] = useState<Row[]>([]);
 
+  function exportCsv() {
+    const header = ["Date/Time", "Leave type", "Reason"];
+    const lines = rows.map((r) => [r.dt.replace("T", " "), r.type, r.reason]);
+    const csv = [header, ...lines]
+      .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "leave.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function onSave() {
     if (!dt || !type || !reason) {
       alert("Please fill Date/Time, Leave Type, and Reason.");
@@ -136,6 +152,20 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
               </TableBody>
             </Table>
           </div>
+        </div>
+
+        {/* Export */}
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-700 text-center sm:text-left">
+            Export file <br className="sm:hidden" /> .xlsx
+          </div>
+          <button
+            onClick={exportCsv}
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50 self-center sm:self-auto"
+            title="Export"
+          >
+            ➜
+          </button>
         </div>
 
         {/* Submit */}
