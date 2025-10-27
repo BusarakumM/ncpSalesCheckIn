@@ -53,7 +53,8 @@ export default function TaskDetailPage() {
         const parts = decoded.split("|");
         const email = parts[0] || "";
         const date = parts[1] || "";
-        const location = parts.slice(2).join("|");
+        const location = parts[2] || "";
+        const timeHint = parts[3] || ""; // HH:mm optional
         if (date || location) {
           const dDisp = date ? new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
           setDisplayTitle([location || "Task", dDisp].filter(Boolean).join(" — "));
@@ -62,7 +63,10 @@ export default function TaskDetailPage() {
           const res = await fetch('/api/pa/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: date, to: date, email }) });
           const data = await res.json();
           if (res.ok && data?.ok && Array.isArray(data.rows)) {
-            const row = (data.rows as any[]).find((r) => (r.location || "") === (location || ""));
+            let row = (data.rows as any[]).find((r) => (r.location || "") === (location || "") && (!timeHint || (r.checkin || "") === timeHint));
+            if (!row) {
+              row = (data.rows as any[]).find((r) => (r.location || "") === (location || ""));
+            }
             if (row && !cancelled) {
               // Preload name from existing row
               setLocationName(row.location || "");

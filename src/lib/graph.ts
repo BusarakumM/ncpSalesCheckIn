@@ -215,7 +215,8 @@ export async function listActivities(params: { from?: string; to?: string; name?
   ]);
 
   type Key = string;
-  const keyOf = (email: string, date: string, location: string) => `${email || ''}|${date}|${location || ''}`;
+  // We separate tasks by datetime (check-in time) rather than location.
+  const keyOfCheckin = (email: string, date: string, time: string) => `${email || ''}|${date}|${time || ''}`;
 
   function findIdx(headers: string[], name: string, fallback: number | null): number | null {
     const i = headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
@@ -298,7 +299,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
     const location = String(idx.ci.location != null ? r[idx.ci.location] || "" : "");
     const email = String(idx.ci.email != null ? r[idx.ci.email] || "" : "");
     const name = String(idx.ci.name != null ? r[idx.ci.name] || "" : "");
-    const key = keyOf(email, date, location);
+    const key = keyOfCheckin(email, date, time);
     const gpsStr = idx.ci.gps != null ? String(r[idx.ci.gps] || "") : "";
     const parsed = idx.ci.lat != null && idx.ci.lon != null
       ? normalizeLatLon(Number(r[idx.ci.lat]), Number(r[idx.ci.lon]))
@@ -332,7 +333,35 @@ export async function listActivities(params: { from?: string; to?: string; name?
     const location = String(idx.co.location != null ? r[idx.co.location] || "" : "");
     const email = String(idx.co.email != null ? r[idx.co.email] || "" : "");
     const name = String(idx.co.name != null ? r[idx.co.name] || "" : "");
-    const key = keyOf(email, date, location);
+    // Try to attach this checkout to the most recent ongoing check-in on the same date for this user.
+    // Prefer same location if available.
+    let key: Key | null = null;
+    let bestIdx: Key | null = null;
+    let bestScore = -1;
+    for (const [k, row] of map.entries()) {
+      if (row.email === email && row.date === date && row.checkin && !row.checkout) {
+        // score: prefer same location then closest time gap (if checkin available)
+        let score = 0;
+        if ((row.location || row.checkinLocation || '') === (location || '')) score += 10;
+        const ci = row.checkin || '';
+        const toMinutes = (hhmm: string) => {
+          const [hh, mm] = hhmm.split(":");
+          return Number(hh) * 60 + Number(mm);
+        };
+        const ciMin = ci ? toMinutes(ci) : 0;
+        const coMin = time ? toMinutes(time) : 0;
+        const gap = ci && time ? Math.max(0, coMin - ciMin) : 0;
+        // smaller gap is better
+        score += Math.max(0, 500 - gap);
+        if (score > bestScore) {
+          bestScore = score;
+          bestIdx = k;
+        }
+      }
+    }
+    if (bestIdx) key = bestIdx;
+    // If nothing to attach, fall back to its own key by checkout time
+    if (!key) key = keyOfCheckin(email, date, time);
     const gpsStr = idx.co.gps != null ? String(r[idx.co.gps] || "") : "";
     const parsed = idx.co.lat != null && idx.co.lon != null
       ? normalizeLatLon(Number(r[idx.co.lat]), Number(r[idx.co.lon]))

@@ -9,6 +9,8 @@ type Task = {
   id: string; // encoded stable key for URL
   no: number; // display number
   location: string;
+  time?: string; // check-in time HH:mm
+  checkout?: string; // checkout time HH:mm
   status: "In Progress" | "Completed" | "Not start yet";
   date: string; // yyyy-mm-dd
 };
@@ -40,9 +42,11 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
         const data = (await res.json()) as { ok: boolean; rows?: Array<{ date: string; location: string; status: 'completed' | 'incomplete' | 'ongoing' }> };
         if (!data?.ok) throw new Error('Failed to load activities');
         const mapped: Task[] = (data.rows || []).map((r, i) => ({
-          id: typeof window !== 'undefined' ? encodeURIComponent(btoa(`${email || ''}|${r.date}|${r.location || ''}`)) : String(i + 1),
+          id: typeof window !== 'undefined' ? encodeURIComponent(btoa(`${email || ''}|${r.date}|${r.location || ''}|${r.checkin || ''}`)) : String(i + 1),
           no: i + 1,
           location: r.location || 'Location',
+          time: r.checkin || '',
+          checkout: r.checkout || '',
           date: r.date,
           status: r.status === 'completed' ? 'Completed' : 'In Progress',
         }));
@@ -137,11 +141,16 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
                 </div>
                 <div className="flex-1">
                   <div className="font-medium text-base">{t.location}</div>
+                  {t.status === 'Completed' && t.time && t.checkout ? (
+                    <div className="text-xs text-gray-600 mt-0.5">{t.time} → {t.checkout}</div>
+                  ) : t.time ? (
+                    <div className="text-xs text-gray-600 mt-0.5">{t.time}</div>
+                  ) : null}
                   <div className={`mt-1 ${statusStyles(t.status)}`}>{t.status}</div>
                 </div>
                 <Link
                   href={`/checkin/${t.id}`}
-                  className="self-center inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-3 py-2 hover:bg-gray-50 text-xs font-bold"
+                  className={`self-center inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-3 py-2 hover:bg-gray-50 text-xs font-bold ${t.status === 'Completed' ? 'text-[#2e7d32]' : ''}`}
                   title="Open task"
                 >
                   CHECK
@@ -153,6 +162,11 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="font-medium text-lg">{t.location}</div>
+                    {t.status === 'Completed' && t.time && t.checkout ? (
+                      <div className="text-xs text-gray-600 mt-0.5">{t.time} → {t.checkout}</div>
+                    ) : t.time ? (
+                      <div className="text-xs text-gray-600 mt-0.5">{t.time}</div>
+                    ) : null}
                     <div className={`${statusStyles(t.status)}`}>{t.status}</div>
                   </div>
                 </div>
@@ -161,7 +175,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
                   className="inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-3 py-2 hover:bg-gray-50"
                   title="Open task"
                 >
-                  <span className="text-xs font-bold">CHECK</span>
+                  <span className={`text-xs font-bold ${t.status === 'Completed' ? 'text-[#2e7d32]' : ''}`}>CHECK</span>
                 </Link>
               </div>
             </div>
