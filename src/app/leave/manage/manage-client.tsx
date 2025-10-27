@@ -110,7 +110,7 @@ export default function LeaveManageClient() {
                   </TableRow>
                 ) : rows.map((r, i) => (
                   <TableRow key={i}>
-                    <TableCell>{formatDateDisplay(r.date)}</TableCell>
+                    <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                     <TableCell>{r.employeeNo || ""}</TableCell>
                     <TableCell>{r.name || ""}</TableCell>
                     <TableCell className="truncate">{r.email || ""}</TableCell>

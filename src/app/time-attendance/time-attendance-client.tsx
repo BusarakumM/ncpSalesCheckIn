@@ -165,7 +165,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                 ) : (
                   rows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell>{formatDateDisplay(r.date)}</TableCell>
+                      <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell title={r.checkinGps || undefined}>{r.checkin || "-"}</TableCell>
                       <TableCell title={r.checkoutGps || undefined}>{r.checkout || "-"}</TableCell>
                       <TableCell>

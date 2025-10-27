@@ -14,7 +14,9 @@ export default function TaskDetailPage() {
   const [checkinTime, setCheckinTime] = useState("");
   const [checkoutTime, setCheckoutTime] = useState("");
   const [displayTitle, setDisplayTitle] = useState<string>("Task");
-  const [locationName, setLocationName] = useState("");
+  const [locationMode, setLocationMode] = useState<"auto" | "manual">("auto");
+  const [locationNameManual, setLocationNameManual] = useState("");
+  const [locationNameAuto, setLocationNameAuto] = useState("");
   const [gps, setGps] = useState<string>("");
   const [checkinAddress, setCheckinAddress] = useState<string>("");
   const [checkoutGps, setCheckoutGps] = useState<string>("");
@@ -53,7 +55,9 @@ export default function TaskDetailPage() {
           if (res.ok && data?.ok && Array.isArray(data.rows)) {
             const row = (data.rows as any[]).find((r) => (r.location || "") === (location || ""));
             if (row && !cancelled) {
-              setLocationName(row.location || "");
+              // Preload manual name from existing row
+              setLocationNameManual(row.location || "");
+              setLocationMode(row.location ? "manual" : "auto");
               setGps(row.checkinGps || "");
               setCheckoutGps(row.checkoutGps || "");
               setJobDetail(row.detail || "");
@@ -114,7 +118,10 @@ export default function TaskDetailPage() {
         const lon = pos.coords.longitude.toFixed(6);
         const coord = `${lat}, ${lon}`;
         setGps(coord);
-        reverseGeocode(parseFloat(lat), parseFloat(lon)).then((addr) => setCheckinAddress(addr || ""));
+        reverseGeocode(parseFloat(lat), parseFloat(lon)).then((addr) => {
+          setCheckinAddress(addr || "");
+          if (addr) setLocationNameAuto(addr);
+        });
       },
       (err) => alert(err.message),
       { enableHighAccuracy: true, timeout: 15000 }
@@ -165,10 +172,11 @@ export default function TaskDetailPage() {
       setIsSubmitting(true);
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
+      const effectiveLocationName = (locationMode === "manual" ? locationNameManual : locationNameAuto) || locationNameManual || locationNameAuto || "";
       const resp = await submitCheckin({
         id,
         checkin: checkinTime,
-        locationName,
+        locationName: effectiveLocationName,
         gps,
         checkinAddress,
         jobDetail,
@@ -190,12 +198,13 @@ export default function TaskDetailPage() {
       setIsSubmitting(true);
       let uploadedUrl: string | null = null;
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
+      const effectiveLocationName = (locationMode === "manual" ? locationNameManual : locationNameAuto) || locationNameManual || locationNameAuto || "";
       const resp = await submitCheckout({
         id,
         checkout: checkoutTime,
         checkoutGps,
         checkoutAddress,
-        locationName,
+        locationName: effectiveLocationName,
         checkoutPhotoUrl: uploadedUrl,
       });
       const st = resp?.status ? String(resp.status) : "";
@@ -240,15 +249,51 @@ export default function TaskDetailPage() {
           </div>
         </div>
 
-        {/* Location Name */}
+        {/* Location Name (Auto vs Manual) */}
         <div className="mt-4">
           <div className="text-sm sm:text-base font-semibold">Location Name</div>
-          <Input
-            value={locationName}
-            onChange={(e) => setLocationName(e.target.value)}
-            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-            disabled={hasExistingCheckin || isSubmitting}
-          />
+          <div className="mt-2 inline-flex rounded-full border border-black/20 bg-white">
+            <button
+              type="button"
+              onClick={() => setLocationMode("auto")}
+              className={`px-3 py-1.5 text-sm rounded-full ${locationMode === "auto" ? "bg-[#D8CBAF]" : "bg-transparent"}`}
+              disabled={hasExistingCheckin || isSubmitting}
+              title="Auto fill from GPS"
+            >
+              Auto (GPS)
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocationMode("manual")}
+              className={`px-3 py-1.5 text-sm rounded-full ${locationMode === "manual" ? "bg-[#D8CBAF]" : "bg-transparent"}`}
+              disabled={hasExistingCheckin || isSubmitting}
+              title="Sales support manual fill"
+            >
+              Manual
+            </button>
+          </div>
+          {locationMode === "auto" ? (
+            <div className="mt-2">
+              <Input
+                value={locationNameAuto}
+                readOnly
+                placeholder="Use Get GPS to auto-fill"
+                className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+                disabled={hasExistingCheckin || isSubmitting}
+              />
+              <div className="mt-1 text-xs text-gray-700">Auto-filled from Google Maps reverse geocoding</div>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <Input
+                value={locationNameManual}
+                onChange={(e) => setLocationNameManual(e.target.value)}
+                placeholder="Enter location name"
+                className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+                disabled={hasExistingCheckin || isSubmitting}
+              />
+            </div>
+          )}
         </div>
 
         {/* GPS */}

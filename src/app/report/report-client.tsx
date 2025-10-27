@@ -174,7 +174,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                 ) : (
                   rows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell>{formatDateDisplay(r.date)}</TableCell>
+                      <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell>{r.checkin}</TableCell>
                       <TableCell>{r.checkout || "-"}</TableCell>
                       <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
