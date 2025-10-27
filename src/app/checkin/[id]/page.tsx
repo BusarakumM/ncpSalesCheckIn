@@ -364,7 +364,7 @@ export default function TaskDetailPage() {
               <Input
                 value={locationNameAuto}
                 readOnly
-                placeholder="Pick or Get GPS to auto-fill"
+                placeholder="Pick place or Nearby to auto-fill"
                 className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
                 disabled={hasExistingCheckin || isSubmitting}
               />
@@ -433,21 +433,11 @@ export default function TaskDetailPage() {
           )}
         </div>
 
-        {/* GPS */}
+        {/* Selected Location details */}
         <div className="mt-4">
-          <div className="text-sm sm:text-base font-semibold">GPS</div>
+          <div className="text-sm sm:text-base font-semibold">Selected Location</div>
           <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4">
             <div className="text-sm sm:text-base break-words">{gps || "—"}</div>
-            <div className="mt-3">
-              <Button
-                onClick={captureGPS}
-                variant="outline"
-                className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={hasExistingCheckin || isSubmitting}
-              >
-                Get GPS
-              </Button>
-            </div>
             {checkinAddress ? (
               <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkinAddress}>
                 {checkinAddress}
@@ -457,6 +447,7 @@ export default function TaskDetailPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={mapUrl(gps)} alt="check-in map" className="mt-2 rounded border border-black/10" />
             ) : null}
+            <div className="mt-2 text-xs text-gray-700">Use "Pick place" or "Nearby" above to select.</div>
           </div>
         </div>
 
@@ -576,16 +567,6 @@ export default function TaskDetailPage() {
               <div className="text-sm sm:text-base font-semibold">Checkout GPS</div>
               <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4">
                 <div className="text-sm sm:text-base break-words">{checkoutGps || "—"}</div>
-                <div className="mt-3">
-                  <Button
-                    onClick={captureCheckoutGPS}
-                    variant="outline"
-                    className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                    disabled={hasExistingCheckout || isSubmitting}
-                  >
-                    Get GPS
-                  </Button>
-                </div>
                 {checkoutAddress ? (
                   <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkoutAddress}>
                     {checkoutAddress}
@@ -595,6 +576,17 @@ export default function TaskDetailPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={mapUrl(checkoutGps)} alt="checkout map" className="mt-2 rounded border border-black/10" />
                 ) : null}
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => { if (gps) setCheckoutGps(gps); if (checkinAddress) setCheckoutAddress(checkinAddress); }}
+                    className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+                    disabled={hasExistingCheckout || isSubmitting}
+                    title="Use the same location as Check-in"
+                  >
+                    Use check-in location
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -320,7 +320,7 @@ export default function NewTaskPage() {
               <Input
                 value={locationNameAuto}
                 readOnly
-                placeholder="Use Get GPS to auto-fill"
+                placeholder="Pick place or Nearby to auto-fill"
                 className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
                 disabled={isSubmitting || submittedCheckin}
               />
@@ -391,11 +391,11 @@ export default function NewTaskPage() {
           )}
         </div>
 
-        {/* GPS */}
+        {/* Selected Location details */}
         <div className="mt-4">
-          <div className="text-sm sm:text-base font-semibold">GPS</div>
+          <div className="text-sm sm:text-base font-semibold">Selected Location</div>
           <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[140px]">
-            <div className="text-sm sm:text-base break-words" title={gps || undefined}>{gps || "�"}</div>
+            <div className="text-sm sm:text-base break-words" title={gps || undefined}>{gps || "—"}</div>
             {checkinAddress ? (
               <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkinAddress}>
                 {checkinAddress}
@@ -405,16 +405,7 @@ export default function NewTaskPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={mapUrl(gps)} alt="check-in map" className="mt-2 rounded border border-black/10" />
             ) : null}
-            <div className="mt-3">
-              <Button
-                onClick={getGPS}
-                variant="outline"
-                className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={isSubmitting || submittedCheckin}
-              >
-                Get GPS
-              </Button>
-            </div>
+            <div className="mt-2 text-xs text-gray-700">Use "Pick place" or "Nearby" above to select.</div>
           </div>
         </div>
 
@@ -535,11 +526,14 @@ export default function NewTaskPage() {
                 ) : null}
                 <div className="mt-3">
                   <Button
-                    onClick={getCheckoutGPS}
+                    type="button"
                     variant="outline"
                     className="rounded-full border-black/20 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={isSubmitting || submittedCheckin}>
-                Get GPS
+                    onClick={() => { if (gps) setCheckoutGps(gps); if (checkinAddress) setCheckoutAddress(checkinAddress); }}
+                    disabled={isSubmitting || submittedCheckin}
+                    title="Use the same location as Check-in"
+                  >
+                    Use check-in location
                   </Button>
                 </div>
               </div>
