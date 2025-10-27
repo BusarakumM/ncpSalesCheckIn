@@ -349,14 +349,20 @@ export default function TaskDetailPage() {
     }
   }
 
-  async function onSubmitCheckin() {
+async function onSubmitCheckin() {
     try {
       setIsSubmitting(true);
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
+      // Enforce real-time check-in timestamp at submit
+      const now = new Date();
+      const isoLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+      setCheckinTime(isoLocal);
       const resp = await submitCheckin({
         id,
-        checkin: checkinTime,
+        checkin: isoLocal,
         locationName,
         gps,
         checkinAddress,
@@ -418,14 +424,14 @@ export default function TaskDetailPage() {
 
         {/* Check-in time */}
         <div className="mt-3">
-          <div className="text-sm sm:text-base font-semibold">Check-in Time :</div>
+          <div className="text-sm sm:text-base font-semibold">Check-in Time (auto)</div>
           <div className="mt-1">
             <Input
               type="datetime-local"
               value={checkinTime}
-              onChange={(e) => setCheckinTime(e.target.value)}
+              readOnly
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-              disabled={hasExistingCheckin || isSubmitting}
+              disabled
             />
           </div>
         </div>
@@ -657,15 +663,15 @@ export default function TaskDetailPage() {
           </Button>
         </div>
 
-        {/* Check-out time (wraps nicely on small screens) */}
+        {/* Check-out time (auto) */}
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-          <div className="text-sm sm:text-base font-semibold">Check-out Time :</div>
+          <div className="text-sm sm:text-base font-semibold">Check-out Time (auto)</div>
           <Input
             type="datetime-local"
             value={checkoutTime}
-            onChange={(e) => setCheckoutTime(e.target.value)}
+            readOnly
             className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11 w-full sm:w-[260px]"
-            disabled={hasExistingCheckout || isSubmitting}
+            disabled
           />
         </div>
 

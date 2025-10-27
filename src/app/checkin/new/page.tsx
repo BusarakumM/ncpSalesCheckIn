@@ -42,7 +42,7 @@ export default function NewTaskPage() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
 
-  // Prefill current datetime as check-in time
+  // Prefill current datetime as check-in time (display only; actual submit uses real-time now)
   useEffect(() => {
     const now = new Date();
     const iso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -281,8 +281,14 @@ export default function NewTaskPage() {
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
       setIsSubmitting(true);
+      // Enforce real-time check-in timestamp at submit
+      const now = new Date();
+      const iso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+      setCheckinTime(iso);
       const resp = await submitCheckin({
-        checkin: checkinTime,
+        checkin: iso,
         locationName,
         gps,
         checkinAddress,
@@ -379,13 +385,13 @@ export default function NewTaskPage() {
 
         {/* Check-in time */}
         <div className="mt-2">
-          <div className="text-sm sm:text-base font-semibold">Check-in Time :</div>
+          <div className="text-sm sm:text-base font-semibold">Check-in Time (auto)</div>
           <Input
             type="datetime-local"
             value={checkinTime}
-            onChange={(e) => setCheckinTime(e.target.value)}
+            readOnly
             className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-            disabled={isSubmitting || submittedCheckin}
+            disabled
           />
         </div>
 
@@ -613,12 +619,13 @@ export default function NewTaskPage() {
 
         {/* Checkout time */}
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-          <div className="text-sm sm:text-base font-semibold">Check-out Time :</div>
+          <div className="text-sm sm:text-base font-semibold">Check-out Time (auto)</div>
           <Input
             type="datetime-local"
             value={checkoutTime}
-            onChange={(e) => setCheckoutTime(e.target.value)}
+            readOnly
             className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11 w-full sm:w-[260px]"
+            disabled
           />
         </div>
 
