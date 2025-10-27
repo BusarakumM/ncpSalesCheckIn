@@ -349,9 +349,19 @@ export default function TaskDetailPage() {
     }
   }
 
-async function onSubmitCheckin() {
+  async function onSubmitCheckin() {
     try {
       setIsSubmitting(true);
+      if (!locationName.trim()) {
+        alert("Please enter a location name");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!photoFile) {
+        alert("Please attach a check-in photo");
+        setIsSubmitting(false);
+        return;
+      }
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
       // Enforce real-time check-in timestamp at submit
@@ -383,6 +393,16 @@ async function onSubmitCheckin() {
   async function onSubmitCheckout() {
     try {
       setIsSubmitting(true);
+      if (!locationName.trim()) {
+        alert("Please enter a location name");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!checkoutPhotoFile) {
+        alert("Please attach a checkout photo");
+        setIsSubmitting(false);
+        return;
+      }
       let uploadedUrl: string | null = null;
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
       const resp = await submitCheckout({
@@ -643,14 +663,17 @@ async function onSubmitCheckin() {
             )}
           </div>
         </div>
+        {!photoFile && !hasExistingCheckin && !isSubmitting ? (
+          <div className="mt-1 text-xs text-red-700">Check-in photo is required</div>
+        ) : null}
 
         {/* Actions */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
             onClick={onSubmitCheckin}
-            disabled={hasExistingCheckin || !locationName.trim() || isSubmitting}
+            disabled={hasExistingCheckin || !locationName.trim() || !photoFile || isSubmitting}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "Please enter a location name" : hasExistingCheckin ? "Check-in already submitted" : undefined}
+            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : hasExistingCheckin ? "Check-in already submitted" : undefined}
           >
             Submit Check-in
           </Button>
@@ -751,12 +774,15 @@ async function onSubmitCheckin() {
                 )}
               </div>
             </div>
+            {!checkoutPhotoFile && !hasExistingCheckout && !isSubmitting ? (
+              <div className="mt-1 text-xs text-red-700">Checkout photo is required</div>
+            ) : null}
 
             {/* Submit Checkout */}
             <div className="mt-4">
               <Button
                 onClick={onSubmitCheckout}
-                disabled={hasExistingCheckout || !locationName.trim() || isSubmitting}
+                disabled={hasExistingCheckout || !locationName.trim() || !checkoutPhotoFile || isSubmitting}
                 className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Submit Checkout

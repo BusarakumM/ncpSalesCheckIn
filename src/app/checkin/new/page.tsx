@@ -278,6 +278,14 @@ export default function NewTaskPage() {
 
   async function onSubmitCheckin() {
     try {
+      if (!locationName.trim()) {
+        alert("Please enter a location name");
+        return;
+      }
+      if (!photoFile) {
+        alert("Please attach a check-in photo");
+        return;
+      }
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
       setIsSubmitting(true);
@@ -344,6 +352,14 @@ export default function NewTaskPage() {
 
   async function onSubmitCheckout() {
     try {
+      if (!locationName.trim()) {
+        alert("Please enter a location name");
+        return;
+      }
+      if (!checkoutPhotoFile) {
+        alert("Please attach a checkout photo");
+        return;
+      }
       let uploadedUrl: string | null = null;
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
       setIsSubmitting(true);
@@ -598,14 +614,17 @@ export default function NewTaskPage() {
             )}
           </div>
         </div>
+        {!photoFile && !isSubmitting && !submittedCheckin ? (
+          <div className="mt-1 text-xs text-red-700">Check-in photo is required</div>
+        ) : null}
 
         {/* Action buttons */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
             onClick={onSubmitCheckin}
-            disabled={!locationName.trim() || isSubmitting}
+            disabled={!locationName.trim() || !photoFile || isSubmitting}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "Please enter a location name" : undefined}
+            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : undefined}
           >
             Submit Check-in
           </Button>
@@ -704,14 +723,17 @@ export default function NewTaskPage() {
                 )}
               </div>
             </div>
+            {!checkoutPhotoFile && !isSubmitting && !submittedCheckout ? (
+              <div className="mt-1 text-xs text-red-700">Checkout photo is required</div>
+            ) : null}
 
             {/* Submit Checkout */}
             <div className="mt-4">
               <Button
                 onClick={onSubmitCheckout}
-                disabled={!locationName.trim() || isSubmitting}
+                disabled={!locationName.trim() || !checkoutPhotoFile || isSubmitting}
                 className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-                title={!locationName.trim() ? "Please enter a location name" : undefined}
+                title={!locationName.trim() ? "Please enter a location name" : !checkoutPhotoFile ? "Please attach a checkout photo" : undefined}
               >
                 Submit Checkout
               </Button>
