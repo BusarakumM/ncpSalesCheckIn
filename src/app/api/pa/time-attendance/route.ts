@@ -60,8 +60,14 @@ export async function POST(req: Request) {
       rows = rows.filter((r) => r.name.toLowerCase().includes(n));
     }
 
-    // Sort by date desc then name asc
-    rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.name || '').localeCompare(b.name || '')));
+    // Sort by name asc then date asc
+    rows.sort((a, b) => {
+      const na = (a.name || "").toLowerCase();
+      const nb = (b.name || "").toLowerCase();
+      const byName = na.localeCompare(nb);
+      if (byName !== 0) return byName;
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+    });
 
     return NextResponse.json({ ok: true, rows });
   } catch (e: any) {
