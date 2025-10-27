@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDateDisplay } from "@/lib/utils";
 
 type Row = { date: string; leaveType: string; reason: string; name?: string; email?: string; employeeNo?: string; district?: string };
 
@@ -109,7 +110,7 @@ export default function LeaveManageClient() {
                   </TableRow>
                 ) : rows.map((r, i) => (
                   <TableRow key={i}>
-                    <TableCell>{new Date(r.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
+                    <TableCell>{formatDateDisplay(r.date)}</TableCell>
                     <TableCell>{r.employeeNo || ""}</TableCell>
                     <TableCell>{r.name || ""}</TableCell>
                     <TableCell className="truncate">{r.email || ""}</TableCell>

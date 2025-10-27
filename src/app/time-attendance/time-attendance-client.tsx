@@ -5,9 +5,8 @@ import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDateDisplay } from "@/lib/utils";
 
 type Row = {
   date: string;        // yyyy-mm-dd
@@ -166,11 +165,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                 ) : (
                   rows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell>
-                        {new Date(r.date).toLocaleDateString("en-GB", {
-                          day: "2-digit", month: "short", year: "numeric",
-                        })}
-                      </TableCell>
+                      <TableCell>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell title={r.checkinGps || undefined}>{r.checkin || "-"}</TableCell>
                       <TableCell title={r.checkoutGps || undefined}>{r.checkout || "-"}</TableCell>
                       <TableCell>

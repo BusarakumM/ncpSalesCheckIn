@@ -6,9 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDateDisplay } from "@/lib/utils";
 
 type Row = {
   date: string;
@@ -200,13 +199,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                 ) : (
                   rows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell>
-                        {new Date(r.date).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </TableCell>
+                      <TableCell>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell>{r.checkin || "-"}</TableCell>
                       <TableCell>{r.checkout || "-"}</TableCell>
                       <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
