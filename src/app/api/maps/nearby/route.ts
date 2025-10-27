@@ -9,6 +9,7 @@ export async function GET(req: Request) {
   const lon = url.searchParams.get("lon");
   const radiusParam = url.searchParams.get("radius");
   const radius = Math.max(50, Math.min(1000, Number(radiusParam) || 200)); // clamp radius 50-1000m
+  const full = url.searchParams.get("full");
 
   if (!lat || !lon) {
     return NextResponse.json({ ok: false, error: "Missing lat/lon" }, { status: 400 });
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
     const results: any[] = Array.isArray(data?.results) ? data.results : [];
 
     if (results.length === 0) {
-      return NextResponse.json({ ok: true, name: "" }, { status: 200 });
+      return NextResponse.json({ ok: true, name: "", results: [] }, { status: 200 });
     }
 
     // Prefer specific commercial categories
@@ -83,6 +84,8 @@ export async function GET(req: Request) {
         vicinity: p?.vicinity as string | undefined,
         rating: typeof p?.rating === "number" ? p.rating : 0,
         types: Array.isArray(p?.types) ? (p.types as string[]) : [],
+        lat: p?.geometry?.location?.lat as number | undefined,
+        lon: p?.geometry?.location?.lng as number | undefined,
       }))
       .filter((p) => !!p.name)
       .sort((a, b) => {
@@ -94,11 +97,24 @@ export async function GET(req: Request) {
 
     const top = sorted[0];
     if (!top) {
-      return NextResponse.json({ ok: true, name: "" });
+      return NextResponse.json({ ok: true, name: "", results: [] });
     }
     const display = top.vicinity && !top.name?.includes(top.vicinity)
       ? `${top.name} — ${top.vicinity}`
       : top.name || "";
+
+    if (full) {
+      return NextResponse.json({
+        ok: true,
+        source: "places",
+        results: sorted.slice(0, 20).map((p) => ({
+          name: p.name,
+          address: p.vicinity || "",
+          lat: p.lat,
+          lon: p.lon,
+        })),
+      });
+    }
 
     return NextResponse.json({ ok: true, name: display, source: "places" });
   } catch (e: any) {

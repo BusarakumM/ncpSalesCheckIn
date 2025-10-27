@@ -33,6 +33,11 @@ export default function TaskDetailPage() {
   const [hasExistingCheckin, setHasExistingCheckin] = useState(false);
   const [hasExistingCheckout, setHasExistingCheckout] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Place picker state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [placeResults, setPlaceResults] = useState<Array<{ name: string; address?: string; lat?: number; lon?: number }>>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
 
   // Try to load existing task by stable key (email|date|location); otherwise default time to now
   useEffect(() => {
@@ -134,6 +139,80 @@ export default function TaskDetailPage() {
       (err) => alert(err.message),
       { enableHighAccuracy: true, timeout: 15000 }
     );
+  }
+
+  async function searchPlaces() {
+    if (!placeQuery.trim()) return;
+    try {
+      setPickerLoading(true);
+      const url = `/api/maps/search?q=${encodeURIComponent(placeQuery.trim())}${gps ? `&lat=${encodeURIComponent(gps.split(',')[0].trim())}&lon=${encodeURIComponent(gps.split(',')[1].trim())}` : ''}`;
+      const res = await fetch(url, { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && data?.ok && Array.isArray(data.results)) {
+        setPlaceResults(data.results);
+      } else if (res.ok && Array.isArray(data.results)) {
+        setPlaceResults(data.results);
+      } else {
+        setPlaceResults([]);
+      }
+    } catch {
+      setPlaceResults([]);
+    } finally {
+      setPickerLoading(false);
+    }
+  }
+
+  async function loadNearby() {
+    try {
+      setPickerLoading(true);
+      let lat: string | null = null;
+      let lon: string | null = null;
+      if (gps) {
+        const parts = gps.split(",");
+        if (parts.length >= 2) {
+          lat = parts[0].trim();
+          lon = parts[1].trim();
+        }
+      }
+      if (!lat || !lon) {
+        await new Promise<void>((resolve) => {
+          if (!("geolocation" in navigator)) return resolve();
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              lat = pos.coords.latitude.toFixed(6);
+              lon = pos.coords.longitude.toFixed(6);
+              setGps(`${lat}, ${lon}`);
+              resolve();
+            },
+            () => resolve(),
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        });
+      }
+      const q = lat && lon ? `?lat=${lat}&lon=${lon}&full=1` : "";
+      const res = await fetch(`/api/maps/nearby${q}`, { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && data?.ok && Array.isArray(data.results)) {
+        setPlaceResults(data.results);
+      } else {
+        setPlaceResults([]);
+      }
+    } catch {
+      setPlaceResults([]);
+    } finally {
+      setPickerLoading(false);
+    }
+  }
+
+  function selectPlace(p: { name: string; address?: string; lat?: number; lon?: number }) {
+    if (p.lat != null && p.lon != null) {
+      const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
+      setGps(coord);
+      setCheckinAddress(p.address || "");
+    }
+    setLocationNameAuto(p.name);
+    setLocationMode("auto");
+    setPickerOpen(false);
   }
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -285,11 +364,61 @@ export default function TaskDetailPage() {
               <Input
                 value={locationNameAuto}
                 readOnly
-                placeholder="Use Get GPS to auto-fill"
+                placeholder="Pick or Get GPS to auto-fill"
                 className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
                 disabled={hasExistingCheckin || isSubmitting}
               />
-              <div className="mt-1 text-xs text-gray-700">Auto-filled from Google Maps reverse geocoding</div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setPickerOpen((v) => !v); if (!pickerOpen) { setPlaceResults([]); } }}
+                  className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+                  disabled={hasExistingCheckin || isSubmitting}
+                  title="Search or pick nearby place"
+                >
+                  Pick place
+                </button>
+                <button
+                  type="button"
+                  onClick={loadNearby}
+                  className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+                  disabled={hasExistingCheckin || isSubmitting}
+                  title="Load nearby places"
+                >
+                  Nearby
+                </button>
+              </div>
+              {pickerOpen && (
+                <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Search place (e.g., mall, company)"
+                      value={placeQuery}
+                      onChange={(e) => setPlaceQuery(e.target.value)}
+                      className="h-9 rounded-full border-black/10 bg-white"
+                    />
+                    <button type="button" onClick={searchPlaces} className="rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50" disabled={pickerLoading}>Search</button>
+                  </div>
+                  <div className="mt-2 max-h-56 overflow-auto divide-y divide-black/10 bg-white rounded">
+                    {pickerLoading ? (
+                      <div className="p-3 text-sm">Loading…</div>
+                    ) : placeResults.length === 0 ? (
+                      <div className="p-3 text-sm text-gray-700">No results</div>
+                    ) : (
+                      placeResults.map((p, i) => (
+                        <div key={`${p.name}-${i}`} className="p-2 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{p.name}</div>
+                            {p.address ? <div className="text-xs text-gray-600 truncate">{p.address}</div> : null}
+                          </div>
+                          <button type="button" onClick={() => selectPlace(p)} className="rounded-full border border-black/20 bg-white px-3 py-1 text-sm hover:bg-gray-50">Select</button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="mt-1 text-xs text-gray-700">Auto-filled from Google Maps Places/Geocoding</div>
             </div>
           ) : (
             <div className="mt-2">
