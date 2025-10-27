@@ -42,6 +42,7 @@ export default function TaskDetailPage() {
   const [suggestions, setSuggestions] = useState<Array<{ name: string; address?: string; lat?: number; lon?: number }>>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [checkoutOutOfArea, setCheckoutOutOfArea] = useState(false);
 
   // Try to load existing task by stable key (email|date|location); otherwise default time to now
   useEffect(() => {
@@ -344,6 +345,10 @@ export default function TaskDetailPage() {
             if (d > threshold) {
               const meters = Math.round(d * 1000);
               setCheckoutRemark(`Checkout location differs by ~${meters} m (>${threshold} km)`);
+              setCheckoutOutOfArea(true);
+              alert("จุด check-out อยู่นอกพื้นที่ check-in");
+            } else {
+              setCheckoutOutOfArea(false);
             }
           }
         },
@@ -351,6 +356,36 @@ export default function TaskDetailPage() {
         { enableHighAccuracy: true, timeout: 12000 }
       );
     }
+  }
+
+  function retryCheckoutGps() {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lon = pos.coords.longitude.toFixed(6);
+        const coord = `${lat}, ${lon}`;
+        setCheckoutGps(coord);
+        const addr = await reverseGeocode(parseFloat(lat), parseFloat(lon));
+        setCheckoutAddress(addr || "");
+        const a = toLatLonPair(gps);
+        const b = toLatLonPair(coord);
+        if (a && b) {
+          const d = distanceKm(a, b);
+          const threshold = maxDistanceKm();
+          if (d > threshold) {
+            const meters = Math.round(d * 1000);
+            setCheckoutRemark(`Checkout location differs by ~${meters} m (>${threshold} km)`);
+            setCheckoutOutOfArea(true);
+          } else {
+            setCheckoutRemark("");
+            setCheckoutOutOfArea(false);
+          }
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
   }
 
   async function onSubmitCheckin() {
@@ -406,6 +441,19 @@ export default function TaskDetailPage() {
         alert("Please attach a checkout photo");
         setIsSubmitting(false);
         return;
+      }
+      // Validate distance before submit
+      const a = toLatLonPair(gps);
+      const b = toLatLonPair(checkoutGps);
+      if (a && b) {
+        const d = distanceKm(a, b);
+        const threshold = maxDistanceKm();
+        if (d > threshold) {
+          setCheckoutOutOfArea(true);
+          alert("จุด check-out อยู่นอกพื้นที่ check-in");
+          setIsSubmitting(false);
+          return;
+        }
       }
       let uploadedUrl: string | null = null;
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
@@ -704,6 +752,20 @@ export default function TaskDetailPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={mapUrl(checkoutGps)} alt="checkout map" className="mt-2 rounded border border-black/10" />
                 ) : null}
+                {checkoutOutOfArea ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="rounded border border-red-300 bg-red-100 px-3 py-1 text-xs sm:text-sm text-red-800">
+                      จุด check-out อยู่นอกพื้นที่ check-in
+                    </div>
+                    <button
+                      type="button"
+                      onClick={retryCheckoutGps}
+                      className="inline-flex items-center justify-center h-7 rounded-full border border-black/20 bg-white px-2 text-xs hover:bg-gray-50"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : null}
                 {checkoutRemark ? (
                   <div className="mt-2 text-xs text-red-700">{checkoutRemark}</div>
                 ) : null}
@@ -753,7 +815,7 @@ export default function TaskDetailPage() {
             <div className="mt-4">
               <Button
                 onClick={onSubmitCheckout}
-                disabled={hasExistingCheckout || !locationName.trim() || !checkoutPhotoFile || isSubmitting}
+                disabled={hasExistingCheckout || !locationName.trim() || !checkoutPhotoFile || checkoutOutOfArea || isSubmitting}
                 className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Submit Checkout
