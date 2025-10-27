@@ -14,6 +14,30 @@ export default function LeaveManageClient() {
   const [q, setQ] = useState(""); // email or emp no
   const [rows, setRows] = useState<Row[]>([]);
 
+  function exportCsv() {
+    const header = ["Date","Emp No","Name","Email","District","Leave Type","Reason"];
+    const lines = rows.map((r) => [
+      r.date,
+      r.employeeNo || "",
+      r.name || "",
+      r.email || "",
+      r.district || "",
+      r.leaveType,
+      r.reason,
+    ]);
+    const csv = [header, ...lines]
+      .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "leave-submissions.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function load() {
     const qs = new URLSearchParams();
     if (from) qs.set("from", from);
@@ -48,6 +72,20 @@ export default function LeaveManageClient() {
         </div>
         <div className="mt-3 flex justify-center">
           <Button onClick={load} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">Search</Button>
+        </div>
+
+        {/* Export (moved above table for visibility) */}
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-700 text-center sm:text-left">
+            Export file <br className="sm:hidden" /> .xlsx
+          </div>
+          <button
+            onClick={exportCsv}
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50 self-center sm:self-auto"
+            title="Export"
+          >
+            ➜
+          </button>
         </div>
 
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
@@ -89,4 +127,3 @@ export default function LeaveManageClient() {
     </div>
   );
 }
-
