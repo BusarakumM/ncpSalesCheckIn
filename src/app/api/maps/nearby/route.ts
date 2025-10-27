@@ -35,7 +35,12 @@ export async function GET(req: Request) {
     );
     endpoint.searchParams.set("key", key);
 
-    const r = await fetch(endpoint.toString(), { cache: "no-store" });
+    const r = await fetch(endpoint.toString(), {
+      cache: "no-store",
+      headers: {
+        ...(url.origin ? { Referer: url.origin } : {}),
+      },
+    });
     if (!r.ok) {
       const txt = await r.text().catch(() => "");
       return NextResponse.json({ ok: false, error: `Places failed ${r.status}: ${txt}` }, { status: 502 });
@@ -100,4 +105,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message || "Places error" }, { status: 500 });
   }
 }
-

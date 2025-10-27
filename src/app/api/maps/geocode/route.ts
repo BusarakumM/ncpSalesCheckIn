@@ -14,7 +14,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Missing Google Maps API key" }, { status: 500 });
   }
   try {
-    const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${key}`, { cache: "no-store" });
+    const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${key}`, {
+      cache: "no-store",
+      // Add Referer to satisfy referrer-restricted browser keys if you choose a single key
+      headers: {
+        ...(url.origin ? { Referer: url.origin } : {}),
+      },
+    });
     if (!r.ok) {
       const txt = await r.text().catch(() => "");
       return NextResponse.json({ ok: false, error: `Geocode failed ${r.status}: ${txt}` }, { status: 502 });
@@ -26,4 +32,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message || "Geocode error" }, { status: 500 });
   }
 }
-
