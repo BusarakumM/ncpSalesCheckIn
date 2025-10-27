@@ -15,6 +15,7 @@ type Row = {
   checkout?: string;
   location: string;
   detail?: string;
+  name?: string;
   imageIn?: string;
   imageOut?: string;
   status: "completed" | "incomplete" | "ongoing";
@@ -60,6 +61,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
       checkout: r.checkout,
       location: r.location,
       detail: r.detail,
+      name: r.name,
       imageIn: r.imageIn || "",
       imageOut: r.imageOut || r.image || "",
       status: r.status,
@@ -82,9 +84,9 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
 
 
   function exportCsv() {
-    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "Remark", "Status"];
+    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "Sales Support Name", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "Remark", "Status"];
     const lines = rows.map((r) => [
-      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.imageIn || "", r.imageOut || "", r.remark || "", r.status,
+      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.name || "", r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.imageIn || "", r.imageOut || "", r.remark || "", r.status,
     ]);
     const csv = [header, ...lines]
       .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -152,6 +154,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[120px]">Check-out</TableHead>
                   <TableHead className="min-w-[160px]">Location name</TableHead>
                   <TableHead className="min-w-[180px]">Activity detail</TableHead>
+                  <TableHead className="min-w-[180px]">Sales support name</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
                   <TableHead className="min-w-[180px]">In GPS</TableHead>
                   <TableHead className="min-w-[180px]">Out GPS</TableHead>
@@ -165,7 +168,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center text-gray-500">
+                    <TableCell colSpan={14} className="text-center text-gray-500">
                       No data for the selected range
                     </TableCell>
                   </TableRow>
@@ -181,6 +184,7 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
                       <TableCell>{r.checkout || "-"}</TableCell>
                       <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
                       <TableCell>{r.detail}</TableCell>
+                      <TableCell>{r.name || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
                       <TableCell>
                         {r.checkinGps ? (
