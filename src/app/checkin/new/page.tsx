@@ -42,6 +42,32 @@ export default function NewTaskPage() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [checkoutOutOfArea, setCheckoutOutOfArea] = useState(false);
+  // Auto-expire check-in location/GPS if not submitted within 10 minutes
+  const checkinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  function clearCheckinTimeout() {
+    if (checkinTimeoutRef.current) {
+      clearTimeout(checkinTimeoutRef.current);
+      checkinTimeoutRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    // Start or reset a 10-minute timer when both location and GPS are present and check-in not yet submitted
+    clearCheckinTimeout();
+    if (!submittedCheckin && locationName.trim() && gps.trim()) {
+      checkinTimeoutRef.current = setTimeout(() => {
+        // Timeout reached: clear location + GPS and notify user
+        setLocationName("");
+        setGps("");
+        setCheckinAddress("");
+        alert("submit check-in timeout");
+      }, 10 * 60 * 1000);
+    }
+    return () => {
+      clearCheckinTimeout();
+    };
+  }, [locationName, gps, submittedCheckin]);
 
   // Prefill current datetime as check-in time (display only; actual submit uses real-time now)
   useEffect(() => {

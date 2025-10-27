@@ -43,6 +43,31 @@ export default function TaskDetailPage() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [checkoutOutOfArea, setCheckoutOutOfArea] = useState(false);
+  // Auto-expire check-in location/GPS if not submitted within 10 minutes (before check-in exists)
+  const checkinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  function clearCheckinTimeout() {
+    if (checkinTimeoutRef.current) {
+      clearTimeout(checkinTimeoutRef.current);
+      checkinTimeoutRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    // Only apply the timeout if check-in has not been submitted yet
+    clearCheckinTimeout();
+    if (!hasExistingCheckin && locationName.trim() && gps.trim()) {
+      checkinTimeoutRef.current = setTimeout(() => {
+        setLocationName("");
+        setGps("");
+        setCheckinAddress("");
+        alert("submit check-in timeout");
+      }, 10 * 60 * 1000);
+    }
+    return () => {
+      clearCheckinTimeout();
+    };
+  }, [locationName, gps, hasExistingCheckin]);
 
   // Try to load existing task by stable key (email|date|location); otherwise default time to now
   useEffect(() => {
