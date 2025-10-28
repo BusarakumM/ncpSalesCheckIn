@@ -13,7 +13,14 @@ type Row = { dt: string; type: string; reason: string };
 
 export default function LeaveClient({ homeHref }: { homeHref: string }) {
   // form
-  const [dt, setDt] = useState("");
+  // leave mode: full-day or hourly
+  const [mode, setMode] = useState<"full" | "hourly">("full");
+  // full-day fields
+  const [fullDate, setFullDate] = useState("");
+  // hourly fields
+  const [hourDate, setHourDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [type, setType] = useState("");
   const [reason, setReason] = useState("");
 
@@ -37,11 +44,46 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   }
 
   function onSave() {
-    if (!dt || !type || !reason) {
-      alert("Please fill Date/Time, Leave Type, and Reason.");
+    // Validate common fields
+    if (!type || !reason) {
+      alert("Please fill Leave Type and Reason.");
       return;
     }
-    setRows((r) => [...r, { dt, type, reason }]);
+
+    let computedDt = "";
+    let computedType = type;
+
+    if (mode === "full") {
+      if (!fullDate) {
+        alert("Please select the date for Full Day leave.");
+        return;
+      }
+      // Use midnight local time for full-day
+      computedDt = `${fullDate}T00:00`;
+      computedType = `${type} (Full Day)`;
+    } else {
+      // hourly
+      if (!hourDate || !startTime || !endTime) {
+        alert("Please select date, start time and end time for Hourly leave.");
+        return;
+      }
+      if (endTime <= startTime) {
+        alert("End time must be after start time.");
+        return;
+      }
+      computedDt = `${hourDate}T${startTime}`;
+      computedType = `${type} (Hourly ${startTime}-${endTime})`;
+    }
+
+    setRows((r) => [...r, { dt: computedDt, type: computedType, reason }]);
+    // Reset only specific fields but keep mode and type for quick multiple adds
+    if (mode === "full") {
+      setFullDate("");
+    } else {
+      setHourDate("");
+      setStartTime("");
+      setEndTime("");
+    }
     setReason("");
   }
 
@@ -58,7 +100,14 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       }
       alert("Submitted.");
       setRows([]);
-      setDt(""); setType(""); setReason("");
+      // Reset form
+      setMode("full");
+      setFullDate("");
+      setHourDate("");
+      setStartTime("");
+      setEndTime("");
+      setType("");
+      setReason("");
     } catch (e: any) {
       alert(e?.message || "Submit failed");
     }
@@ -83,15 +132,69 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
         {/* Form */}
         <div className="mt-5 space-y-4">
+          {/* Mode toggle */}
           <div>
-            <div className="text-sm sm:text-base font-semibold">Date/Time :</div>
-            <Input
-              type="datetime-local"
-              value={dt}
-              onChange={(e) => setDt(e.target.value)}
-              className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
-            />
+            <div className="text-sm sm:text-base font-semibold">Leave Duration:</div>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("full")}
+                className={`px-4 h-10 sm:h-11 rounded-full border ${mode === "full" ? "bg-[#BFD9C8] border-black/40" : "bg-white border-black/20"}`}
+              >
+                Full Day
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("hourly")}
+                className={`px-4 h-10 sm:h-11 rounded-full border ${mode === "hourly" ? "bg-[#BFD9C8] border-black/40" : "bg-white border-black/20"}`}
+              >
+                By Hour
+              </button>
+            </div>
           </div>
+
+          {/* Date/time inputs per mode */}
+          {mode === "full" ? (
+            <div>
+              <div className="text-sm sm:text-base font-semibold">Date (Full Day):</div>
+              <Input
+                type="date"
+                value={fullDate}
+                onChange={(e) => setFullDate(e.target.value)}
+                className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <div className="text-sm sm:text-base font-semibold">Date:</div>
+                <Input
+                  type="date"
+                  value={hourDate}
+                  onChange={(e) => setHourDate(e.target.value)}
+                  className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
+                />
+              </div>
+              <div>
+                <div className="text-sm sm:text-base font-semibold">Start time:</div>
+                <Input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
+                />
+              </div>
+              <div>
+                <div className="text-sm sm:text-base font-semibold">End time:</div>
+                <Input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <div className="text-sm sm:text-base font-semibold">Leave Type:</div>
