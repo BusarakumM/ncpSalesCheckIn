@@ -34,6 +34,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   const [location, setLocation] = useState("");
   const [allLocations, setAllLocations] = useState<string[]>([]);
   const [district, setDistrict] = useState("");
+  const [allDistricts, setAllDistricts] = useState<string[]>([]);
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
 
@@ -87,6 +88,11 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
     try {
       const uniq = Array.from(new Set(mapped.map((r) => r.location).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
       setAllLocations(uniq);
+    } catch {}
+    // Build district dropdown for supervisors
+    try {
+      const uniqD = Array.from(new Set(mapped.map((r) => r.district || "").filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
+      setAllDistricts(uniqD);
     } catch {}
   }
 
@@ -149,7 +155,12 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
           {role === "SUPERVISOR" ? (
             <div>
               <Label className="mb-1 block">District</Label>
-              <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="District" className="bg-white" />
+              <select value={district} onChange={(e) => setDistrict(e.target.value)} className="bg-white w-full h-9 rounded-md border px-2 text-sm">
+                <option value="">All</option>
+                {allDistricts.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </div>
           ) : (
             <div>
