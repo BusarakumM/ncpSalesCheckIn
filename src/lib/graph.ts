@@ -222,6 +222,12 @@ export async function listActivities(params: { from?: string; to?: string; name?
     const i = headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
     return i >= 0 ? i : fallback;
   }
+  function findIdentityIdx(headers: string[], fallback: number | null): number | null {
+    const u = headers.findIndex((h) => h.toLowerCase() === "username");
+    if (u >= 0) return u;
+    const e = headers.findIndex((h) => h.toLowerCase() === "email");
+    return e >= 0 ? e : fallback;
+  }
   const idx = {
     ci: {
       iso: findIdx(ciHeaders, "checkinISO", 0),
@@ -233,7 +239,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       title: findIdx(ciHeaders, "jobTitle", 3),
       detail: findIdx(ciHeaders, "jobDetail", 4),
       photo: findIdx(ciHeaders, "photoUrl", 5),
-      email: findIdx(ciHeaders, "email", 6),
+      email: findIdentityIdx(ciHeaders, 6),
       name: findIdx(ciHeaders, "name", 7),
       district: findIdx(ciHeaders, "district", 12),
     },
@@ -245,7 +251,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       lat: findIdx(coHeaders, "checkoutLat", null),
       lon: findIdx(coHeaders, "checkoutLon", null),
       photo: findIdx(coHeaders, "checkoutPhotoUrl", 3),
-      email: findIdx(coHeaders, "email", 4),
+      email: findIdentityIdx(coHeaders, 4),
       name: findIdx(coHeaders, "name", 5),
       district: findIdx(coHeaders, "district", 10),
     },
@@ -487,9 +493,10 @@ export async function healthCheckGraph() {
   return ok;
 }
 
-// Look up a user from the Users table by email (case-insensitive)
-export async function findUserByEmail(email: string): Promise<{
-  email: string;
+// Look up a user from the Users table by identity (case-insensitive).
+// Supports either a `username` or `email` column; prefers `username` if present.
+export async function findUserByEmail(identity: string): Promise<{
+  email: string; // returns the matched identity (username or email) in this field for compatibility
   role?: "SUPERVISOR" | "AGENT" | string;
   name?: string;
   employeeNo?: string;
@@ -503,6 +510,7 @@ export async function findUserByEmail(email: string): Promise<{
   const idx = (name: string) => headers.findIndex((h) => String(h).trim().toLowerCase() === name.toLowerCase());
   const cols = {
     email: idx("email"),
+    username: idx("username"),
     role: idx("role"),
     name: idx("name"),
     employeeNo: idx("employeeNo"),
@@ -511,13 +519,16 @@ export async function findUserByEmail(email: string): Promise<{
     channel: idx("channel"),
     district: idx("district"),
   };
-  const target = email.trim().toLowerCase();
+  const target = identity.trim().toLowerCase();
   for (const r of rows) {
-    const em = cols.email >= 0 ? String(r[cols.email] || "").trim().toLowerCase() : "";
-    if (!em) continue;
-    if (em === target) {
+    const userVal = cols.username >= 0 ? String(r[cols.username] || "").trim() : "";
+    const emailVal = cols.email >= 0 ? String(r[cols.email] || "").trim() : "";
+    const idLower = (userVal || emailVal).trim().toLowerCase();
+    if (!idLower) continue;
+    if (idLower === target) {
       return {
-        email: cols.email >= 0 ? String(r[cols.email] || "").trim() : "",
+        // For backward compatibility, expose the matched identity in `email`
+        email: (userVal || emailVal) || "",
         role: cols.role >= 0 ? (String(r[cols.role] || "").trim() as any) : undefined,
         name: cols.name >= 0 ? String(r[cols.name] || "").trim() : undefined,
         employeeNo: cols.employeeNo >= 0 ? String(r[cols.employeeNo] || "").trim() : undefined,
@@ -627,11 +638,13 @@ export async function listHolidays(from?: string, to?: string): Promise<Array<{ 
 }
 
 // Day-offs table: [email, dateISO, leaveType, remark, by, createdAt]
-export async function addDayOff(row: { employeeNo?: string; email?: string; dateISO: string; leaveType: string; remark?: string; by?: string }): Promise<void> {
+export async function addDayOff(row: { employeeNo?: string; email?: string; dateISO: string; leaveType: string; remark?: string; by?: string; username?: string }): Promise<void> {
   const tbl = graphTables.dayoffs();
   const payload = {
     employeeNo: row.employeeNo ?? "",
-    email: row.email ?? "",
+    // write both fields to support either table header name
+    email: row.email ?? row.username ?? "",
+    username: row.username ?? row.email ?? "",
     dateISO: row.dateISO,
     leaveType: row.leaveType,
     remark: row.remark ?? "",
@@ -645,7 +658,7 @@ export async function listDayOffs(params: { from?: string; to?: string; email?: 
   const tbl = graphTables.dayoffs();
   const [headers, rows] = await Promise.all([getTableHeaders(tbl), getTableValues(tbl)]);
   const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
-  const id = { employeeNo: idx("employeeNo"), email: idx("email"), date: idx("dateISO"), leaveType: idx("leaveType"), remark: idx("remark") };
+  const id = { employeeNo: idx("employeeNo"), email: ((): number => { const u = idx("username"); return u >= 0 ? u : idx("email"); })(), date: idx("dateISO"), leaveType: idx("leaveType"), remark: idx("remark") };
   let items = rows.map((r) => ({
     employeeNo: id.employeeNo >= 0 ? String(r[id.employeeNo] || "") : "",
     email: id.email >= 0 ? String(r[id.email] || "") : "",
@@ -674,6 +687,7 @@ export async function setWeeklyOffConfig(id: string, days: { mon?: boolean; tue?
     // support either column depending on your table header
     employeeNo: id,
     email: id,
+    username: id,
     monOff: days.mon ? "TRUE" : "FALSE",
     tueOff: days.tue ? "TRUE" : "FALSE",
     wedOff: days.wed ? "TRUE" : "FALSE",
@@ -689,7 +703,7 @@ export async function getWeeklyOffConfig(idValue: string) {
   const tbl = graphTables.weeklyOff();
   const [headers, rows] = await Promise.all([getTableHeaders(tbl), getTableValues(tbl)]);
   const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
-  const idKey = idx("employeeNo") >= 0 ? "employeeNo" : (idx("email") >= 0 ? "email" : null);
+  const idKey = idx("employeeNo") >= 0 ? "employeeNo" : (idx("username") >= 0 ? "username" : (idx("email") >= 0 ? "email" : null));
   const id = { 
     key: idKey,
     keyIdx: idKey ? idx(idKey) : -1,
@@ -716,7 +730,7 @@ export async function listLeaves(params: { from?: string; to?: string; email?: s
     dt: idx("dtISO"),
     type: idx("leaveType"),
     reason: idx("reason"),
-    email: idx("email"),
+    email: ((): number => { const u = idx("username"); return u >= 0 ? u : idx("email"); })(),
     name: idx("name"),
     employeeNo: idx("employeeNo"),
     province: idx("province"),

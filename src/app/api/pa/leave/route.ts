@@ -9,6 +9,7 @@ export async function POST(req: Request) {
     const c = cookies();
     const enriched = {
       ...raw,
+      username: c.get("username")?.value || c.get("email")?.value,
       email: c.get("email")?.value,
       name: c.get("name")?.value,
       role: c.get("role")?.value,
@@ -18,21 +19,21 @@ export async function POST(req: Request) {
       channel: c.get("channel")?.value,
       district: c.get("district")?.value,
     } as any;
-
-    const row = [
-      enriched.dt ? new Date(enriched.dt).toISOString() : "",
-      enriched.type ?? "",
-      enriched.reason ?? "",
-      enriched.email ?? "",
-      enriched.name ?? "",
-      enriched.employeeNo ?? "",
-      enriched.supervisorEmail ?? "",
-      enriched.province ?? "",
-      enriched.channel ?? "",
-      enriched.district ?? "",
-    ];
-
-    await addRowToTable(graphTables.leave(), row);
+    // Use object-based insert so header names drive mapping; write both username/email
+    const rowObj: Record<string, any> = {
+      dtISO: enriched.dt ? new Date(enriched.dt).toISOString() : "",
+      leaveType: enriched.type ?? "",
+      reason: enriched.reason ?? "",
+      email: enriched.username ?? enriched.email ?? "",
+      username: enriched.username ?? enriched.email ?? "",
+      name: enriched.name ?? "",
+      employeeNo: enriched.employeeNo ?? "",
+      supervisorEmail: enriched.supervisorEmail ?? "",
+      province: enriched.province ?? "",
+      channel: enriched.channel ?? "",
+      district: enriched.district ?? "",
+    };
+    await addRowToTableByObject(graphTables.leave(), rowObj);
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Leave submit failed" }, { status: 500 });
@@ -44,12 +45,12 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const from = url.searchParams.get("from") || undefined;
     const to = url.searchParams.get("to") || undefined;
-    let email = url.searchParams.get("email") || undefined;
+    let email = url.searchParams.get("email") || url.searchParams.get("username") || undefined;
     let employeeNo = url.searchParams.get("employeeNo") || undefined;
     const me = url.searchParams.get("me");
     if (me && (me === "1" || me.toLowerCase() === "true")) {
       const c = cookies();
-      email = (await c).get("email")?.value || email;
+      email = (await c).get("username")?.value || (await c).get("email")?.value || email;
       employeeNo = (await c).get("employeeNo")?.value || employeeNo;
     }
     const rows = await listLeaves({ from, to, email, employeeNo });

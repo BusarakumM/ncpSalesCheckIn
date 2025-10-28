@@ -8,8 +8,8 @@ export async function POST(req: Request) {
     const { from, to, name, location, district } = raw || {};
     const c = cookies();
     const role = (await c).get("role")?.value;
-    const cookieEmail = (await c).get("email")?.value;
-    const email = role === "SUPERVISOR" ? (raw?.email || undefined) : (cookieEmail || undefined);
+    const cookieIdentity = (await c).get("username")?.value || (await c).get("email")?.value;
+    const email = role === "SUPERVISOR" ? (raw?.email || raw?.username || undefined) : (cookieIdentity || undefined);
     const rows = await listActivities({
       from,
       to,

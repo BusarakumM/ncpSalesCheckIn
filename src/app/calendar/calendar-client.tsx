@@ -36,7 +36,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
   function onAdd() {
     if (!name || (!email && !employeeNo) || !dt || !leaveType)
-      return alert("Please fill Name, Employee No or E-mail, Date/Time and Leave Type.");
+      return alert("Please fill Name, Employee No or Username, Date/Time and Leave Type.");
     setRows((r) => [{ dateTime: dt, name, email, employeeNo, leaveType, remark }, ...r]);
     setLeaveType("");
     setRemark("");
@@ -208,8 +208,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 <Input value={employeeNo} onChange={(e) => setEmployeeNo(e.target.value)} className="bg-white" />
               </div>
               <div className="space-y-1">
-                <Label>E-mail (optional)</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="bg-white" />
+                <Label>Username (optional)</Label>
+                <Input type="text" value={email} onChange={(e) => setEmail(e.target.value)} className="bg-white" />
               </div>
               <div className="space-y-1">
                 <Label>Date/time</Label>

@@ -29,7 +29,7 @@ export default function SignInPage() {
     setError(null);
 
     if (!email.trim()) {
-      setError("Please enter your company e-mail");
+      setError("Please enter your username");
       return;
     }
 
@@ -81,14 +81,14 @@ export default function SignInPage() {
           <CardContent className="p-5 sm:p-6 md:p-8">
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label className="text-gray-800">Email</Label>
+                <Label className="text-gray-800">Username</Label>
                 <Input
-                  placeholder="name@ncp.co.th"
-                  type="email"
+                  placeholder="username"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-white"
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
 

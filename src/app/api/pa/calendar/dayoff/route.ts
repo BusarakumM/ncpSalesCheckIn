@@ -19,11 +19,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const by = (await cookies()).get("email")?.value || (await cookies()).get("name")?.value || "";
-    if (!(body?.employeeNo || body?.email) || !body?.dateISO || !body?.leaveType) {
-      return NextResponse.json({ ok: false, error: "Missing employeeNo/email or dateISO/leaveType" }, { status: 400 });
+    const by = (await cookies()).get("username")?.value || (await cookies()).get("email")?.value || (await cookies()).get("name")?.value || "";
+    if (!(body?.employeeNo || body?.email || body?.username) || !body?.dateISO || !body?.leaveType) {
+      return NextResponse.json({ ok: false, error: "Missing employeeNo/username or dateISO/leaveType" }, { status: 400 });
     }
-    await addDayOff({ employeeNo: body.employeeNo, email: body.email, dateISO: body.dateISO, leaveType: body.leaveType, remark: body.remark, by });
+    await addDayOff({ employeeNo: body.employeeNo, email: body.email, username: body.username, dateISO: body.dateISO, leaveType: body.leaveType, remark: body.remark, by });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Failed to add day-off" }, { status: 500 });

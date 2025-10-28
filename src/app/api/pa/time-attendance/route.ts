@@ -4,9 +4,10 @@ import { listActivities, listLeaves } from "@/lib/graph";
 export async function POST(req: Request) {
   try {
     const raw = (await req.json().catch(() => ({}))) as any;
-    const { from, to, name, email, district } = raw || {};
+    const { from, to, name, email, username, district } = raw || {};
 
-    const activities = await listActivities({ from, to, name, email, district });
+    const identity = email || username;
+    const activities = await listActivities({ from, to, name, email: identity, district });
 
     // Leave rows (use header-based reader to avoid column index drift)
     const leaveItems = await listLeaves({ from, to });

@@ -9,6 +9,7 @@ export async function POST(req: Request) {
     const c = cookies();
     const enriched = {
       ...raw,
+      username: c.get("username")?.value || c.get("email")?.value,
       email: c.get("email")?.value,
       name: c.get("name")?.value,
       role: c.get("role")?.value,
@@ -38,7 +39,9 @@ export async function POST(req: Request) {
       jobTitle: enriched.jobTitle ?? "",
       jobDetail: enriched.jobDetail ?? "",
       photoUrl: enriched.photoUrl ?? "",
-      email: enriched.email ?? "",
+      // write both keys to support either header in table
+      email: enriched.username ?? enriched.email ?? "",
+      username: enriched.username ?? enriched.email ?? "",
       name: enriched.name ?? "",
       employeeNo: enriched.employeeNo ?? "",
       supervisorEmail: enriched.supervisorEmail ?? "",
@@ -57,9 +60,9 @@ export async function POST(req: Request) {
       const coTbl = graphTables.checkout();
       const [headers, rows] = await Promise.all([getTableHeaders(coTbl), getTableValues(coTbl)]);
       const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
-      const id = { iso: idx("checkoutISO"), email: idx("email"), location: idx("locationName") };
+      const id = { iso: idx("checkoutISO"), email: ((): number => { const u = idx("username"); return u >= 0 ? u : idx("email"); })(), location: idx("locationName") };
       const targetDate = enriched.checkin ? new Date(enriched.checkin).toISOString().slice(0, 10) : "";
-      const email = String(enriched.email || "");
+      const email = String(enriched.username || enriched.email || "");
       const location = String(enriched.locationName || "");
       if (id.iso >= 0) {
         for (const r of rows) {

@@ -7,7 +7,7 @@ import { ClipboardCheck, CalendarX, FileText } from "lucide-react";
 export default async function SalesSupportHome() {
   const cookieStore = cookies();
   const name = (await cookieStore).get("name")?.value || "Sales Support";
-  const email = (await cookieStore).get("email")?.value || "salesupport@ncp.co.th";
+  const email = (await cookieStore).get("username")?.value || (await cookieStore).get("email")?.value || "salesupport";
 
   const tiles = [
     { href: "/checkin", title: "Check-in\nCheck-out", bg: "bg-[#BFD9C8]", icon: ClipboardCheck, span2: false },

@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   const res = NextResponse.redirect(url, { status: 303 }); // 303 works well after POST
 
   // Clear auth cookies
-  for (const c of ["session", "role", "name", "email"]) {
+  for (const c of ["session", "role", "name", "email", "username"]) {
     res.cookies.set(c, "", { path: "/", maxAge: 0 });
   }
 

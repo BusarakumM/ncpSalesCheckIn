@@ -12,7 +12,7 @@ export default async function SupervisorPage() {
     redirect("/home");
   }
   const name = c.get("name")?.value || "Supervisor";
-  const email = c.get("email")?.value || "supervisor@ncp.co.th";
+  const email = c.get("username")?.value || c.get("email")?.value || "supervisor";
 
   const tiles = [
     { href: "/calendar",        title: "Calendar",                 bg: "bg-[#CFE4DD]", icon: CalendarDays, span2: false },

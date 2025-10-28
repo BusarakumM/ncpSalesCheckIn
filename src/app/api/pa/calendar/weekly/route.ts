@@ -6,8 +6,9 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const employeeNo = url.searchParams.get("employeeNo");
     const email = url.searchParams.get("email");
-    const id = employeeNo || email;
-    if (!id) return NextResponse.json({ ok: false, error: "Missing employeeNo or email" }, { status: 400 });
+    const username = url.searchParams.get("username");
+    const id = employeeNo || username || email;
+    if (!id) return NextResponse.json({ ok: false, error: "Missing employeeNo or username" }, { status: 400 });
     const cfg = await getWeeklyOffConfig(id);
     return NextResponse.json({ ok: true, config: cfg });
   } catch (e: any) {
@@ -18,8 +19,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const id = String(body?.employeeNo || body?.email || "");
-    if (!id) return NextResponse.json({ ok: false, error: "Missing employeeNo or email" }, { status: 400 });
+    const id = String(body?.employeeNo || body?.username || body?.email || "");
+    if (!id) return NextResponse.json({ ok: false, error: "Missing employeeNo or username" }, { status: 400 });
     const days = {
       mon: !!body?.mon,
       tue: !!body?.tue,

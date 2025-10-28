@@ -1,8 +1,8 @@
 export type UserRole = "SUPERVISOR" | "AGENT";
 
 export type BackendResolveRequest = {
-  email?: string | null;
-  user?: string | null;
+  email?: string | null; // kept for compatibility; prefer `user` (username)
+  user?: string | null;  // username
   password?: string | null;
 };
 
@@ -81,17 +81,19 @@ import { findUserByEmail } from "@/lib/graph";
 
 async function resolveFromGraph(payload: BackendResolveRequest): Promise<ResolvedUser | null> {
   const tbl = process.env.GRAPH_TBL_USERS;
-  const email = normalize(payload.email) || normalize(payload.user);
-  if (!tbl || !email) return null;
+  // Prefer username if provided; fall back to email for compatibility
+  const identity = normalize(payload.user) || normalize(payload.email);
+  if (!tbl || !identity) return null;
   try {
-    const row = await findUserByEmail(email);
+    const row = await findUserByEmail(identity);
     if (!row) return null;
     const roleRaw = (row.role || "").toString().trim().toUpperCase();
     const role = roleRaw === "SUPERVISOR" ? "SUPERVISOR" : roleRaw === "AGENT" ? "AGENT" : "AGENT";
     return {
       role,
       name: row.name || payload.user?.trim() || payload.email?.trim() || "User",
-      email: row.email || payload.email?.trim() || payload.user?.trim() || "",
+      // Expose matched identity via `email` field for compatibility
+      email: row.email || payload.user?.trim() || payload.email?.trim() || "",
       metadata: {
         employeeNo: row.employeeNo,
         supervisorEmail: row.supervisorEmail,

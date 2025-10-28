@@ -125,7 +125,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
           <div>
             <Label>Sales support name</Label>
             <Input
-              placeholder="Name or e-mail"
+              placeholder="Name or username"
               value={qName}
               onChange={(e) => setQName(e.target.value)}
               className="bg-white"

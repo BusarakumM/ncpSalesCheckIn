@@ -33,6 +33,14 @@ export function middleware(req: NextRequest) {
   // APIs can handle auth and return JSON errors themselves. This prevents
   // fetch() calls from being redirected to HTML (e.g., /sign-in).
   if (pathname.startsWith("/api/")) {
+    // For API routes, do not redirect; return 401 JSON when missing session,
+    // except for explicitly public API endpoints.
+    if (!isPublic) {
+      const hasSession = !!req.cookies.get("session")?.value;
+      if (!hasSession) {
+        return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+      }
+    }
     return NextResponse.next();
   }
 
