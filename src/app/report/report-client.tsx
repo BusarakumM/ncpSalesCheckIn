@@ -106,6 +106,22 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
 
   useEffect(() => { load().catch(() => {}); }, []);
 
+  // Auto-refresh when dropdowns change
+  useEffect(() => {
+    if (role === "SUPERVISOR") return; // agent mode uses location
+    // noop for supervisors in this effect
+    if (location !== undefined) {
+      load({ location }).catch(() => {});
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (role !== "SUPERVISOR") return; // supervisor mode uses district
+    if (district !== undefined) {
+      load({ district }).catch(() => {});
+    }
+  }, [district]);
+
 
   function exportCsv() {
     const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "Sales Support Name", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "Remark", "Status"];
