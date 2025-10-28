@@ -44,6 +44,12 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
 
   useEffect(() => { load().catch(() => {}); }, []);
 
+  function clearFilters() {
+    setFrom("");
+    setTo("");
+    load().catch(() => {});
+  }
+
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
       <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl">
@@ -58,8 +64,9 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
           <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="From" />
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="To" />
         </div>
-        <div className="mt-3 flex justify-center">
-          <Button onClick={load} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">Search</Button>
+        <div className="mt-3 flex justify-center gap-3">
+          <Button onClick={() => load().catch(() => {})} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">Search</Button>
+          <Button onClick={clearFilters} className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10">Clear filters</Button>
         </div>
 
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

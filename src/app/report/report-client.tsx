@@ -27,11 +27,12 @@ type Row = {
 
 const DATA: Row[] = [];
 
-export default function ReportClient({ homeHref }: { homeHref: string }) {
+export default function ReportClient({ homeHref, role, email }: { homeHref: string; role?: "SUPERVISOR" | string; email?: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
-  const [qDistrict, setQDistrict] = useState("");
+  const [location, setLocation] = useState("");
+  const [allLocations, setAllLocations] = useState<string[]>([]);
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
 
@@ -46,11 +47,14 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
     return "bg-[#E7D6B9] text-black";
   }
 
-  async function load() {
+  async function load(override?: { from?: string; to?: string; location?: string }) {
+    const sendFrom = override?.from ?? from;
+    const sendTo = override?.to ?? to;
+    const sendLocation = override?.location ?? location;
     const res = await fetch("/api/pa/report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to, district: qDistrict }),
+      body: JSON.stringify({ from: sendFrom, to: sendTo, location: sendLocation }),
     });
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load report");
@@ -77,6 +81,18 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
       })(),
     }));
     setRows(mapped);
+    // Build location dropdown (for non-supervisor: only from own rows)
+    try {
+      const uniq = Array.from(new Set(mapped.map((r) => r.location).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
+      setAllLocations(uniq);
+    } catch {}
+  }
+
+  function clearFilters() {
+    setFrom("");
+    setTo("");
+    setLocation("");
+    load({ from: "", to: "", location: "" }).catch(() => {});
   }
 
   useEffect(() => { load().catch(() => {}); }, []);
@@ -127,17 +143,35 @@ export default function ReportClient({ homeHref }: { homeHref: string }) {
             <Label className="mb-1 block">To</Label>
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
           </div>
-          <div>
-            <Label className="mb-1 block">District</Label>
-            <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} placeholder="District" className="bg-white" />
-          </div>
+          {role === "SUPERVISOR" ? (
+            <div>
+              <Label className="mb-1 block">Location (optional)</Label>
+              <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location name" className="bg-white" />
+            </div>
+          ) : (
+            <div>
+              <Label className="mb-1 block">Location</Label>
+              <select value={location} onChange={(e) => setLocation(e.target.value)} className="bg-white w-full h-9 rounded-md border px-2 text-sm">
+                <option value="">All</option>
+                {allLocations.map((loc) => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
-          <div className="mt-3 flex justify-center">
+          <div className="mt-3 flex justify-center gap-3">
             <Button
-              onClick={load}
+              onClick={() => load().catch(() => {})}
               className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10"
             >
               OK
+            </Button>
+            <Button
+              onClick={clearFilters}
+              className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10"
+            >
+              Clear filters
             </Button>
           </div>
         </div>

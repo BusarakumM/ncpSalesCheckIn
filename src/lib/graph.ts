@@ -204,7 +204,7 @@ function toTimePart(iso: string | undefined): string {
   return `${hh}:${mi}`;
 }
 
-export async function listActivities(params: { from?: string; to?: string; name?: string; email?: string; district?: string }): Promise<ActivityRow[]> {
+export async function listActivities(params: { from?: string; to?: string; name?: string; email?: string; district?: string; location?: string }): Promise<ActivityRow[]> {
   const tCheckin = graphTables.checkin();
   const tCheckout = graphTables.checkout();
   const [ciHeaders, ciRows, coHeaders, coRows] = await Promise.all([
@@ -437,6 +437,10 @@ export async function listActivities(params: { from?: string; to?: string; name?
   if (params.district) {
     const d = params.district.toLowerCase();
     rows = rows.filter((r) => (r.district || "").toLowerCase().includes(d));
+  }
+  if (params.location) {
+    const l = params.location.toLowerCase();
+    rows = rows.filter((r) => (r.location || "").toLowerCase().includes(l));
   }
 
   // Order by date ASC then name ASC for readability
