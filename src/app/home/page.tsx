@@ -12,6 +12,7 @@ export default async function SalesSupportHome() {
   const tiles = [
     { href: "/checkin", title: "Check-in\nCheck-out", bg: "bg-[#BFD9C8]", icon: ClipboardCheck, span2: false },
     { href: "/leave",   title: "Leave",               bg: "bg-[#E6D8B9]", icon: CalendarX,     span2: false },
+    { href: "/leave/history", title: "Report Leave History", bg: "bg-[#D9E0DB]", icon: FileText,      span2: false },
     { href: "/report",  title: "Report",              bg: "bg-[#D9E0DB]", icon: FileText,      span2: true },
   ] as const;
 
