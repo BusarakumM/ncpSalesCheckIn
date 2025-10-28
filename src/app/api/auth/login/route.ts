@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Body;
   const identity = (body.user || body.email || "").toString().trim();
   const password = (body.password || "").toString().trim();
-  if (!identity || !password) {
+  if (!identity) {
     return NextResponse.json({ ok: false, error: "Incorrect username or password" }, { status: 401 });
   }
 
@@ -41,6 +41,14 @@ export async function POST(req: Request) {
   const looksLikeEmail = identity.includes("@");
   const isSupervisorIdentity = (userRow?.role || "").toString().trim().toUpperCase() === "SUPERVISOR";
   const goSupervisor = requested === "SUPERVISOR" || (requested !== "AGENT" && (looksLikeEmail || isSupervisorIdentity));
+
+  // In dev, allow supervisor sign-in without AD by setting SUPERVISOR_DEV_BYPASS=true (or any truthy) in env.
+  const devBypass = ((process.env.SUPERVISOR_DEV_BYPASS || "").toLowerCase() === "true") || ((process.env.SUPERVISOR_DEV_BYPASS || "") === "1");
+
+  // Require password unless we're in supervisor dev bypass mode
+  if (!password && !(goSupervisor && devBypass)) {
+    return NextResponse.json({ ok: false, error: "Incorrect username or password" }, { status: 401 });
+  }
   if (goSupervisor) {
     // If user supplied an email, enforce company domain
     if (looksLikeEmail) {
@@ -48,6 +56,11 @@ export async function POST(req: Request) {
       if (!lower.endsWith("@ncp.co.th")) {
         return NextResponse.json({ ok: false, error: "Incorrect username or password" }, { status: 401 });
       }
+    }
+    // Dev bypass: accept any password for supervisors (no AD call)
+    if (devBypass) {
+      const name = userRow?.name || identity;
+      return successResponse({ role: "SUPERVISOR", name, email: identity, metadata: userRow || undefined });
     }
     // Supervisor: validate against Azure AD (ROPC)
     const tenant = process.env.GRAPH_TENANT_ID || process.env.AZURE_TENANT_ID;
