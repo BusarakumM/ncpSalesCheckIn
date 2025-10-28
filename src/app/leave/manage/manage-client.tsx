@@ -12,11 +12,11 @@ type Row = { date: string; leaveType: string; reason: string; name?: string; ema
 export default function LeaveManageClient() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [q, setQ] = useState(""); // email or emp no
+  const [q, setQ] = useState(""); // username or emp no
   const [rows, setRows] = useState<Row[]>([]);
 
   function exportCsv() {
-    const header = ["Date","Emp No","Name","Email","District","Leave Type","Reason"];
+    const header = ["Date","Emp No","Name","Username","District","Leave Type","Reason"];
     const lines = rows.map((r) => [
       r.date,
       r.employeeNo || "",
@@ -44,7 +44,7 @@ export default function LeaveManageClient() {
     if (from) qs.set("from", from);
     if (to) qs.set("to", to);
     if (q) {
-      // try both employeeNo and email server-side
+      // try both employeeNo and username/email server-side
       qs.set("employeeNo", q);
       qs.set("email", q);
     }
@@ -69,7 +69,7 @@ export default function LeaveManageClient() {
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="From" />
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="To" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} className="bg-white" placeholder="Employee No or Email" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} className="bg-white" placeholder="Employee No or Username" />
         </div>
         <div className="mt-3 flex justify-center">
           <Button onClick={load} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">Search</Button>
@@ -97,7 +97,7 @@ export default function LeaveManageClient() {
                   <TableHead className="min-w-[120px]">Date</TableHead>
                   <TableHead className="min-w-[120px]">Emp No</TableHead>
                   <TableHead className="min-w-[180px]">Name</TableHead>
-                  <TableHead className="min-w-[200px]">Email</TableHead>
+                  <TableHead className="min-w-[200px]">Username</TableHead>
                   <TableHead className="min-w-[120px]">District</TableHead>
                   <TableHead className="min-w-[140px]">Leave Type</TableHead>
                   <TableHead className="min-w-[240px]">Reason</TableHead>
