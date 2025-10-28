@@ -21,6 +21,7 @@ type LoginResponse = {
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"SUPERVISOR" | "AGENT">("AGENT");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -29,8 +30,16 @@ export default function SignInPage() {
     setError(null);
 
     if (!email.trim()) {
-      setError("Please enter your username or email");
+      setError(mode === "SUPERVISOR" ? "Please enter your company email" : "Please enter your username");
       return;
+    }
+    // Supervisor path requires @ncp.co.th email domain
+    if (mode === "SUPERVISOR") {
+      const lower = email.toLowerCase();
+      if (!lower.endsWith("@ncp.co.th")) {
+        setError("Please use your @ncp.co.th email");
+        return;
+      }
     }
 
     try {
@@ -38,7 +47,11 @@ export default function SignInPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: email, email, password }),
+        body: JSON.stringify(
+          mode === "SUPERVISOR"
+            ? { mode, user: email, email, password }
+            : { mode, user: email, email: "", password }
+        ),
       });
 
       if (!res.ok) {
@@ -80,15 +93,33 @@ export default function SignInPage() {
         <Card className="bg-[#BFD9C8] border-none shadow-md">
           <CardContent className="p-5 sm:p-6 md:p-8">
             <div className="space-y-4">
+              {/* Mode toggle */}
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMode("AGENT")}
+                  className={`px-3 py-1.5 rounded-full border text-sm ${mode === 'AGENT' ? 'bg-white border-black/30' : 'bg-transparent border-black/20 hover:bg-white/50'}`}
+                >
+                  Sales Support
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("SUPERVISOR")}
+                  className={`px-3 py-1.5 rounded-full border text-sm ${mode === 'SUPERVISOR' ? 'bg-white border-black/30' : 'bg-transparent border-black/20 hover:bg-white/50'}`}
+                >
+                  Supervisor
+                </button>
+              </div>
+
               <div className="space-y-1">
-                <Label className="text-gray-800">Username or Email</Label>
+                <Label className="text-gray-800">{mode === 'SUPERVISOR' ? 'Email' : 'Username'}</Label>
                 <Input
-                  placeholder="username or email"
-                  type="text"
+                  placeholder={mode === 'SUPERVISOR' ? 'name@ncp.co.th' : 'username'}
+                  type={mode === 'SUPERVISOR' ? 'email' : 'text'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-white"
-                  autoComplete="username"
+                  autoComplete={mode === 'SUPERVISOR' ? 'email' : 'username'}
                 />
               </div>
 

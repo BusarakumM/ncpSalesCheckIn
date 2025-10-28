@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { findUserByEmail } from "@/lib/graph";
 
-type Body = { user?: string; email?: string; password?: string };
+type Body = { user?: string; email?: string; password?: string; mode?: "SUPERVISOR" | "AGENT" };
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Body;
@@ -37,9 +37,18 @@ export async function POST(req: Request) {
   let userRow: Awaited<ReturnType<typeof findUserByEmail>> | null = null;
   try { userRow = await findUserByEmail(identity); } catch {}
 
+  const requested = (body.mode || "").toString().toUpperCase();
   const looksLikeEmail = identity.includes("@");
   const isSupervisorIdentity = (userRow?.role || "").toString().trim().toUpperCase() === "SUPERVISOR";
-  if (looksLikeEmail || isSupervisorIdentity) {
+  const goSupervisor = requested === "SUPERVISOR" || (requested !== "AGENT" && (looksLikeEmail || isSupervisorIdentity));
+  if (goSupervisor) {
+    // If user supplied an email, enforce company domain
+    if (looksLikeEmail) {
+      const lower = identity.toLowerCase();
+      if (!lower.endsWith("@ncp.co.th")) {
+        return NextResponse.json({ ok: false, error: "Incorrect username or password" }, { status: 401 });
+      }
+    }
     // Supervisor: validate against Azure AD (ROPC)
     const tenant = process.env.GRAPH_TENANT_ID || process.env.AZURE_TENANT_ID;
     const clientId = process.env.AZURE_ROPC_CLIENT_ID || process.env.GRAPH_CLIENT_ID || process.env.AZURE_CLIENT_ID;
