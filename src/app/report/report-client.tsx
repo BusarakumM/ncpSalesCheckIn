@@ -33,6 +33,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   const [rows, setRows] = useState<Row[]>([]);
   const [location, setLocation] = useState("");
   const [allLocations, setAllLocations] = useState<string[]>([]);
+  const [district, setDistrict] = useState("");
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
 
@@ -47,14 +48,15 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
     return "bg-[#E7D6B9] text-black";
   }
 
-  async function load(override?: { from?: string; to?: string; location?: string }) {
+  async function load(override?: { from?: string; to?: string; location?: string; district?: string }) {
     const sendFrom = override?.from ?? from;
     const sendTo = override?.to ?? to;
     const sendLocation = override?.location ?? location;
+    const sendDistrict = override?.district ?? district;
     const res = await fetch("/api/pa/report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: sendFrom, to: sendTo, location: sendLocation }),
+      body: JSON.stringify({ from: sendFrom, to: sendTo, location: sendLocation, district: sendDistrict }),
     });
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load report");
@@ -92,7 +94,8 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
     setFrom("");
     setTo("");
     setLocation("");
-    load({ from: "", to: "", location: "" }).catch(() => {});
+    setDistrict("");
+    load({ from: "", to: "", location: "", district: "" }).catch(() => {});
   }
 
   useEffect(() => { load().catch(() => {}); }, []);
@@ -145,8 +148,8 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
           </div>
           {role === "SUPERVISOR" ? (
             <div>
-              <Label className="mb-1 block">Location (optional)</Label>
-              <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location name" className="bg-white" />
+              <Label className="mb-1 block">District</Label>
+              <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="District" className="bg-white" />
             </div>
           ) : (
             <div>
