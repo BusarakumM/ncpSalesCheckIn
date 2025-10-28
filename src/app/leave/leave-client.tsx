@@ -28,6 +28,14 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   // saved rows (local mock)
   const [rows, setRows] = useState<Row[]>([]);
 
+  function toIso(dtLocal: string): string {
+    try {
+      return new Date(dtLocal).toISOString();
+    } catch {
+      return dtLocal;
+    }
+  }
+
   function exportCsv() {
     const header = ["Date/Time", "Leave type", "Reason"];
     const lines = rows.map((r) => [r.dt.replace("T", " "), r.type, r.reason]);
@@ -76,6 +84,13 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       computedType = `${type} (Hourly ${startTime}-${endTime})`;
     }
 
+    // Prevent duplicate date/time in local list
+    const newIso = toIso(computedDt);
+    const dup = rows.some((x) => toIso(x.dt) === newIso);
+    if (dup) {
+      alert("This leave date/time is already added.");
+      return;
+    }
     setRows((r) => [...r, { dt: computedDt, type: computedType, reason }]);
     // Reset only specific fields but keep mode and type for quick multiple adds
     if (mode === "full") {
@@ -91,8 +106,30 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   async function onSubmit() {
     try {
       if (rows.length === 0) return alert("No items to submit.");
-      // Submit each row to backend (server will enrich with user cookies)
-      for (const r of rows) {
+      // Check existing leaves for current user to avoid duplicates
+      const existed = new Set<string>();
+      try {
+        const res = await fetch("/api/pa/leave?me=1", { cache: "no-store" });
+        const data = await res.json();
+        if (res.ok && data?.ok) {
+          for (const it of (data.rows || [])) {
+            const iso = it?.date ? String(it.date) : "";
+            if (iso) existed.add(iso);
+          }
+        }
+      } catch {}
+
+      const toSend = rows.filter((r) => !existed.has(toIso(r.dt)));
+      const skipped = rows.length - toSend.length;
+      if (toSend.length === 0) {
+        alert("All items are duplicates of existing submissions.");
+        return;
+      }
+      if (skipped > 0) {
+        alert(`${skipped} item(s) skipped (duplicate date/time).`);
+      }
+      // Submit each non-duplicate row to backend (server will enrich with user cookies)
+      for (const r of toSend) {
         await fetch("/api/pa/leave", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -44,8 +44,14 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const from = url.searchParams.get("from") || undefined;
     const to = url.searchParams.get("to") || undefined;
-    const email = url.searchParams.get("email") || undefined;
-    const employeeNo = url.searchParams.get("employeeNo") || undefined;
+    let email = url.searchParams.get("email") || undefined;
+    let employeeNo = url.searchParams.get("employeeNo") || undefined;
+    const me = url.searchParams.get("me");
+    if (me && (me === "1" || me.toLowerCase() === "true")) {
+      const c = cookies();
+      email = (await c).get("email")?.value || email;
+      employeeNo = (await c).get("employeeNo")?.value || employeeNo;
+    }
     const rows = await listLeaves({ from, to, email, employeeNo });
     return NextResponse.json({ ok: true, rows });
   } catch (e: any) {
