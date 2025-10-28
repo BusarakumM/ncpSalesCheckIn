@@ -439,8 +439,8 @@ export async function listActivities(params: { from?: string; to?: string; name?
     rows = rows.filter((r) => (r.district || "").toLowerCase().includes(d));
   }
 
-  // Order by date desc then name asc
-  rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.name || '').localeCompare(b.name || '')));
+  // Order by date ASC then name ASC for readability
+  rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.name || '').localeCompare(b.name || '')));
   return rows;
 }
 
