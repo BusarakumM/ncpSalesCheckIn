@@ -10,7 +10,16 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 
-type Row = { dt: string; type: string; reason: string };
+type Row = {
+  dt: string;
+  type: string;
+  reason: string;
+  // local-only metadata (for duplicate/overlap detection)
+  mode?: "full" | "hourly";
+  date?: string; // YYYY-MM-DD (from input)
+  startMinutes?: number; // minutes from 00:00
+  endMinutes?: number;   // minutes from 00:00
+};
 
 export default function LeaveClient({ homeHref }: { homeHref: string }) {
   // form
@@ -27,12 +36,81 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
   // saved rows (local mock)
   const [rows, setRows] = useState<Row[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
 
   function toIso(dtLocal: string): string {
     try {
       return new Date(dtLocal).toISOString();
     } catch {
       return dtLocal;
+    }
+  }
+
+  function datePartUTC(iso: string): string {
+    try {
+      const d = new Date(iso);
+      const yyyy = d.getUTCFullYear();
+      const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(d.getUTCDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    } catch {
+      return String(iso).substring(0, 10);
+    }
+  }
+
+  function toMinutes(hhmm: string): number {
+    const [hh, mi] = (hhmm || "").split(":");
+    const h = Number(hh);
+    const m = Number(mi);
+    if (!isFinite(h) || !isFinite(m)) return 0;
+    return h * 60 + m;
+  }
+
+  function overlaps(a: { start: number; end: number }, b: { start: number; end: number }): boolean {
+    return Math.max(a.start, b.start) < Math.min(a.end, b.end);
+  }
+
+  function parseSpanFromType(typeText: string): { start: number; end: number } | null {
+    if (!typeText) return null;
+    if (/\(\s*Full\s*Day\s*\)/i.test(typeText)) return { start: 0, end: 24 * 60 };
+    const m = typeText.match(/\(\s*Hourly\s+([0-2]?\d:[0-5]\d)\s*-\s*([0-2]?\d:[0-5]\d)\s*\)/i);
+    if (m) {
+      const s = toMinutes(m[1]);
+      const e = toMinutes(m[2]);
+      if (e > s) return { start: s, end: e };
+    }
+    return null;
+  }
+
+  function getLocalRowSpan(r: Row): { date: string; start: number; end: number } | null {
+    const date = r.date || (r.dt ? datePartUTC(toIso(r.dt)) : "");
+    if (!date) return null;
+    if (r.startMinutes != null && r.endMinutes != null) return { date, start: r.startMinutes!, end: r.endMinutes! };
+    const parsed = parseSpanFromType(r.type || "");
+    if (parsed) return { date, start: parsed.start, end: parsed.end };
+    // fallback: treat unknown as a point-in-time (1 minute)
+    try {
+      const d = new Date(toIso(r.dt));
+      const s = d.getUTCHours() * 60 + d.getUTCMinutes();
+      return { date, start: s, end: s + 1 };
+    } catch {
+      return { date, start: 0, end: 0 };
+    }
+  }
+
+  function getServerRowSpan(sr: any): { date: string; start: number; end: number } | null {
+    const iso = String(sr?.date || "");
+    if (!iso) return null;
+    const date = datePartUTC(iso);
+    const parsed = parseSpanFromType(String(sr?.leaveType || ""));
+    if (parsed) return { date, start: parsed.start, end: parsed.end };
+    // fallback to a point span based on ISO time
+    try {
+      const d = new Date(iso);
+      const s = d.getUTCHours() * 60 + d.getUTCMinutes();
+      return { date, start: s, end: s + 1 };
+    } catch {
+      return { date, start: 0, end: 0 };
     }
   }
 
@@ -61,6 +139,9 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
     let computedDt = "";
     let computedType = type;
+    let metaDate = "";
+    let metaStart = 0;
+    let metaEnd = 0;
 
     if (mode === "full") {
       if (!fullDate) {
@@ -70,6 +151,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       // Use midnight local time for full-day
       computedDt = `${fullDate}T00:00`;
       computedType = `${type} (Full Day)`;
+      metaDate = fullDate; metaStart = 0; metaEnd = 24 * 60;
     } else {
       // hourly
       if (!hourDate || !startTime || !endTime) {
@@ -82,6 +164,18 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       }
       computedDt = `${hourDate}T${startTime}`;
       computedType = `${type} (Hourly ${startTime}-${endTime})`;
+      metaDate = hourDate; metaStart = toMinutes(startTime); metaEnd = toMinutes(endTime);
+    }
+
+    // Prevent overlapping on the same date with existing local rows
+    const newSpan = { date: metaDate, start: metaStart, end: metaEnd };
+    const hasOverlap = rows.some((x) => {
+      const sp = getLocalRowSpan(x);
+      return sp && sp.date === newSpan.date && overlaps({ start: sp.start, end: sp.end }, { start: newSpan.start, end: newSpan.end });
+    });
+    if (hasOverlap) {
+      alert("Duplicate/overlapping leave exists for this date.");
+      return;
     }
 
     // Prevent duplicate date/time in local list
@@ -91,7 +185,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       alert("This leave date/time is already added.");
       return;
     }
-    setRows((r) => [...r, { dt: computedDt, type: computedType, reason }]);
+    setRows((r) => [...r, { dt: computedDt, type: computedType, reason, mode, date: metaDate, startMinutes: metaStart, endMinutes: metaEnd }]);
     // Reset only specific fields but keep mode and type for quick multiple adds
     if (mode === "full") {
       setFullDate("");
@@ -107,26 +201,46 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     try {
       if (rows.length === 0) return alert("No items to submit.");
       // Check existing leaves for current user to avoid duplicates
-      const existed = new Set<string>();
+      const existedIso = new Set<string>();
+      const existedSpans: Array<{ date: string; start: number; end: number }> = [];
       try {
         const res = await fetch("/api/pa/leave?me=1", { cache: "no-store" });
         const data = await res.json();
         if (res.ok && data?.ok) {
           for (const it of (data.rows || [])) {
             const iso = it?.date ? String(it.date) : "";
-            if (iso) existed.add(iso);
+            if (iso) existedIso.add(iso);
+            const sp = getServerRowSpan(it);
+            if (sp) existedSpans.push(sp);
           }
         }
       } catch {}
 
-      const toSend = rows.filter((r) => !existed.has(toIso(r.dt)));
+      const skippedDetails: Array<{ date: string; type: string; reason: string }> = [];
+      const toSend = rows.filter((r) => {
+        const iso = toIso(r.dt);
+        if (existedIso.has(iso)) {
+          skippedDetails.push({ date: datePartUTC(iso), type: r.type, reason: "duplicate time" });
+          return false;
+        }
+        const spLocal = getLocalRowSpan(r);
+        if (!spLocal) return true;
+        const hasOverlap = existedSpans.some((sp) => sp.date === spLocal.date && overlaps({ start: sp.start, end: sp.end }, { start: spLocal.start, end: spLocal.end }));
+        if (hasOverlap) {
+          skippedDetails.push({ date: spLocal.date, type: r.type, reason: "overlap" });
+        }
+        return !hasOverlap;
+      });
       const skipped = rows.length - toSend.length;
       if (toSend.length === 0) {
-        alert("All items are duplicates of existing submissions.");
+        setNotice("รายการทั้งหมดถูกข้าม เนื่องจากซ้ำหรือทับซ้อน");
         return;
       }
       if (skipped > 0) {
-        alert(`${skipped} item(s) skipped (duplicate date/time).`);
+        const lines = skippedDetails.map((d) => `• ${d.date} – ${d.type} (${d.reason})`).join("\n");
+        setNotice(`${skipped} item(s) skipped:\n${lines}`);
+      } else {
+        setNotice(null);
       }
       // Submit each non-duplicate row to backend (server will enrich with user cookies)
       for (const r of toSend) {
@@ -170,6 +284,15 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
         {/* Form */}
         <div className="mt-5 space-y-4">
+          {notice ? (
+            <div className="rounded-md border border-black/20 bg-[#FFF8D6] text-gray-900 px-4 py-3 text-sm whitespace-pre-wrap">
+              <div className="flex items-start gap-2">
+                <div className="mt-0.5">⚠️</div>
+                <div className="flex-1">{notice}</div>
+                <button onClick={() => setNotice(null)} className="ml-2 text-gray-700 hover:underline">Dismiss</button>
+              </div>
+            </div>
+          ) : null}
           {/* Mode toggle */}
           <div>
             <div className="text-sm sm:text-base font-semibold">Leave Duration:</div>
