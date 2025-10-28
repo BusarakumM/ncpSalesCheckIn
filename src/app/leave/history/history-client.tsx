@@ -76,7 +76,7 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
         </div>
 
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
+          <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             <Table className="min-w-[600px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
@@ -106,4 +106,3 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
     </div>
   );
 }
-
