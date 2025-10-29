@@ -14,6 +14,8 @@ export default function NewTaskPage() {
   const [checkoutTime, setCheckoutTime] = useState("");
   const [locationName, setLocationName] = useState("");
   const [locationError, setLocationError] = useState<string>("");
+  const [sameLocationWarning, setSameLocationWarning] = useState<string>("");
+  const [sameLocationExistingId, setSameLocationExistingId] = useState<string | null>(null);
   const [gps, setGps] = useState("");
   const [checkinAddress, setCheckinAddress] = useState("");
   const [checkoutGps, setCheckoutGps] = useState("");
@@ -46,6 +48,16 @@ export default function NewTaskPage() {
   const [checkinCaptureAt, setCheckinCaptureAt] = useState<number | null>(null);
   // Auto-expire check-in location/GPS if not submitted within 10 minutes
   const checkinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  function todayUtcDate(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function getCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()\[\]\\\/\+^]/g, '\\$&') + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
 
   function clearCheckinTimeout() {
     if (checkinTimeoutRef.current) {
@@ -182,6 +194,59 @@ export default function NewTaskPage() {
     }
     setLocationError("");
     return true;
+  }
+
+  async function validateNoOngoingSameLocation(nameArg?: string): Promise<boolean> {
+    const name = (nameArg ?? locationName).trim();
+    if (!name) return false;
+    try {
+      // Try resolve current user's identity from cookies
+      const identity = getCookie('username') || getCookie('email') || undefined;
+      const payload: any = { from: todayUtcDate(), to: todayUtcDate() };
+      if (identity) payload.email = identity;
+      const res = await fetch('/api/pa/activity', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store'
+      });
+      if (!res.ok) return true; // don't block if cannot verify
+      const data = await res.json().catch(() => ({} as any));
+      const rows: Array<{ location?: string; checkin?: string; checkout?: string; email?: string; date?: string }>
+        = Array.isArray(data?.rows) ? data.rows : [];
+      const eq = (a?: string, b?: string) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
+      const me = identity ? identity.toLowerCase() : undefined;
+      // Only enforce if we can identify the current user
+      const conflicts = me
+        ? rows.filter((r) => (
+            String(r.email || '').toLowerCase() === me &&
+            eq(r.location || (r as any).checkinLocation, name) &&
+            !r.checkout
+          ))
+        : [];
+      if (conflicts.length > 0) {
+        // Set a non-blocking warning and optionally prompt to open existing task
+        setSameLocationWarning('ตำแหน่งนี้มีงานที่ยังไม่ check-out กรุณาทำให้เสร็จก่อน');
+        try {
+          const row = conflicts[0];
+          const date = row.date || todayUtcDate();
+          const loc = row.location || '';
+          const ci = row.checkin || '';
+          const keyRaw = `${identity || ''}|${date}|${loc}|${ci}`;
+          const encoded = typeof btoa === 'function'
+            ? encodeURIComponent(btoa(unescape(encodeURIComponent(keyRaw))))
+            : '';
+          if (encoded) setSameLocationExistingId(encoded);
+          if (encoded) {
+            const go = window.confirm('มีงานที่ยังไม่ check-out สำหรับตำแหน่งนี้ เปิดงานเดิมหรือไม่?');
+            if (go) router.push(`/checkin/${encoded}`);
+          }
+        } catch {}
+        // Do not block creation; return true
+        return true;
+      }
+      setSameLocationExistingId(null);
+      return true;
+    } catch {
+      return true;
+    }
   }
 
   // Typeahead search when typing in Location input
@@ -371,6 +436,8 @@ export default function NewTaskPage() {
       if (!(await validateLocationMatch())) {
         return;
       }
+      // Non-blocking reminder for same-location ongoing task
+      await validateNoOngoingSameLocation();
       if (checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000) {
         alert("submit check-in timeout");
         return;
@@ -559,12 +626,18 @@ export default function NewTaskPage() {
           <div className="mt-2">
             <Input
               value={locationName}
-              onChange={(e) => { setLocationName(e.target.value); if (locationError) setLocationError(""); }}
+              onChange={(e) => { setLocationName(e.target.value); if (locationError) setLocationError(""); if (sameLocationWarning) setSameLocationWarning(""); if (sameLocationExistingId) setSameLocationExistingId(null); }}
               placeholder="Enter or pick a place"
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={isSubmitting || submittedCheckin}
               onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
-              onBlur={async () => { setTimeout(() => setSuggestOpen(false), 120); if (locationName.trim()) { await validateLocationMatch(); } }}
+              onBlur={async () => {
+                setTimeout(() => setSuggestOpen(false), 120);
+                if (locationName.trim()) {
+                  const ok = await validateLocationMatch();
+                  if (ok) await validateNoOngoingSameLocation();
+                }
+              }}
             />
             {suggestOpen && suggestions.length > 0 && (
               <div className="mt-1 max-h-64 overflow-auto divide-y divide-black/10 bg-white rounded border border-black/10">
@@ -584,7 +657,8 @@ export default function NewTaskPage() {
                           setCheckinAddress(p.address || '');
                         }
                         setSuggestOpen(false);
-                        await validateLocationMatch(p.name);
+                        const ok = await validateLocationMatch(p.name);
+                        if (ok) await validateNoOngoingSameLocation(p.name);
                       }}
                       className="w-full text-left p-2 hover:bg-[#F0F5F2]"
                     >
@@ -600,6 +674,20 @@ export default function NewTaskPage() {
             ) : null}
             {locationError ? (
               <div className="mt-1 text-xs text-red-700">{locationError}</div>
+            ) : null}
+            {sameLocationWarning ? (
+              <div className="mt-1 text-xs text-red-700 flex items-center gap-2">
+                <span>{sameLocationWarning}</span>
+                {sameLocationExistingId ? (
+                  <Link
+                    href={`/checkin/${sameLocationExistingId}`}
+                    className="underline text-red-800 hover:text-red-900"
+                    title="เปิดงานเดิม"
+                  >
+                    เปิดงานเดิม
+                  </Link>
+                ) : null}
+              </div>
             ) : null}
             <div className="mt-2 flex gap-2">
               <Button
@@ -756,9 +844,9 @@ export default function NewTaskPage() {
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
             onClick={onSubmitCheckin}
-            disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired()}
+            disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired() || !!locationError}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : isCheckinExpired() ? "submit check-in timeout" : undefined}
+            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : isCheckinExpired() ? "submit check-in timeout" : locationError ? locationError : undefined}
           >
             Submit Check-in
           </Button>

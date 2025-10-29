@@ -613,7 +613,12 @@ async function onSubmitCheckin() {
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={hasExistingCheckin || isSubmitting}
               onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
-              onBlur={async () => { setTimeout(() => setSuggestOpen(false), 120); if (locationName.trim() && !hasExistingCheckin) { await validateLocationMatch(); } }}
+              onBlur={async () => {
+                setTimeout(() => setSuggestOpen(false), 120);
+                if (locationName.trim() && !hasExistingCheckin) {
+                  await validateLocationMatch();
+                }
+              }}
             />
             {locationError ? (
               <div className="mt-1 text-xs text-red-700">{locationError}</div>

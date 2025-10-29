@@ -64,7 +64,8 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
   }, [qDate, email]);
 
   const filtered = useMemo(() => tasks, [tasks]);
-  const hasInProgress = useMemo(() => filtered.some((t) => t.status === 'In Progress'), [filtered]);
+  // Allow creating a new task even if there are ongoing ones; enforcement will occur in the New page
+  const hasInProgress = useMemo(() => false, []);
 
   function statusStyles(s: Task["status"]) {
     if (s === "Completed") return "bg-[#6EC3A1] text-white px-2 py-0.5 rounded text-xs sm:text-sm";
@@ -108,15 +109,8 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
           <div className="flex sm:block">
             <Link
               href="/checkin/new"
-              onClick={(e) => {
-                if (hasInProgress) {
-                  e.preventDefault();
-                  alert("กรุณา check-out ก่อน");
-                }
-              }}
-              aria-disabled={hasInProgress}
-              className={`ml-auto text-base sm:text-lg font-semibold ${hasInProgress ? 'text-gray-400 cursor-not-allowed' : 'text-[#6EBF8B] hover:opacity-90'}`}
-              title={hasInProgress ? "กรุณา check-out ก่อน" : "Create new task"}
+              className={`ml-auto text-base sm:text-lg font-semibold text-[#6EBF8B] hover:opacity-90`}
+              title="Create new task"
             >
               + New
             </Link>
@@ -141,15 +135,18 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
                 <div className="min-w-[32px] h-8 rounded-md bg-white/70 text-center leading-8 font-semibold text-gray-800">
                   {t.no}
                 </div>
-                <div className="flex-1">
-                  <div className="font-medium text-base">{t.location}</div>
-                  {t.status === 'Completed' && t.time && t.checkout ? (
-                    <div className="text-xs text-gray-600 mt-0.5">{t.time} → {t.checkout}</div>
-                  ) : t.time ? (
-                    <div className="text-xs text-gray-600 mt-0.5">{t.time}</div>
-                  ) : null}
-                  <div className={`mt-1 ${statusStyles(t.status)}`}>{t.status}</div>
-                </div>
+              <div className="flex-1">
+                <div className="font-medium text-base">{t.location}</div>
+                {t.status === 'Completed' && t.time && t.checkout ? (
+                  <div className="text-xs text-gray-600 mt-0.5">{t.time} → {t.checkout}</div>
+                ) : t.time ? (
+                  <div className="text-xs text-gray-600 mt-0.5">{t.time}</div>
+                ) : null}
+                <div className={`mt-1 ${statusStyles(t.status)}`}>{t.status}</div>
+                {t.status === 'In Progress' ? (
+                  <div className="mt-0.5 text-xs text-red-700">ตำแหน่งนี้ยังไม่ check-out กรุณาทำให้เสร็จก่อน</div>
+                ) : null}
+              </div>
                 <Link
                   href={`/checkin/${t.id}`}
                   className={`self-center inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-3 py-2 hover:bg-gray-50 text-xs font-bold ${t.status === 'Completed' ? 'text-[#2e7d32]' : ''}`}
@@ -170,6 +167,9 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
                       <div className="text-xs text-gray-600 mt-0.5">{t.time}</div>
                     ) : null}
                     <div className={`${statusStyles(t.status)}`}>{t.status}</div>
+                    {t.status === 'In Progress' ? (
+                      <div className="mt-0.5 text-xs text-red-700">ตำแหน่งนี้ยังไม่ check-out กรุณาทำให้เสร็จก่อน</div>
+                    ) : null}
                   </div>
                 </div>
                 <Link
