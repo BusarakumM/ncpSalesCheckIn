@@ -15,6 +15,7 @@ export default function TaskDetailPage() {
   const [checkoutTime, setCheckoutTime] = useState("");
   const [displayTitle, setDisplayTitle] = useState<string>("Task");
   const [locationName, setLocationName] = useState("");
+  const [locationError, setLocationError] = useState<string>("");
   const [gps, setGps] = useState<string>("");
   const [checkinAddress, setCheckinAddress] = useState<string>("");
   const [checkoutGps, setCheckoutGps] = useState<string>("");
@@ -25,6 +26,7 @@ export default function TaskDetailPage() {
   const [checkoutPhotoUrl, setCheckoutPhotoUrl] = useState<string | null>(null);
   const [checkoutPhotoFile, setCheckoutPhotoFile] = useState<File | null>(null);
   const [checkoutRemark, setCheckoutRemark] = useState("");
+  const [checkinCaptureAt, setCheckinCaptureAt] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const galleryFileRef = useRef<HTMLInputElement | null>(null);
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
@@ -181,6 +183,59 @@ export default function TaskDetailPage() {
     return isFinite(n) && n > 0 ? n : 0.5;
   }
 
+  async function geocodeByName(name: string, bias?: { lat?: string; lon?: string }): Promise<[number, number] | null> {
+    try {
+      const q = name.trim();
+      if (!q) return null;
+      const url = `/api/maps/search?q=${encodeURIComponent(q)}${bias?.lat && bias?.lon ? `&lat=${encodeURIComponent(bias.lat)}&lon=${encodeURIComponent(bias.lon)}` : ''}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const data = await res.json().catch(() => ({} as any));
+      const r = Array.isArray(data?.results) && data.results.length > 0 ? data.results[0] : null;
+      if (r && typeof r.lat === 'number' && typeof r.lon === 'number') return [r.lat, r.lon];
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function getCurrentPositionOnce(): Promise<[number, number] | null> {
+    if (!("geolocation" in navigator)) return null;
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve([pos.coords.latitude, pos.coords.longitude]),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    });
+  }
+
+  async function validateLocationMatch(nameArg?: string): Promise<boolean> {
+    const name = (nameArg ?? locationName).trim();
+    if (!name) return false;
+    const curr = await getCurrentPositionOnce();
+    if (!curr) {
+      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
+      setLocationName("");
+      return false;
+    }
+    const [ulat, ulon] = curr;
+    const place = await geocodeByName(name, { lat: String(ulat), lon: String(ulon) });
+    if (!place) {
+      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
+      setLocationName("");
+      return false;
+    }
+    const d = distanceKm([ulat, ulon], place);
+    if (d > maxDistanceKm()) {
+      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
+      setLocationName("");
+      return false;
+    }
+    setLocationError("");
+    return true;
+  }
+
   function captureGPS() {
     if (!("geolocation" in navigator)) return alert("Geolocation not supported");
     navigator.geolocation.getCurrentPosition(
@@ -310,7 +365,7 @@ export default function TaskDetailPage() {
     }
   }
 
-  function selectPlace(p: { name: string; address?: string; lat?: number; lon?: number }) {
+  async function selectPlace(p: { name: string; address?: string; lat?: number; lon?: number }) {
     if (p.lat != null && p.lon != null) {
       const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
       setGps(coord);
@@ -319,6 +374,7 @@ export default function TaskDetailPage() {
     }
     setLocationName(p.name);
     setPickerOpen(false);
+    await validateLocationMatch(p.name);
   }
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -421,6 +477,9 @@ export default function TaskDetailPage() {
 
 async function onSubmitCheckin() {
     try {
+      if (!(await validateLocationMatch())) {
+        return;
+      }
       setIsSubmitting(true);
       if (!hasExistingCheckin && checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000) {
         alert("submit check-in timeout");
@@ -549,13 +608,16 @@ async function onSubmitCheckin() {
           <div className="mt-2">
             <Input
               value={locationName}
-              onChange={(e) => { setLocationName(e.target.value); }}
+              onChange={(e) => { setLocationName(e.target.value); if (locationError) setLocationError(""); }}
               placeholder="Enter or pick a place"
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={hasExistingCheckin || isSubmitting}
               onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
-              onBlur={() => { setTimeout(() => setSuggestOpen(false), 120); }}
+              onBlur={async () => { setTimeout(() => setSuggestOpen(false), 120); if (locationName.trim() && !hasExistingCheckin) { await validateLocationMatch(); } }}
             />
+            {locationError ? (
+              <div className="mt-1 text-xs text-red-700">{locationError}</div>
+            ) : null}
             {suggestOpen && suggestions.length > 0 && (
               <div className="mt-1 max-h-64 overflow-auto divide-y divide-black/10 bg-white rounded border border-black/10">
                 {suggestLoading && suggestions.length === 0 ? (
@@ -566,7 +628,7 @@ async function onSubmitCheckin() {
                       key={`${p.name}-${i}`}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
+                      onClick={async () => {
                         setLocationName(p.name);
                         if (p.lat != null && p.lon != null) {
                           const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
@@ -574,6 +636,7 @@ async function onSubmitCheckin() {
                           setCheckinAddress(p.address || '');
                         }
                         setSuggestOpen(false);
+                        await validateLocationMatch(p.name);
                       }}
                       className="w-full text-left p-2 hover:bg-[#F0F5F2]"
                     >

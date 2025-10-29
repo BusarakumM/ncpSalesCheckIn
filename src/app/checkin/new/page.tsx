@@ -13,6 +13,7 @@ export default function NewTaskPage() {
   const [checkinTime, setCheckinTime] = useState("");
   const [checkoutTime, setCheckoutTime] = useState("");
   const [locationName, setLocationName] = useState("");
+  const [locationError, setLocationError] = useState<string>("");
   const [gps, setGps] = useState("");
   const [checkinAddress, setCheckinAddress] = useState("");
   const [checkoutGps, setCheckoutGps] = useState("");
@@ -128,6 +129,59 @@ export default function NewTaskPage() {
     const v = (process.env.NEXT_PUBLIC_MAX_DISTANCE_KM as unknown as string) || "0.5";
     const n = Number(v);
     return isFinite(n) && n > 0 ? n : 0.5;
+  }
+
+  async function geocodeByName(name: string, bias?: { lat?: string; lon?: string }): Promise<[number, number] | null> {
+    try {
+      const q = name.trim();
+      if (!q) return null;
+      const url = `/api/maps/search?q=${encodeURIComponent(q)}${bias?.lat && bias?.lon ? `&lat=${encodeURIComponent(bias.lat)}&lon=${encodeURIComponent(bias.lon)}` : ''}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const data = await res.json().catch(() => ({} as any));
+      const r = Array.isArray(data?.results) && data.results.length > 0 ? data.results[0] : null;
+      if (r && typeof r.lat === 'number' && typeof r.lon === 'number') return [r.lat, r.lon];
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function getCurrentPositionOnce(): Promise<[number, number] | null> {
+    if (!("geolocation" in navigator)) return null;
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve([pos.coords.latitude, pos.coords.longitude]),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    });
+  }
+
+  async function validateLocationMatch(nameArg?: string): Promise<boolean> {
+    const name = (nameArg ?? locationName).trim();
+    if (!name) return false;
+    const curr = await getCurrentPositionOnce();
+    if (!curr) {
+      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
+      setLocationName("");
+      return false;
+    }
+    const [ulat, ulon] = curr;
+    const place = await geocodeByName(name, { lat: String(ulat), lon: String(ulon) });
+    if (!place) {
+      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
+      setLocationName("");
+      return false;
+    }
+    const d = distanceKm([ulat, ulon], place);
+    if (d > maxDistanceKm()) {
+      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
+      setLocationName("");
+      return false;
+    }
+    setLocationError("");
+    return true;
   }
 
   // Typeahead search when typing in Location input
@@ -266,7 +320,7 @@ export default function NewTaskPage() {
     }
   }
 
-  function selectPlace(p: { name: string; address?: string; lat?: number; lon?: number }) {
+  async function selectPlace(p: { name: string; address?: string; lat?: number; lon?: number }) {
     if (p.lat != null && p.lon != null) {
       const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
       setGps(coord);
@@ -275,6 +329,7 @@ export default function NewTaskPage() {
     }
     setLocationName(p.name);
     setPickerOpen(false);
+    await validateLocationMatch(p.name);
   }
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -313,6 +368,9 @@ export default function NewTaskPage() {
 
   async function onSubmitCheckin() {
     try {
+      if (!(await validateLocationMatch())) {
+        return;
+      }
       if (checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000) {
         alert("submit check-in timeout");
         return;
@@ -501,12 +559,12 @@ export default function NewTaskPage() {
           <div className="mt-2">
             <Input
               value={locationName}
-              onChange={(e) => { setLocationName(e.target.value); }}
+              onChange={(e) => { setLocationName(e.target.value); if (locationError) setLocationError(""); }}
               placeholder="Enter or pick a place"
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={isSubmitting || submittedCheckin}
               onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
-              onBlur={() => { setTimeout(() => setSuggestOpen(false), 120); }}
+              onBlur={async () => { setTimeout(() => setSuggestOpen(false), 120); if (locationName.trim()) { await validateLocationMatch(); } }}
             />
             {suggestOpen && suggestions.length > 0 && (
               <div className="mt-1 max-h-64 overflow-auto divide-y divide-black/10 bg-white rounded border border-black/10">
@@ -518,7 +576,7 @@ export default function NewTaskPage() {
                       key={`${p.name}-${i}`}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
+                      onClick={async () => {
                         setLocationName(p.name);
                         if (p.lat != null && p.lon != null) {
                           const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
@@ -526,6 +584,7 @@ export default function NewTaskPage() {
                           setCheckinAddress(p.address || '');
                         }
                         setSuggestOpen(false);
+                        await validateLocationMatch(p.name);
                       }}
                       className="w-full text-left p-2 hover:bg-[#F0F5F2]"
                     >
@@ -538,6 +597,9 @@ export default function NewTaskPage() {
             )}
             {!locationName.trim() ? (
               <div className="mt-1 text-xs text-red-700">Please pick or enter a location</div>
+            ) : null}
+            {locationError ? (
+              <div className="mt-1 text-xs text-red-700">{locationError}</div>
             ) : null}
             <div className="mt-2 flex gap-2">
               <Button
