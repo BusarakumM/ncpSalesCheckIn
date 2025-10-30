@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -182,6 +182,15 @@ export default function TaskDetailPage() {
     const n = Number(v);
     return isFinite(n) && n > 0 ? n : 0.5;
   }
+
+  function todayLocalDate(): string {
+    const now = new Date();
+    const isoLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString();
+    return isoLocal.slice(0, 10);
+  }
+
+  const checkinDateOnly = useMemo(() => (checkinTime ? String(checkinTime).slice(0, 10) : ""), [checkinTime]);
+  const canCheckoutSameDate = useMemo(() => hasExistingCheckin && checkinDateOnly === todayLocalDate(), [hasExistingCheckin, checkinDateOnly]);
 
   async function geocodeByName(name: string, bias?: { lat?: string; lon?: string }): Promise<[number, number] | null> {
     try {
@@ -409,6 +418,11 @@ export default function TaskDetailPage() {
   }
 
   function onCheckout() {
+    // Prevent cross-day checkout: must be same local date as check-in
+    if (!canCheckoutSameDate) {
+      alert("ไม่อนุญาตให้เช็คเอาท์ข้ามวัน กรุณาสร้างงานใหม่สำหรับวันนี้");
+      return;
+    }
     const now = new Date();
     const isoLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
       .toISOString()
@@ -816,7 +830,7 @@ async function onSubmitCheckin() {
           >
             Submit Check-in
           </Button>
-          {hasExistingCheckin ? (
+          {hasExistingCheckin && canCheckoutSameDate ? (
             <Button
               onClick={onCheckout}
               className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -824,6 +838,9 @@ async function onSubmitCheckin() {
             >
               Check-out
             </Button>
+          ) : null}
+          {hasExistingCheckin && !canCheckoutSameDate ? (
+            <div className="text-center text-xs sm:text-sm text-red-700">ไม่สามารถเช็คเอาท์ข้ามวันได้</div>
           ) : null}
         </div>
 
