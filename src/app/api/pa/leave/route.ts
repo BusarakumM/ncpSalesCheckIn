@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { addRowToTable, graphTables, listLeaves } from "@/lib/graph";
+import { addRowToTableByObject, graphTables, listLeaves } from "@/lib/graph";
 
 export async function POST(req: Request) {
   try {
