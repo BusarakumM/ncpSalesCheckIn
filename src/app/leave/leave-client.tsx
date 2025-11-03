@@ -38,6 +38,17 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
+  function removeRow(index: number) {
+    setRows((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function clearAllRows() {
+    if (rows.length === 0) return;
+    if (confirm(`Clear all ${rows.length} item(s)?`)) {
+      setRows([]);
+    }
+  }
+
   function toIso(dtLocal: string): string {
     try {
       return new Date(dtLocal).toISOString();
@@ -400,12 +411,13 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[160px]">Date/Time</TableHead>
                   <TableHead className="min-w-[140px]">Leave type</TableHead>
                   <TableHead className="min-w-[220px]">Reason</TableHead>
+                  <TableHead className="w-[80px] text-center">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-gray-500">
+                    <TableCell colSpan={4} className="text-center text-gray-500">
                       No items yet
                     </TableCell>
                   </TableRow>
@@ -415,6 +427,15 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
                       <TableCell>{r.dt.replace("T", " ")}</TableCell>
                       <TableCell className="whitespace-pre-wrap">{r.type}</TableCell>
                       <TableCell className="whitespace-pre-wrap">{r.reason}</TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={() => removeRow(i)}
+                          title="Delete"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
+                        >
+                          🗑️
+                        </button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -423,7 +444,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
           </div>
         </div>
 
-        {/* Export */}
+        {/* Export / Clear all */}
         <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="text-sm text-gray-700 text-center sm:text-left">
             Export file <br className="sm:hidden" /> .xlsx
@@ -434,6 +455,14 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
             title="Export"
           >
             ➜
+          </button>
+          <div className="sm:ml-auto" />
+          <button
+            onClick={clearAllRows}
+            className="inline-flex h-10 px-4 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50 self-center sm:self-auto text-sm"
+            title="Clear all"
+          >
+            Clear all
           </button>
         </div>
 

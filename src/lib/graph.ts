@@ -142,6 +142,9 @@ export const graphTables = {
   users: () => env("GRAPH_TBL_USERS"),
   holidays: () => env("GRAPH_TBL_HOLIDAYS"),
   weeklyOff: () => env("GRAPH_TBL_WEEKLY_OFF"),
+  // Optional table for soft-deletes of leave rows. If env is not set, defaults to
+  // a table named "LeaveDeletes". If the table does not exist, readers ignore it.
+  leaveDeletes: () => env("GRAPH_TBL_LEAVE_DELETES", "LeaveDeletes"),
   dayoffs: () => env("GRAPH_TBL_DAYOFFS"),
 };
 
@@ -748,6 +751,38 @@ export async function listLeaves(params: { from?: string; to?: string; email?: s
     channel: id.channel >= 0 ? String(r[id.channel] || "") : "",
     district: id.district >= 0 ? String(r[id.district] || "") : "",
   }));
+
+  // Subtract soft-deleted entries if the optional deletes table exists and is readable.
+  try {
+    const delTbl = graphTables.leaveDeletes();
+    const [dh, drows] = await Promise.all([getTableHeaders(delTbl), getTableValues(delTbl)]);
+    const didx = (name: string) => dh.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+    const dcol = {
+      dt: didx("dtISO"),
+      email: ((): number => { const u = didx("username"); return u >= 0 ? u : didx("email"); })(),
+      employeeNo: didx("employeeNo"),
+    } as const;
+    if (drows.length > 0) {
+      const deleted = new Set<string>();
+      for (const r of drows) {
+        const dt = dcol.dt >= 0 ? String(r[dcol.dt] || "") : "";
+        const emp = dcol.employeeNo >= 0 ? String(r[dcol.employeeNo] || "") : "";
+        const mail = dcol.email >= 0 ? String(r[dcol.email] || "") : "";
+        if (!dt) continue;
+        if (emp) deleted.add(`emp#${emp.toLowerCase()}|${dt}`);
+        if (mail) deleted.add(`usr#${mail.toLowerCase()}|${dt}`);
+      }
+      items = items.filter((x) => {
+        const dt = x.date || "";
+        const emp = (x.employeeNo || "").toLowerCase();
+        const mail = (x.email || "").toLowerCase();
+        if (!dt) return true;
+        if (emp && deleted.has(`emp#${emp}|${dt}`)) return false;
+        if (mail && deleted.has(`usr#${mail}|${dt}`)) return false;
+        return true;
+      });
+    }
+  } catch {}
   if (params.employeeNo) items = items.filter((x) => (x.employeeNo || "").toLowerCase() === params.employeeNo!.toLowerCase());
   if (params.email) items = items.filter((x) => (x.email || "").toLowerCase() === params.email!.toLowerCase());
   if (params.from) {
@@ -760,4 +795,18 @@ export async function listLeaves(params: { from?: string; to?: string; email?: s
   }
   items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   return items;
+}
+
+// Record a soft-delete for a specific leave entry. Matches by (dtISO + employeeNo/username/email).
+export async function addLeaveDelete(row: { dtISO: string; employeeNo?: string; email?: string; username?: string; by?: string }) {
+  const tbl = graphTables.leaveDeletes();
+  await addRowToTableByObject(tbl, {
+    dtISO: row.dtISO,
+    // write all identity variants to support whichever header the table uses
+    employeeNo: row.employeeNo ?? "",
+    email: row.email ?? row.username ?? "",
+    username: row.username ?? row.email ?? "",
+    deletedAt: new Date().toISOString(),
+    deletedBy: row.by ?? "",
+  });
 }

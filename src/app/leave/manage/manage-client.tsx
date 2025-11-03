@@ -15,6 +15,24 @@ export default function LeaveManageClient() {
   const [q, setQ] = useState(""); // username or emp no
   const [rows, setRows] = useState<Row[]>([]);
 
+  async function deleteRow(r: Row) {
+    if (!r?.date) return;
+    const id = r.employeeNo || r.email || "";
+    const label = `${r.date} – ${r.leaveType} ${r.name ? `(${r.name})` : id ? `(${id})` : ""}`.trim();
+    if (!confirm(`Delete this leave record?\n${label}`)) return;
+    const res = await fetch("/api/pa/leave/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dt: r.date, employeeNo: r.employeeNo, email: r.email }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.ok) {
+      alert(data?.error || "Delete failed");
+      return;
+    }
+    await load();
+  }
+
   function exportCsv() {
     const header = ["Date","Emp No","Name","Username","District","Leave Type","Reason"];
     const lines = rows.map((r) => [
@@ -91,7 +109,7 @@ export default function LeaveManageClient() {
 
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
           <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
-            <Table className="min-w-[800px] text-sm">
+            <Table className="min-w-[960px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="min-w-[120px]">Date</TableHead>
@@ -101,12 +119,13 @@ export default function LeaveManageClient() {
                   <TableHead className="min-w-[120px]">District</TableHead>
                   <TableHead className="min-w-[140px]">Leave Type</TableHead>
                   <TableHead className="min-w-[240px]">Reason</TableHead>
+                  <TableHead className="min-w-[100px] text-center">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500">No data</TableCell>
+                    <TableCell colSpan={8} className="text-center text-gray-500">No data</TableCell>
                   </TableRow>
                 ) : rows.map((r, i) => (
                   <TableRow key={i}>
@@ -117,6 +136,15 @@ export default function LeaveManageClient() {
                     <TableCell>{r.district || ""}</TableCell>
                     <TableCell>{r.leaveType}</TableCell>
                     <TableCell className="whitespace-pre-wrap">{r.reason}</TableCell>
+                    <TableCell className="text-center">
+                      <button
+                        onClick={() => deleteRow(r)}
+                        title="Delete"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
+                      >
+                        🗑️
+                      </button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
