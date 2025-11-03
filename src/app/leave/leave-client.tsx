@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -385,10 +384,11 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
           <div>
             <div className="text-sm sm:text-base font-semibold">Reason:</div>
-            <Textarea
+            <Input
+              type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="mt-1 min-h-[140px] sm:min-h-[160px] border-black/10 bg-[#BFD9C8]"
+              className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
             />
           </div>
 
