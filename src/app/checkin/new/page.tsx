@@ -32,6 +32,9 @@ export default function NewTaskPage() {
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
   const checkoutGalleryFileRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Click locks to prevent rapid double submissions
+  const checkinLockRef = useRef(false);
+  const checkoutLockRef = useRef(false);
   const [submittedCheckin, setSubmittedCheckin] = useState(false);
   const [submittedCheckout, setSubmittedCheckout] = useState(false);
   // Place picker state
@@ -433,6 +436,10 @@ export default function NewTaskPage() {
 
   async function onSubmitCheckin() {
     try {
+      // Fast guard against rapid double-clicks
+      if (checkinLockRef.current) return;
+      checkinLockRef.current = true;
+      setIsSubmitting(true);
       if (!(await validateLocationMatch())) {
         return;
       }
@@ -452,7 +459,6 @@ export default function NewTaskPage() {
       }
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
-      setIsSubmitting(true);
       // Enforce real-time check-in timestamp at submit
       const now = new Date();
       const iso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -476,6 +482,7 @@ export default function NewTaskPage() {
       alert(e?.message || "Submit failed");
     } finally {
       setIsSubmitting(false);
+      checkinLockRef.current = false;
     }
   }
 
@@ -550,6 +557,10 @@ export default function NewTaskPage() {
 
   async function onSubmitCheckout() {
     try {
+      // Fast guard against rapid double-clicks
+      if (checkoutLockRef.current) return;
+      checkoutLockRef.current = true;
+      setIsSubmitting(true);
       if (!locationName.trim()) {
         alert("Please enter a location name");
         return;
@@ -572,7 +583,6 @@ export default function NewTaskPage() {
       }
       let uploadedUrl: string | null = null;
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
-      setIsSubmitting(true);
       const resp = await submitCheckout({
         checkout: checkoutTime,
         checkoutGps,
@@ -589,6 +599,7 @@ export default function NewTaskPage() {
       alert(e?.message || "Submit failed");
     } finally {
       setIsSubmitting(false);
+      checkoutLockRef.current = false;
     }
   }
 

@@ -34,6 +34,9 @@ export default function TaskDetailPage() {
   const [hasExistingCheckin, setHasExistingCheckin] = useState(false);
   const [hasExistingCheckout, setHasExistingCheckout] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Click locks to prevent rapid double submissions
+  const checkinLockRef = useRef(false);
+  const checkoutLockRef = useRef(false);
   // Place picker state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [placeQuery, setPlaceQuery] = useState("");
@@ -491,10 +494,13 @@ export default function TaskDetailPage() {
 
 async function onSubmitCheckin() {
     try {
+      // Fast guard against rapid double-clicks
+      if (checkinLockRef.current) return;
+      checkinLockRef.current = true;
+      setIsSubmitting(true);
       if (!(await validateLocationMatch())) {
         return;
       }
-      setIsSubmitting(true);
       if (!hasExistingCheckin && checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000) {
         alert("submit check-in timeout");
         setIsSubmitting(false);
@@ -535,11 +541,15 @@ async function onSubmitCheckin() {
       alert(e?.message || "Submit failed");
     } finally {
       setIsSubmitting(false);
+      checkinLockRef.current = false;
     }
   }
 
   async function onSubmitCheckout() {
     try {
+      // Fast guard against rapid double-clicks
+      if (checkoutLockRef.current) return;
+      checkoutLockRef.current = true;
       setIsSubmitting(true);
       if (!locationName.trim()) {
         alert("Please enter a location name");
@@ -583,6 +593,7 @@ async function onSubmitCheckin() {
       alert(e?.message || "Submit failed");
     } finally {
       setIsSubmitting(false);
+      checkoutLockRef.current = false;
     }
   }
 
