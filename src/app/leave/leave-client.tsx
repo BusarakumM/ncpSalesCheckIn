@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +36,10 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   // saved rows (local mock)
   const [rows, setRows] = useState<Row[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Click locks to prevent rapid double presses
+  const saveLockRef = useRef(false);
+  const submitLockRef = useRef(false);
 
   function removeRow(index: number) {
     setRows((prev) => prev.filter((_, i) => i !== index));
@@ -141,9 +145,13 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   }
 
   function onSave() {
+    // Guard against double-click
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
     // Validate common fields
     if (!type || !reason) {
       alert("Please fill Leave Type and Reason.");
+      saveLockRef.current = false;
       return;
     }
 
@@ -156,6 +164,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     if (mode === "full") {
       if (!fullDate) {
         alert("Please select the date for Full Day leave.");
+        saveLockRef.current = false;
         return;
       }
       // Use midnight local time for full-day
@@ -166,10 +175,12 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       // hourly
       if (!hourDate || !startTime || !endTime) {
         alert("Please select date, start time and end time for Hourly leave.");
+        saveLockRef.current = false;
         return;
       }
       if (endTime <= startTime) {
         alert("End time must be after start time.");
+        saveLockRef.current = false;
         return;
       }
       computedDt = `${hourDate}T${startTime}`;
@@ -185,6 +196,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     });
     if (hasOverlap) {
       alert("Duplicate/overlapping leave exists for this date.");
+      saveLockRef.current = false;
       return;
     }
 
@@ -193,6 +205,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     const dup = rows.some((x) => toIso(x.dt) === newIso);
     if (dup) {
       alert("This leave date/time is already added.");
+      saveLockRef.current = false;
       return;
     }
     setRows((r) => [...r, { dt: computedDt, type: computedType, reason, mode, date: metaDate, startMinutes: metaStart, endMinutes: metaEnd }]);
@@ -205,11 +218,21 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       setEndTime("");
     }
     setReason("");
+    saveLockRef.current = false;
   }
 
   async function onSubmit() {
     try {
-      if (rows.length === 0) return alert("No items to submit.");
+      // Guard against rapid double-clicks
+      if (submitLockRef.current) return;
+      submitLockRef.current = true;
+      setIsSubmitting(true);
+      if (rows.length === 0) {
+        alert("No items to submit.");
+        setIsSubmitting(false);
+        submitLockRef.current = false;
+        return;
+      }
       // Check existing leaves for current user to avoid duplicates
       const existedIso = new Set<string>();
       const existedSpans: Array<{ date: string; start: number; end: number }> = [];
@@ -272,6 +295,9 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       setReason("");
     } catch (e: any) {
       alert(e?.message || "Submit failed");
+    } finally {
+      setIsSubmitting(false);
+      submitLockRef.current = false;
     }
   }
 
@@ -470,7 +496,8 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
         <div className="mt-6 flex justify-center">
           <Button
             onClick={onSubmit}
-            className="w-full sm:w-auto rounded-full bg-[#E8CC5C] px-10 text-gray-900 hover:bg-[#e3c54a] border border-black/20"
+            disabled={isSubmitting}
+            className="w-full sm:w-auto rounded-full bg-[#E8CC5C] px-10 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             Submit
           </Button>
