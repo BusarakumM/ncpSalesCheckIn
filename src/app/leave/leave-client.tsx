@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,6 +40,16 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   // Click locks to prevent rapid double presses
   const saveLockRef = useRef(false);
   const submitLockRef = useRef(false);
+  const noticeRef = useRef<HTMLDivElement | null>(null);
+  const submitSectionRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (notice) {
+      // Ensure the message is visible near the submit button
+      const el = noticeRef.current || submitSectionRef.current;
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [notice]);
 
   function removeRow(index: number) {
     setRows((prev) => prev.filter((_, i) => i !== index));
@@ -320,15 +330,6 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
         {/* Form */}
         <div className="mt-5 space-y-4">
-          {notice ? (
-            <div className="rounded-md border border-black/20 bg-[#FFF8D6] text-gray-900 px-4 py-3 text-sm whitespace-pre-wrap">
-              <div className="flex items-start gap-2">
-                <div className="mt-0.5">⚠️</div>
-                <div className="flex-1">{notice}</div>
-                <button onClick={() => setNotice(null)} className="ml-2 text-gray-700 hover:underline">Dismiss</button>
-              </div>
-            </div>
-          ) : null}
           {/* Mode toggle */}
           <div>
             <div className="text-sm sm:text-base font-semibold">Leave Duration:</div>
@@ -492,8 +493,23 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
           </button>
         </div>
 
+        {/* Inline notice placed near submit button */}
+        {notice ? (
+          <div
+            ref={noticeRef}
+            aria-live="polite"
+            className="mt-6 rounded-md border border-black/20 bg-[#FFF8D6] text-gray-900 px-4 py-3 text-sm whitespace-pre-wrap"
+          >
+            <div className="flex items-start gap-2">
+              <div className="mt-0.5">⚠️</div>
+              <div className="flex-1">{notice}</div>
+              <button onClick={() => setNotice(null)} className="ml-2 text-gray-700 hover:underline">Dismiss</button>
+            </div>
+          </div>
+        ) : null}
+
         {/* Submit */}
-        <div className="mt-6 flex justify-center">
+        <div ref={submitSectionRef} className="mt-4 flex justify-center">
           <Button
             onClick={onSubmit}
             disabled={isSubmitting}
