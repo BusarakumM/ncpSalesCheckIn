@@ -18,6 +18,7 @@ type Row = {
   status: "completed" | "incomplete" | "ongoing";
   name?: string;
   email?: string;
+  employeeNo?: string;
   district?: string;
   checkinGps?: string;
   checkoutGps?: string;
@@ -27,7 +28,7 @@ type Row = {
 const DATA: Row[] = [];
 
 export default function ActivityClient({ homeHref }: { homeHref: string }) {
-  const [qName, setQName] = useState("");
+  const [qIdentity, setQIdentity] = useState(""); // employeeNo or username
   const [qFrom, setQFrom] = useState("");
   const [qTo, setQTo] = useState("");
 
@@ -42,9 +43,15 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=160x120&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
   }
 
+  const [sortKey, setSortKey] = useState<"date" | "employeeNo" | "username">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
   async function fetchRows() {
     const payload: any = {};
-    if (qName) payload.name = qName;
+    const q = qIdentity.trim();
+    if (q) {
+      if (/^\d+$/.test(q)) payload.employeeNo = q; else payload.username = q;
+    }
     if (qFrom) payload.from = qFrom;
     if (qTo) payload.to = qTo;
     if (qDistrict) payload.district = qDistrict;
@@ -56,7 +63,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
 
   function exportCsv() {
     const header = [
-      "Date","Check-in","Check-out","Location","Detail","District","Sales Support Name","In GPS","Out GPS","Distance (km)","Status"
+      "Date","Check-in","Check-out","Location","Detail","District","Emp No","Username","Sales Support Name","In GPS","Out GPS","Distance (km)","Status"
     ];
     const lines = rows.map((r) => [
       r.date,
@@ -65,6 +72,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
       r.location || "",
       r.detail || "",
       r.district || "",
+      r.employeeNo || "",
+      r.email || "",
       r.name || "",
       r.checkinGps || "",
       r.checkoutGps || "",
@@ -85,17 +94,25 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   }
 
   useEffect(() => { fetchRows().catch(() => {}); }, []);
-  const filtered = useMemo(() => {
-    return DATA.filter((r) => {
-      const n = (r.name || "").toLowerCase();
-      const e = (r.email || "").toLowerCase();
-      const q = qName.toLowerCase();
-      const nameMatch = !qName || n.includes(q) || e.includes(q);
-      const fromOk = !qFrom || r.date >= qFrom;
-      const toOk = !qTo || r.date <= qTo;
-      return nameMatch && fromOk && toOk;
-    });
-  }, [qName, qFrom, qTo]);
+  const displayRows = useMemo(() => {
+    const arr = [...rows];
+    if (sortKey === "employeeNo") {
+      arr.sort((a, b) => {
+        const av = (a.employeeNo || "").toLowerCase();
+        const bv = (b.employeeNo || "").toLowerCase();
+        const cmp = av.localeCompare(bv);
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    } else if (sortKey === "username") {
+      arr.sort((a, b) => {
+        const av = (a.email || "").toLowerCase();
+        const bv = (b.email || "").toLowerCase();
+        const cmp = av.localeCompare(bv);
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return arr;
+  }, [rows, sortKey, sortDir]);
 
   function rowBg(status: Row["status"]) {
     if (status === "completed") return "bg-[#6EC3A1] text-white"; // green
@@ -123,11 +140,11 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
         {/* Filters */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <Label>Sales support name</Label>
+            <Label>Employee No or Username</Label>
             <Input
-              placeholder="Name or username"
-              value={qName}
-              onChange={(e) => setQName(e.target.value)}
+              placeholder="e.g. 12345 or user@company"
+              value={qIdentity}
+              onChange={(e) => setQIdentity(e.target.value)}
               className="bg-white"
             />
           </div>
@@ -161,8 +178,23 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
           </div>
         </div>
 
-        <div className="mt-3 flex justify-center">
+        <div className="mt-3 flex justify-center gap-3 items-center">
           <Button onClick={fetchRows} className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10">Search</Button>
+          <div className="hidden sm:flex items-center gap-2 text-sm">
+            <span>Sort:</span>
+            <button
+              type="button"
+              onClick={() => { setSortKey('employeeNo'); setSortDir(sortKey === 'employeeNo' && sortDir === 'asc' ? 'desc' : 'asc'); }}
+              className={`px-2 py-1 rounded-full border ${sortKey === 'employeeNo' ? 'bg-white border-black/40' : 'bg-white/70 border-black/20'}`}
+              title="Sort by Employee No"
+            >Emp No {sortKey === 'employeeNo' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</button>
+            <button
+              type="button"
+              onClick={() => { setSortKey('username'); setSortDir(sortKey === 'username' && sortDir === 'asc' ? 'desc' : 'asc'); }}
+              className={`px-2 py-1 rounded-full border ${sortKey === 'username' ? 'bg-white border-black/40' : 'bg-white/70 border-black/20'}`}
+              title="Sort by Username"
+            >Username {sortKey === 'username' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</button>
+          </div>
         </div>
 
         {/* Table */}
@@ -182,6 +214,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[160px]">Location</TableHead>
                   <TableHead className="min-w-[160px]">Detail</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
+                  <TableHead className="min-w-[120px] cursor-pointer" title="Sort by Emp No" onClick={() => { setSortKey('employeeNo'); setSortDir(sortKey === 'employeeNo' && sortDir === 'asc' ? 'desc' : 'asc'); }}>Emp No</TableHead>
+                  <TableHead className="min-w-[180px] cursor-pointer" title="Sort by Username" onClick={() => { setSortKey('username'); setSortDir(sortKey === 'username' && sortDir === 'asc' ? 'desc' : 'asc'); }}>Username</TableHead>
                   <TableHead className="min-w-[180px]">Sales Support Name</TableHead>
                   <TableHead className="min-w-[180px]">In gps</TableHead>
                   <TableHead className="min-w-[180px]">Out gps</TableHead>
@@ -190,14 +224,14 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.length === 0 ? (
+                {displayRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center text-gray-500">
+                    <TableCell colSpan={13} className="text-center text-gray-500">
                       No results
                     </TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((r, i) => (
+                  displayRows.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell>{r.checkin || "-"}</TableCell>
@@ -205,6 +239,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                       <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
                       <TableCell>{r.detail || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
+                      <TableCell>{r.employeeNo || ""}</TableCell>
+                      <TableCell className="truncate" title={r.email || undefined}>{r.email || ""}</TableCell>
                       <TableCell>{r.name || ""}</TableCell>
                       <TableCell>
                         {(r as any).checkinLocation || r.location ? (

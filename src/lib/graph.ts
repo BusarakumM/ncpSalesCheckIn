@@ -175,6 +175,7 @@ export type ActivityRow = {
   status: "completed" | "incomplete" | "ongoing";
   name?: string;
   email?: string;
+  employeeNo?: string;
   imageIn?: string;
   imageOut?: string;
   district?: string;
@@ -207,7 +208,7 @@ function toTimePart(iso: string | undefined): string {
   return `${hh}:${mi}`;
 }
 
-export async function listActivities(params: { from?: string; to?: string; name?: string; email?: string; district?: string; location?: string }): Promise<ActivityRow[]> {
+export async function listActivities(params: { from?: string; to?: string; name?: string; email?: string; employeeNo?: string; district?: string; location?: string }): Promise<ActivityRow[]> {
   const tCheckin = graphTables.checkin();
   const tCheckout = graphTables.checkout();
   const [ciHeaders, ciRows, coHeaders, coRows] = await Promise.all([
@@ -244,6 +245,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       photo: findIdx(ciHeaders, "photoUrl", 5),
       email: findIdentityIdx(ciHeaders, 6),
       name: findIdx(ciHeaders, "name", 7),
+      employeeNo: findIdx(ciHeaders, "employeeNo", null),
       district: findIdx(ciHeaders, "district", 12),
     },
     co: {
@@ -256,6 +258,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       photo: findIdx(coHeaders, "checkoutPhotoUrl", 3),
       email: findIdentityIdx(coHeaders, 4),
       name: findIdx(coHeaders, "name", 5),
+      employeeNo: findIdx(coHeaders, "employeeNo", null),
       district: findIdx(coHeaders, "district", 10),
     },
   };
@@ -322,6 +325,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
       status: "ongoing",
       name,
       email,
+      employeeNo: String(idx.ci.employeeNo != null ? r[idx.ci.employeeNo] || "" : ""),
       imageIn: String(idx.ci.photo != null ? r[idx.ci.photo] || "" : ""),
       district: String(idx.ci.district != null ? r[idx.ci.district] || "" : ""),
       checkinGps: gpsStr,
@@ -410,6 +414,7 @@ export async function listActivities(params: { from?: string; to?: string; name?
         status: "incomplete",
         name,
         email,
+        employeeNo: String(idx.co.employeeNo != null ? r[idx.co.employeeNo] || "" : ""),
         imageOut: String(idx.co.photo != null ? r[idx.co.photo] || "" : ""),
         district: String(idx.co.district != null ? r[idx.co.district] || "" : ""),
         checkoutGps: gpsStr,
@@ -442,6 +447,10 @@ export async function listActivities(params: { from?: string; to?: string; name?
   if (params.email) {
     const e = params.email.toLowerCase();
     rows = rows.filter((r) => (r.email || "").toLowerCase() === e);
+  }
+  if (params.employeeNo) {
+    const en = params.employeeNo.toLowerCase();
+    rows = rows.filter((r) => (r.employeeNo || "").toLowerCase() === en);
   }
   if (params.district) {
     const d = params.district.toLowerCase();
