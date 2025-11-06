@@ -208,6 +208,11 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
 
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
+          <div className="mb-2 flex justify-end">
+            <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
+              Export
+            </Button>
+          </div>
           <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             <Table className="min-w-[1120px] text-sm">
               <TableHeader>
@@ -311,19 +316,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
           </div>
         </div>
 
-        {/* Export */}
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="text-sm text-gray-700 text-center sm:text-left">
-            Export file <br className="sm:hidden" /> .xlsx
-          </div>
-          <button
-            onClick={exportCsv}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50 self-center sm:self-auto"
-            title="Export"
-          >
-            ➜
-          </button>
-        </div>
+        {/* Export moved above table for consistency */}
       </div>
     </div>
   );

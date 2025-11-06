@@ -127,6 +127,28 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
 
         {/* Summary Table (beige panel with rounded rows) */}
         <div className="mt-6 rounded-3xl bg-[#D9CDAF] p-4">
+          <div className="mb-2 flex justify-end">
+            <Button
+              onClick={() => {
+                const header = ["Name","District","Total","Completed","Incomplete","Ongoing"];
+                const lines = rows.map((r) => [r.name, r.district || "", r.total, r.completed, r.incomplete, r.ongoing]);
+                const csv = [header, ...lines]
+                  .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+                  .join("\n");
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "summary.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              variant="outline"
+              className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2"
+            >
+              Export
+            </Button>
+          </div>
           <h2 className="mb-3 text-center text-lg sm:text-xl font-extrabold">Summary Table</h2>
 
           {/* Wrap in horizontal scroll on small screens */}
@@ -162,32 +184,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           </div>
         </div>
 
-        {/* Export */}
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="text-sm text-gray-700 text-center sm:text-left">
-            Export summary CSV
-          </div>
-          <button
-            onClick={() => {
-              const header = ["Name","District","Total","Completed","Incomplete","Ongoing"];
-              const lines = rows.map((r) => [r.name, r.district || "", r.total, r.completed, r.incomplete, r.ongoing]);
-              const csv = [header, ...lines]
-                .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-                .join("\n");
-              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "summary.csv";
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/30 bg-white hover:bg-gray-50 self-center sm:self-auto"
-            title="Export"
-          >
-            ➜
-          </button>
-        </div>
+        {/* Export moved above table for consistency */}
 
       </div>
     </div>
