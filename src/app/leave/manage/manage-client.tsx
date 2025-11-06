@@ -62,9 +62,8 @@ export default function LeaveManageClient() {
     if (from) qs.set("from", from);
     if (to) qs.set("to", to);
     if (q) {
-      // try both employeeNo and username/email server-side
-      qs.set("employeeNo", q);
-      qs.set("email", q);
+      const v = q.trim();
+      if (/^\d+$/.test(v)) qs.set("employeeNo", v); else qs.set("username", v);
     }
     const r = await fetch(`/api/pa/leave?${qs.toString()}`, { cache: "no-store" });
     const data = await r.json();
@@ -87,7 +86,7 @@ export default function LeaveManageClient() {
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="From" />
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="To" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} className="bg-white" placeholder="Employee No or Username" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} className="bg-white" placeholder="12345 or username" />
         </div>
         <div className="mt-3 flex justify-center">
           <Button onClick={load} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">Search</Button>
