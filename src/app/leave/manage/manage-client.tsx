@@ -86,7 +86,7 @@ export default function LeaveManageClient() {
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="From" />
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="To" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} className="bg-white" placeholder="12345 or username" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} className="bg-white" placeholder="Employee No or Username" />
         </div>
         <div className="mt-3 flex justify-center">
           <Button onClick={load} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">Search</Button>

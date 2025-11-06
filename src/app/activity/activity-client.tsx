@@ -142,7 +142,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
           <div>
             <Label>Employee No or Username</Label>
             <Input
-              placeholder="12345 or username"
+              placeholder="Employee No or Username"
               value={qIdentity}
               onChange={(e) => setQIdentity(e.target.value)}
               className="bg-white"
