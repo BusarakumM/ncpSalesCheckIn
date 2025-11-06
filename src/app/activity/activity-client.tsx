@@ -178,23 +178,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
           </div>
         </div>
 
-        <div className="mt-3 flex justify-center gap-3 items-center">
+        <div className="mt-3 flex justify-center">
           <Button onClick={fetchRows} className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10">Search</Button>
-          <div className="hidden sm:flex items-center gap-2 text-sm">
-            <span>Sort:</span>
-            <button
-              type="button"
-              onClick={() => { setSortKey('employeeNo'); setSortDir(sortKey === 'employeeNo' && sortDir === 'asc' ? 'desc' : 'asc'); }}
-              className={`px-2 py-1 rounded-full border ${sortKey === 'employeeNo' ? 'bg-white border-black/40' : 'bg-white/70 border-black/20'}`}
-              title="Sort by Employee No"
-            >Emp No {sortKey === 'employeeNo' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</button>
-            <button
-              type="button"
-              onClick={() => { setSortKey('username'); setSortDir(sortKey === 'username' && sortDir === 'asc' ? 'desc' : 'asc'); }}
-              className={`px-2 py-1 rounded-full border ${sortKey === 'username' ? 'bg-white border-black/40' : 'bg-white/70 border-black/20'}`}
-              title="Sort by Username"
-            >Username {sortKey === 'username' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</button>
-          </div>
         </div>
 
         {/* Table */}
