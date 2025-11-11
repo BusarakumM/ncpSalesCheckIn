@@ -28,9 +28,9 @@ export default function NewTaskPage() {
   const [checkoutPhotoFile, setCheckoutPhotoFile] = useState<File | null>(null);
   const [checkoutRemark, setCheckoutRemark] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const galleryFileRef = useRef<HTMLInputElement | null>(null);
+  const fileBackRef = useRef<HTMLInputElement | null>(null);
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
-  const checkoutGalleryFileRef = useRef<HTMLInputElement | null>(null);
+  const checkoutFileBackRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Click locks to prevent rapid double submissions
   const checkinLockRef = useRef(false);
@@ -816,14 +816,33 @@ export default function NewTaskPage() {
             onClick={() => fileRef.current?.click()}
             className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
             disabled={isSubmitting || submittedCheckin}
-            title="Take or attach photo"
+            title="Open front camera"
           >
-            📷
+            Selfie
+          </button>
+          <button
+            type="button"
+            onClick={() => fileBackRef.current?.click()}
+            className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={isSubmitting || submittedCheckin}
+            title="Open back camera"
+          >
+            Back
           </button>
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/*;capture=camera"
+            capture="user"
+            className="hidden"
+            onChange={onPickPhoto}
+            disabled={isSubmitting || submittedCheckin}
+          />
+          <input
+            ref={fileBackRef}
+            type="file"
+            accept="image/*;capture=camera"
+            capture="environment"
             className="hidden"
             onChange={onPickPhoto}
             disabled={isSubmitting || submittedCheckin}
@@ -921,22 +940,41 @@ export default function NewTaskPage() {
               </div>
             </div>
 
-            {/* Checkout Take a picture */}
+            {/* Checkout picture */}
             <div className="mt-3 rounded-md border border-black/10 bg-[#D8CBAF]/70 px-4 py-2 text-center font-semibold">
               <span className="text-sm sm:text-base">Checkout picture</span>
               <button
                 type="button"
                 onClick={() => checkoutFileRef.current?.click()}
                 className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                title="Take or attach photo"
+                title="Open front camera"
                 disabled={isSubmitting || submittedCheckout}
               >
-                📷
+                Selfie
+              </button>
+              <button
+                type="button"
+                onClick={() => checkoutFileBackRef.current?.click()}
+                className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                title="Open back camera"
+                disabled={isSubmitting || submittedCheckout}
+              >
+                Back
               </button>
               <input
                 ref={checkoutFileRef}
                 type="file"
-                accept="image/*"
+                accept="image/*;capture=camera"
+                capture="user"
+                className="hidden"
+                onChange={onPickCheckoutPhoto}
+                disabled={isSubmitting || submittedCheckout}
+              />
+              <input
+                ref={checkoutFileBackRef}
+                type="file"
+                accept="image/*;capture=camera"
+                capture="environment"
                 className="hidden"
                 onChange={onPickCheckoutPhoto}
                 disabled={isSubmitting || submittedCheckout}
@@ -970,7 +1008,7 @@ export default function NewTaskPage() {
                 onClick={onSubmitCheckout}
                 disabled={!locationName.trim() || !checkoutPhotoFile || checkoutOutOfArea || isSubmitting}
                 className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-                title={!locationName.trim() ? "Please enter a location name" : !checkoutPhotoFile ? "Please attach a checkout photo" : checkoutOutOfArea ? "จุด check-out อยู่นอกพื้นที่ check-in" : undefined}
+                title={!locationName.trim() ? "Please enter a location name" : !checkoutPhotoFile ? "Please take a checkout selfie" : checkoutOutOfArea ? "จุด check-out อยู่นอกพื้นที่ check-in" : undefined}
               >
                 Submit Checkout
               </Button>

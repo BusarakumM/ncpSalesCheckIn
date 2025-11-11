@@ -28,9 +28,9 @@ export default function TaskDetailPage() {
   const [checkoutRemark, setCheckoutRemark] = useState("");
   const [checkinCaptureAt, setCheckinCaptureAt] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const galleryFileRef = useRef<HTMLInputElement | null>(null);
+  const fileBackRef = useRef<HTMLInputElement | null>(null);
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
-  const checkoutGalleryFileRef = useRef<HTMLInputElement | null>(null);
+  const checkoutFileBackRef = useRef<HTMLInputElement | null>(null);
   const [hasExistingCheckin, setHasExistingCheckin] = useState(false);
   const [hasExistingCheckout, setHasExistingCheckout] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -786,15 +786,34 @@ async function onSubmitCheckin() {
             type="button"
             onClick={() => fileRef.current?.click()}
             className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Take or attach photo"
+            title="Open front camera"
             disabled={hasExistingCheckin || isSubmitting}
           >
-            📷
+            Selfie
+          </button>
+          <button
+            type="button"
+            onClick={() => fileBackRef.current?.click()}
+            className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+            title="Open back camera"
+            disabled={hasExistingCheckin || isSubmitting}
+          >
+            Back
           </button>
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/*;capture=camera"
+            capture="user"
+            className="hidden"
+            onChange={onPickPhoto}
+            disabled={hasExistingCheckin || isSubmitting}
+          />
+          <input
+            ref={fileBackRef}
+            type="file"
+            accept="image/*;capture=camera"
+            capture="environment"
             className="hidden"
             onChange={onPickPhoto}
             disabled={hasExistingCheckin || isSubmitting}
@@ -837,7 +856,7 @@ async function onSubmitCheckin() {
             onClick={onSubmitCheckin}
             disabled={hasExistingCheckin || !locationName.trim() || !photoFile || isSubmitting || (!hasExistingCheckin && checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000)}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : hasExistingCheckin ? "Check-in already submitted" : undefined}
+            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please take a check-in selfie" : hasExistingCheckin ? "Check-in already submitted" : undefined}
           >
             Submit Check-in
           </Button>
@@ -911,15 +930,34 @@ async function onSubmitCheckin() {
                 type="button"
                 onClick={() => checkoutFileRef.current?.click()}
                 className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                title="Take or attach photo"
+                title="Open front camera"
                 disabled={hasExistingCheckout || isSubmitting}
               >
-                📷
+                Selfie
+              </button>
+              <button
+                type="button"
+                onClick={() => checkoutFileBackRef.current?.click()}
+                className="ml-2 inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-2 py-1 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                title="Open back camera"
+                disabled={hasExistingCheckout || isSubmitting}
+              >
+                Back
               </button>
               <input
                 ref={checkoutFileRef}
                 type="file"
-                accept="image/*"
+                accept="image/*;capture=camera"
+                capture="user"
+                className="hidden"
+                onChange={onPickCheckoutPhoto}
+                disabled={hasExistingCheckout || isSubmitting}
+              />
+              <input
+                ref={checkoutFileBackRef}
+                type="file"
+                accept="image/*;capture=camera"
+                capture="environment"
                 className="hidden"
                 onChange={onPickCheckoutPhoto}
                 disabled={hasExistingCheckout || isSubmitting}
