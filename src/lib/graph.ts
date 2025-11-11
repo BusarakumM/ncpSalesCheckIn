@@ -114,7 +114,7 @@ export async function addRowToTable(tableName: string, rowValues: any[]): Promis
   }
 }
 
-async function getTableHeaders(tableName: string): Promise<string[]> {
+export async function getTableHeaders(tableName: string): Promise<string[]> {
   if (headerCache.has(tableName)) return headerCache.get(tableName)!;
   const base = workbookBasePath();
   const path = `${base}/tables/${encodeURIComponent(tableName)}/headerRowRange`;

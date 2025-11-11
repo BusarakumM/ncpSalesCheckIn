@@ -144,7 +144,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
           </div>
           <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             {/* keep enough width so columns don't squish on phones */}
-            <Table className="min-w-[900px] text-sm">
+            <Table className="min-w-[1024px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="min-w-[120px]">Date/Time</TableHead>
@@ -157,13 +157,14 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                   <TableHead className="min-w-[160px]">Image check-out</TableHead>
                   <TableHead className="min-w-[140px]">Status/leave</TableHead>
                   <TableHead className="min-w-[200px]">Remark</TableHead>
+                  <TableHead className="min-w-[200px]">Sales Support Name</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500">
+                    <TableCell colSpan={12} className="text-center text-gray-500">
                       No data for the selected filters
                     </TableCell>
                   </TableRow>
@@ -227,6 +228,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                       </TableCell>
                       <TableCell>{r.status || ""}</TableCell>
                       <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
+                      <TableCell>{r.name || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
                     </TableRow>
                   ))
