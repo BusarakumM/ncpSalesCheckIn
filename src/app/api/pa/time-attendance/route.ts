@@ -59,13 +59,27 @@ export async function POST(req: Request) {
       rows = rows.filter((r) => r.name.toLowerCase().includes(n));
     }
 
-    // Sort by name asc then date asc
+    // Sort by date (ASC), then check-in time (ASC), then name (ASC)
     rows.sort((a, b) => {
+      const ad = a.date || "";
+      const bd = b.date || "";
+      if (ad !== bd) return ad < bd ? -1 : 1;
+
+      const toMinutes = (s: string) => {
+        if (!s) return Number.MAX_SAFE_INTEGER;
+        const ss = String(s);
+        const parts = ss.includes(":") ? ss.split(":") : ss.split(".");
+        const hh = parseInt(parts[0] || "0", 10);
+        const mm = parseInt(parts[1] || "0", 10);
+        if (isNaN(hh) || isNaN(mm)) return Number.MAX_SAFE_INTEGER;
+        return hh * 60 + mm;
+      };
+      const byTime = toMinutes(a.checkin || "") - toMinutes(b.checkin || "");
+      if (byTime !== 0) return byTime;
+
       const na = (a.name || "").toLowerCase();
       const nb = (b.name || "").toLowerCase();
-      const byName = na.localeCompare(nb);
-      if (byName !== 0) return byName;
-      return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      return na.localeCompare(nb);
     });
 
     return NextResponse.json({ ok: true, rows });

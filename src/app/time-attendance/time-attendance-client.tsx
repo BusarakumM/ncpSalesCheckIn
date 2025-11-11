@@ -144,10 +144,12 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
           </div>
           <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             {/* keep enough width so columns don't squish on phones */}
-            <Table className="min-w-[1024px] text-sm">
+            <Table className="min-w-[1100px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[120px]">Date/Time</TableHead>
+                  <TableHead className="min-w-[140px]">Date/Time</TableHead>
+                  <TableHead className="min-w-[220px]">Sales Support Name</TableHead>
+                  <TableHead className="min-w-[160px]">District</TableHead>
                   <TableHead className="min-w-[120px]">Check-in</TableHead>
                   <TableHead className="min-w-[120px]">Check-out</TableHead>
                   <TableHead className="min-w-[160px]">Check-in GPS</TableHead>
@@ -157,8 +159,6 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                   <TableHead className="min-w-[160px]">Image check-out</TableHead>
                   <TableHead className="min-w-[140px]">Status/leave</TableHead>
                   <TableHead className="min-w-[200px]">Remark</TableHead>
-                  <TableHead className="min-w-[200px]">Sales Support Name</TableHead>
-                  <TableHead className="min-w-[140px]">District</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -172,6 +172,8 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                   rows.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
+                      <TableCell>{r.name || ""}</TableCell>
+                      <TableCell>{r.district || ""}</TableCell>
                       <TableCell title={r.checkinGps || undefined}>{r.checkin || "-"}</TableCell>
                       <TableCell title={r.checkoutGps || undefined}>{r.checkout || "-"}</TableCell>
                       <TableCell>
@@ -228,8 +230,6 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                       </TableCell>
                       <TableCell>{r.status || ""}</TableCell>
                       <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
-                      <TableCell>{r.name || ""}</TableCell>
-                      <TableCell>{r.district || ""}</TableCell>
                     </TableRow>
                   ))
                 )}
