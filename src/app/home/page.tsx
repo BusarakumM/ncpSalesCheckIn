@@ -10,10 +10,10 @@ export default async function SalesSupportHome() {
   const email = (await cookieStore).get("username")?.value || (await cookieStore).get("email")?.value || "salesupport";
 
   const tiles = [
-    { href: "/checkin", title: "Check-in\nCheck-out", bg: "bg-[#BFD9C8]", icon: ClipboardCheck, span2: false },
-    { href: "/leave",   title: "Leave",               bg: "bg-[#E6D8B9]", icon: CalendarX,     span2: false },
-    { href: "/leave/history", title: "Report Leave History", bg: "bg-[#D9E0DB]", icon: FileText,      span2: false },
-    { href: "/report",  title: "Report",              bg: "bg-[#D9E0DB]", icon: FileText,      span2: false },
+    { href: "/checkin", title: "เข้างาน\nออกงาน", bg: "bg-[#BFD9C8]", icon: ClipboardCheck, span2: false },
+    { href: "/leave",   title: "ขอลางาน",           bg: "bg-[#E6D8B9]", icon: CalendarX,     span2: false },
+    { href: "/leave/history", title: "ประวัติการลา", bg: "bg-[#D9E0DB]", icon: FileText,      span2: false },
+    { href: "/report",  title: "บันทึกเวลาและการปฏิบัติ (สถานที่)", bg: "bg-[#D9E0DB]", icon: FileText,      span2: false },
   ] as const;
 
   return (
@@ -46,7 +46,7 @@ export default async function SalesSupportHome() {
                 type="submit"
                 className="rounded-full bg-[#E8CC5C] px-4 py-1 text-sm sm:text-base font-semibold text-gray-900 hover:bg-[#e3c54a] border border-black/20"
               >
-                Logout
+                ออกจากระบบ
               </button>
             </form>
           </div>
