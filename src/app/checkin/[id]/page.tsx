@@ -623,7 +623,7 @@ async function onSubmitCheckin() {
           <Link
             href="/checkin"
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
-            title="Back"
+            title="ย้อนกลับ"
           >
             <span className="text-xl">←</span>
           </Link>
@@ -634,7 +634,7 @@ async function onSubmitCheckin() {
 
         {/* Check-in time */}
         <div className="mt-3">
-          <div className="text-sm sm:text-base font-semibold">Check-in Time (auto)</div>
+          <div className="text-sm sm:text-base font-semibold">เวลาเข้างาน (อัตโนมัติ)</div>
           <div className="mt-1">
             <Input
               type="datetime-local"
@@ -647,12 +647,12 @@ async function onSubmitCheckin() {
         </div>
 
         <div className="mt-4">
-          <div className="text-sm sm:text-base font-semibold">Location</div>
+          <div className="text-sm sm:text-base font-semibold">สถานที่</div>
           <div className="mt-2">
             <Input
               value={locationName}
               onChange={(e) => { setLocationName(e.target.value); if (locationError) setLocationError(""); }}
-              placeholder="Enter or pick a place"
+              placeholder="ระบุหรือเลือกสถานที่"
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={hasExistingCheckin || isSubmitting}
               onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
@@ -704,25 +704,25 @@ async function onSubmitCheckin() {
                 onClick={() => { setPickerOpen((v) => !v); if (!pickerOpen) { setPlaceResults([]); } }}
                 className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
                 disabled={hasExistingCheckin || isSubmitting}
-                title="Search or pick nearby place"
+                title="ค้นหาหรือเลือกสถานที่ใกล้ฉัน"
               >
-                Pick place
+                ค้นหาสถานที่
               </button>
               <button
                 type="button"
                 onClick={loadNearby}
                 className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
                 disabled={hasExistingCheckin || isSubmitting}
-                title="Load nearby places"
+                title="โหลดสถานที่ใกล้ฉัน"
               >
-                Nearby
+                ใกล้ฉัน
               </button>
             </div>
             {pickerOpen && (
               <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3">
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Search place (e.g., mall, company)"
+                    placeholder="ค้นหาสถานที่ (เช่น ห้าง บริษัท)"
                     value={placeQuery}
                     onChange={(e) => setPlaceQuery(e.target.value)}
                     className="h-9 rounded-full border-black/10 bg-white"
@@ -731,9 +731,9 @@ async function onSubmitCheckin() {
                 </div>
                 <div className="mt-2 max-h-56 overflow-auto divide-y divide-black/10 bg-white rounded">
                   {pickerLoading ? (
-                    <div className="p-3 text-sm">Loading…</div>
+                    <div className="p-3 text-sm">กำลังโหลด…</div>
                   ) : placeResults.length === 0 ? (
-                    <div className="p-3 text-sm text-gray-700">No results</div>
+                    <div className="p-3 text-sm text-gray-700">ไม่พบข้อมูล</div>
                   ) : (
                     placeResults.map((p, i) => (
                       <div key={`${p.name}-${i}`} className="p-2 flex items-center justify-between gap-2">
@@ -741,27 +741,27 @@ async function onSubmitCheckin() {
                           <div className="font-medium truncate">{p.name}</div>
                           {p.address ? <div className="text-xs text-gray-600 truncate">{p.address}</div> : null}
                         </div>
-                        <button type="button" onClick={() => selectPlace(p)} className="rounded-full border border-black/20 bg-white px-3 py-1 text-sm hover:bg-gray-50">Select</button>
+                        <button type="button" onClick={() => selectPlace(p)} className="rounded-full border border-black/20 bg-white px-3 py-1 text-sm hover:bg-gray-50">เลือก</button>
                       </div>
                     ))
                   )}
                 </div>
               </div>
             )}
-            <div className="mt-1 text-xs text-gray-700">Tip: pick a place and edit the name before saving</div>
+            <div className="mt-1 text-xs text-gray-700">เคล็ดลับ: เลือกสถานที่แล้วสามารถแก้ไขชื่อก่อนบันทึกได้</div>
           </div>
         </div>
 
         {/* Selected Location details */}
         <div className="mt-4">
           <div className="flex items-center gap-2">
-            <div className="text-sm sm:text-base font-semibold">Selected Location</div>
+            <div className="text-sm sm:text-base font-semibold">สถานที่ที่เลือก</div>
             <button
               type="button"
               onClick={() => setShowDetails((v) => !v)}
               className="ml-auto inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-2 py-1 text-xs hover:bg-gray-50"
             >
-              {showDetails ? "Hide details" : "Show details"}
+              {showDetails ? "ซ่อนรายละเอียด" : "แสดงรายละเอียด"}
             </button>
           </div>
           <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4">
@@ -770,7 +770,7 @@ async function onSubmitCheckin() {
             </div>
             {showDetails && (
               <div className="mt-2">
-                <div className="text-xs sm:text-sm break-words">GPS: {gps || "—"}</div>
+                <div className="text-xs sm:text-sm break-words">พิกัด: {gps || "—"}</div>
                 {checkinAddress ? (
                   <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkinAddress}>
                     {checkinAddress}
@@ -782,13 +782,13 @@ async function onSubmitCheckin() {
                 ) : null}
               </div>
             )}
-            <div className="mt-2 text-xs text-gray-700">Use Pick place or Nearby to choose a location, then edit the name if needed.</div>
+            <div className="mt-2 text-xs text-gray-700">ใช้ปุ่ม “ค้นหาสถานที่” หรือ “ใกล้ฉัน” เพื่อเลือก จากนั้นแก้ไขชื่อได้ตามต้องการ</div>
           </div>
         </div>
 
         {/* Location Detail */}
         <div className="mt-5">
-          <div className="text-sm sm:text-base font-semibold">Location Detail</div>
+          <div className="text-sm sm:text-base font-semibold">รายละเอียดสถานที่</div>
           <Textarea
             value={jobDetail}
             onChange={(e) => setJobDetail(e.target.value)}
@@ -824,12 +824,12 @@ async function onSubmitCheckin() {
         <div className="-mt-1 mb-2 flex justify-center">
           {hasExistingCheckin ? (
             hasExistingCheckout ? (
-              <span className="inline-flex items-center rounded-full bg-[#6EC3A1] text-white px-3 py-1 text-xs sm:text-sm">Completed</span>
+              <span className="inline-flex items-center rounded-full bg-[#6EC3A1] text-white px-3 py-1 text-xs sm:text-sm">เสร็จสิ้น</span>
             ) : (
-              <span className="inline-flex items-center rounded-full bg-[#E7D6B9] text-black px-3 py-1 text-xs sm:text-sm">Ongoing</span>
+              <span className="inline-flex items-center rounded-full bg-[#E7D6B9] text-black px-3 py-1 text-xs sm:text-sm">กำลังทำ</span>
             )
           ) : (
-            <span className="inline-flex items-center rounded-full bg-gray-200 text-gray-800 px-3 py-1 text-xs sm:text-sm">Not started</span>
+            <span className="inline-flex items-center rounded-full bg-gray-200 text-gray-800 px-3 py-1 text-xs sm:text-sm">ยังไม่เริ่ม</span>
           )}
         </div>
 
@@ -847,7 +847,7 @@ async function onSubmitCheckin() {
           </div>
         </div>
         {!photoFile && !hasExistingCheckin && !isSubmitting ? (
-          <div className="mt-1 text-xs text-red-700">Check-in photo is required</div>
+          <div className="mt-1 text-xs text-red-700">ต้องถ่ายรูปเข้างาน</div>
         ) : null}
 
         {/* Actions */}
@@ -856,9 +856,9 @@ async function onSubmitCheckin() {
             onClick={onSubmitCheckin}
             disabled={hasExistingCheckin || !locationName.trim() || !photoFile || isSubmitting || (!hasExistingCheckin && checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000)}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please take a check-in selfie" : hasExistingCheckin ? "Check-in already submitted" : undefined}
+            title={!locationName.trim() ? "กรุณาระบุชื่อสถานที่" : !photoFile ? "กรุณาถ่ายรูปเพื่อเข้างาน" : hasExistingCheckin ? "บันทึกเข้างานแล้ว" : undefined}
           >
-            Submit Check-in
+            บันทึกเข้างาน
           </Button>
           {hasExistingCheckin && canCheckoutSameDate ? (
             <Button
@@ -866,17 +866,17 @@ async function onSubmitCheckin() {
               className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={hasExistingCheckout || isSubmitting}
             >
-              Check-out
+              ออกงาน
             </Button>
           ) : null}
           {hasExistingCheckin && !canCheckoutSameDate ? (
-            <div className="text-center text-xs sm:text-sm text-red-700">ไม่สามารถเช็คเอาท์ข้ามวันได้</div>
+            <div className="text-center text-xs sm:text-sm text-red-700">ไม่สามารถออกงานข้ามวันได้</div>
           ) : null}
         </div>
 
         {/* Check-out time (auto) */}
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-          <div className="text-sm sm:text-base font-semibold">Check-out Time (auto)</div>
+          <div className="text-sm sm:text-base font-semibold">เวลาออกงาน (อัตโนมัติ)</div>
           <Input
             type="datetime-local"
             value={checkoutTime}
@@ -891,7 +891,7 @@ async function onSubmitCheckin() {
           <>
             {/* Checkout GPS */}
             <div className="mt-4">
-              <div className="text-sm sm:text-base font-semibold">Checkout GPS</div>
+              <div className="text-sm sm:text-base font-semibold">พิกัดออกงาน</div>
               <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4">
                 <div className="text-sm sm:text-base break-words">{checkoutGps || "—"}</div>
                 {checkoutAddress ? (
@@ -913,7 +913,7 @@ async function onSubmitCheckin() {
                       onClick={retryCheckoutGps}
                       className="inline-flex items-center justify-center h-7 rounded-full border border-black/20 bg-white px-2 text-xs hover:bg-gray-50"
                     >
-                      Try again
+                      ลองใหม่
                     </button>
                   </div>
                 ) : null}
@@ -960,7 +960,7 @@ async function onSubmitCheckin() {
               </div>
             </div>
             {!checkoutPhotoFile && !hasExistingCheckout && !isSubmitting ? (
-              <div className="mt-1 text-xs text-red-700">Checkout photo is required</div>
+              <div className="mt-1 text-xs text-red-700">ต้องถ่ายรูปออกงาน</div>
             ) : null}
 
             {/* Problem and Remark inputs */}
@@ -994,7 +994,7 @@ async function onSubmitCheckin() {
                 disabled={hasExistingCheckout || !locationName.trim() || !checkoutPhotoFile || checkoutOutOfArea || isSubmitting}
                 className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Submit Checkout
+                บันทึกออกงาน
               </Button>
             </div>
           </>

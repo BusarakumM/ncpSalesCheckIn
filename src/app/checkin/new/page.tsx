@@ -868,23 +868,23 @@ export default function NewTaskPage() {
             onClick={onSubmitCheckin}
             disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired() || !!locationError}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "Please enter a location name" : !photoFile ? "Please attach a check-in photo" : isCheckinExpired() ? "submit check-in timeout" : locationError ? locationError : undefined}
+            title={!locationName.trim() ? "กรุณาระบุชื่อสถานที่" : !photoFile ? "กรุณาถ่ายรูปเพื่อเข้างาน" : isCheckinExpired() ? "หมดเวลาส่งเข้างาน" : locationError ? locationError : undefined}
           >
-            Submit Check-in
+            บันทึกเข้างาน
           </Button>
           {submittedCheckin ? (
             <Button
               onClick={onCheckout}
               className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20"
             >
-              Check-out
+              ออกงาน
             </Button>
           ) : null}
         </div>
 
         {/* Checkout time */}
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-          <div className="text-sm sm:text-base font-semibold">Check-out Time (auto)</div>
+          <div className="text-sm sm:text-base font-semibold">เวลาออกงาน (อัตโนมัติ)</div>
           <Input
             type="datetime-local"
             value={checkoutTime}
@@ -899,7 +899,7 @@ export default function NewTaskPage() {
           <>
             {/* Checkout GPS */}
             <div className="mt-4">
-              <div className="text-sm sm:text-base font-semibold">Checkout GPS</div>
+              <div className="text-sm sm:text-base font-semibold">พิกัดออกงาน</div>
               <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[140px]">
                 <div className="text-sm sm:text-base break-words" title={checkoutGps || undefined}>{checkoutGps || "�"}</div>
                 {checkoutAddress ? (
@@ -913,17 +913,17 @@ export default function NewTaskPage() {
                 ) : null}
                 {checkoutOutOfArea ? (
                   <div className="mt-2 flex items-center gap-2">
-                    <div className="rounded border border-red-300 bg-red-100 px-3 py-1 text-xs sm:text-sm text-red-800">
-                      จุด check-out อยู่นอกพื้นที่ check-in
-                    </div>
+              <div className="rounded border border-red-300 bg-red-100 px-3 py-1 text-xs sm:text-sm text-red-800">
+                      จุดออกงานอยู่นอกพื้นที่เข้างาน
+              </div>
                     <Button
                       type="button"
                       variant="outline"
                       className="h-7 rounded-full border-black/20 bg-white px-2 text-xs"
                       onClick={retryCheckoutGps}
                     >
-                      Try again
-                    </Button>
+                      ลองใหม่
+                      </Button>
                   </div>
                 ) : null}
                 {checkoutRemark ? (
@@ -934,7 +934,7 @@ export default function NewTaskPage() {
 
             {/* Checkout picture */}
             <div className="mt-3 rounded-md border border-black/10 bg-[#D8CBAF]/70 px-4 py-2 text-center font-semibold">
-              <span className="text-sm sm:text-base">ถ่ายรูป</span>
+              <span className="text-sm sm:text-base">ถ่ายรูปออกงาน</span>
               <button
                 type="button"
                 onClick={() => checkoutFileRef.current?.click()}
@@ -967,7 +967,7 @@ export default function NewTaskPage() {
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center p-4 text-sm sm:text-base text-gray-700">
-                    No photo
+                    ไม่มีรูปภาพ
                   </div>
                 )}
               </div>
