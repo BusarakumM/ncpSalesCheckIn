@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+// Use native select for maximum mobile compatibility
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -415,17 +415,17 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
           <div>
             <div className="text-sm sm:text-base font-semibold">ประเภทการลา:</div>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60 w-full">
-                <SelectValue placeholder="เลือกประเภทการลา" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ลาป่วย">ลาป่วย</SelectItem>
-                <SelectItem value="ลากิจ">ลากิจ</SelectItem>
-                <SelectItem value="ลาพักร้อน">ลาพักร้อน</SelectItem>
-                <SelectItem value="อื่นๆ">อื่นๆ</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="mt-1 h-10 sm:h-11 w-full rounded-full border border-black/10 bg-[#D8CBAF]/60 px-3 text-sm"
+            >
+              <option value="">เลือกประเภทการลา</option>
+              <option value="ลาป่วย">ลาป่วย</option>
+              <option value="ลากิจ">ลากิจ</option>
+              <option value="ลาพักร้อน">ลาพักร้อน</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
           </div>
 
           <div>
@@ -456,7 +456,8 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
               <input
                 id="leave-photo-input"
                 type="file"
-                accept="image/*"
+                accept="image/*;capture=camera"
+                capture="environment"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
