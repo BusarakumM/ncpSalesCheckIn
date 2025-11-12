@@ -627,18 +627,18 @@ export default function NewTaskPage() {
           <Link
             href="/checkin"
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
-            title="Back"
+            title="ย้อนกลับ"
           >
             <span className="text-xl">←</span>
           </Link>
           <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">
-            New Task
+            สร้างงานใหม่
           </h1>
         </div>
 
         {/* Check-in time */}
         <div className="mt-2">
-          <div className="text-sm sm:text-base font-semibold">Check-in Time (auto)</div>
+          <div className="text-sm sm:text-base font-semibold">เวลาเข้างาน (อัตโนมัติ)</div>
           <Input
             type="datetime-local"
             value={checkinTime}
@@ -649,12 +649,12 @@ export default function NewTaskPage() {
         </div>
 
         <div className="mt-4">
-          <div className="text-sm sm:text-base font-semibold">Location</div>
+          <div className="text-sm sm:text-base font-semibold">สถานที่</div>
           <div className="mt-2">
             <Input
               value={locationName}
               onChange={(e) => { setLocationName(e.target.value); if (locationError) setLocationError(""); if (sameLocationWarning) setSameLocationWarning(""); if (sameLocationExistingId) setSameLocationExistingId(null); }}
-              placeholder="Enter or pick a place"
+              placeholder="ระบุหรือเลือกสถานที่"
               className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
               disabled={isSubmitting || submittedCheckin}
               onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
@@ -669,7 +669,7 @@ export default function NewTaskPage() {
             {suggestOpen && suggestions.length > 0 && (
               <div className="mt-1 max-h-64 overflow-auto divide-y divide-black/10 bg-white rounded border border-black/10">
                 {suggestLoading && suggestions.length === 0 ? (
-                  <div className="p-2 text-sm">Searching…</div>
+                  <div className="p-2 text-sm">กำลังค้นหา…</div>
                 ) : (
                   suggestions.slice(0, 10).map((p, i) => (
                     <button
@@ -697,7 +697,7 @@ export default function NewTaskPage() {
               </div>
             )}
             {!locationName.trim() ? (
-              <div className="mt-1 text-xs text-red-700">Please pick or enter a location</div>
+              <div className="mt-1 text-xs text-red-700">กรุณาเลือกหรือระบุสถานที่</div>
             ) : null}
             {locationError ? (
               <div className="mt-1 text-xs text-red-700">{locationError}</div>
@@ -723,9 +723,9 @@ export default function NewTaskPage() {
                 className="rounded-full border-black/20 bg-white hover:bg-gray-50"
                 onClick={() => { setPickerOpen((v) => !v); if (!pickerOpen) { setPlaceResults([]); } }}
                 disabled={isSubmitting || submittedCheckin}
-                title="Search or pick nearby place"
+                title="ค้นหาหรือเลือกสถานที่ใกล้ฉัน"
               >
-                Pick place
+                ค้นหาสถานที่
               </Button>
               <Button
                 type="button"
@@ -733,27 +733,27 @@ export default function NewTaskPage() {
                 className="rounded-full border-black/20 bg-white hover:bg-gray-50"
                 onClick={loadNearby}
                 disabled={isSubmitting || submittedCheckin}
-                title="Load nearby places"
+                title="โหลดสถานที่ใกล้ฉัน"
               >
-                Nearby
+                ใกล้ฉัน
               </Button>
             </div>
             {pickerOpen && (
               <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3">
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Search place (e.g., mall, company)"
+                    placeholder="ค้นหาสถานที่ (เช่น ห้าง บริษัท)"
                     value={placeQuery}
                     onChange={(e) => setPlaceQuery(e.target.value)}
                     className="h-9 rounded-full border-black/10 bg-white"
                   />
-                  <Button type="button" className="rounded-full" onClick={searchPlaces} disabled={pickerLoading}>Search</Button>
+                  <Button type="button" className="rounded-full" onClick={searchPlaces} disabled={pickerLoading}>ค้นหา</Button>
                 </div>
                 <div className="mt-2 max-h-56 overflow-auto divide-y divide-black/10 bg-white rounded">
                   {pickerLoading ? (
-                    <div className="p-3 text-sm">Loading…</div>
+                    <div className="p-3 text-sm">กำลังโหลด…</div>
                   ) : placeResults.length === 0 ? (
-                    <div className="p-3 text-sm text-gray-700">No results</div>
+                    <div className="p-3 text-sm text-gray-700">ไม่พบข้อมูล</div>
                   ) : (
                     placeResults.map((p, i) => (
                       <div key={`${p.name}-${i}`} className="p-2 flex items-center justify-between gap-2">
@@ -761,36 +761,36 @@ export default function NewTaskPage() {
                           <div className="font-medium truncate">{p.name}</div>
                           {p.address ? <div className="text-xs text-gray-600 truncate">{p.address}</div> : null}
                         </div>
-                        <Button type="button" variant="outline" className="rounded-full" onClick={() => selectPlace(p)}>Select</Button>
+                        <Button type="button" variant="outline" className="rounded-full" onClick={() => selectPlace(p)}>เลือก</Button>
                       </div>
                     ))
                   )}
                 </div>
               </div>
             )}
-            <div className="mt-1 text-xs text-gray-700">Tip: pick a place and edit the name before saving</div>
+            <div className="mt-1 text-xs text-gray-700">เคล็ดลับ: เลือกสถานที่แล้วสามารถแก้ไขชื่อก่อนบันทึกได้</div>
           </div>
         </div>
 
         {/* Selected Location details */}
         <div className="mt-4">
           <div className="flex items-center gap-2">
-            <div className="text-sm sm:text-base font-semibold">Selected Location</div>
+            <div className="text-sm sm:text-base font-semibold">สถานที่ที่เลือก</div>
             <button
               type="button"
               onClick={() => setShowDetails((v) => !v)}
               className="ml-auto inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-2 py-1 text-xs hover:bg-gray-50"
             >
-              {showDetails ? "Hide details" : "Show details"}
+              {showDetails ? "ซ่อนรายละเอียด" : "แสดงรายละเอียด"}
             </button>
           </div>
           <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[100px]">
             <div className="text-sm sm:text-base font-semibold">
-              {locationName || "— No place selected"}
+              {locationName || "— ยังไม่ได้เลือกสถานที่"}
             </div>
             {showDetails && (
               <div className="mt-2">
-                <div className="text-xs sm:text-sm break-words" title={gps || undefined}>GPS: {gps || "—"}</div>
+                <div className="text-xs sm:text-sm break-words" title={gps || undefined}>พิกัด: {gps || "—"}</div>
                 {checkinAddress ? (
                   <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkinAddress}>
                     {checkinAddress}
@@ -802,15 +802,15 @@ export default function NewTaskPage() {
                 ) : null}
               </div>
             )}
-            <div className="mt-2 text-xs text-gray-700">Use Pick place or Nearby to choose a location, then edit the name if needed.</div>
+            <div className="mt-2 text-xs text-gray-700">ใช้ปุ่ม “ค้นหาสถานที่” หรือ “ใกล้ฉัน” เพื่อเลือก จากนั้นแก้ไขชื่อได้ตามต้องการ</div>
           </div>
         </div>
 
         {/* Location Detail */}
         <div className="mt-5">
-          <div className="text-sm sm:text-base font-semibold">Location Detail</div>
+          <div className="text-sm sm:text-base font-semibold">รายละเอียดสถานที่</div>
           <Input
-            placeholder="Location detail (local name)"
+            placeholder="รายละเอียดสถานที่ (ชื่อเรียกท้องถิ่น)"
             value={jobDetail}
             onChange={(e) => setJobDetail(e.target.value)}
             className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
@@ -853,13 +853,13 @@ export default function NewTaskPage() {
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center p-4 text-sm sm:text-base text-gray-700">
-                No photo
+                ไม่มีรูปภาพ
               </div>
             )}
           </div>
         </div>
         {!photoFile && !isSubmitting && !submittedCheckin ? (
-          <div className="mt-1 text-xs text-red-700">Check-in photo is required</div>
+          <div className="mt-1 text-xs text-red-700">ต้องถ่ายรูปเข้างาน</div>
         ) : null}
 
         {/* Action buttons */}
