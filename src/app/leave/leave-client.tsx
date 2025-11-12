@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { uploadPhoto } from "@/lib/paClient";
 
 type Row = {
   dt: string;
@@ -32,11 +33,14 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
   const [endTime, setEndTime] = useState("");
   const [type, setType] = useState("");
   const [reason, setReason] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   // saved rows (local mock)
   const [rows, setRows] = useState<Row[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   // Click locks to prevent rapid double presses
   const saveLockRef = useRef(false);
   const submitLockRef = useRef(false);
@@ -158,10 +162,12 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     // Guard against double-click
     if (saveLockRef.current) return;
     saveLockRef.current = true;
+    setIsSaving(true);
     // Validate common fields
-    if (!type || !reason) {
-      alert("Please fill Leave Type and Reason.");
+    if (!type || !reason.trim()) {
+      setNotice("กรุณาระบุประเภทการลาและเหตุผลการลา");
       saveLockRef.current = false;
+      setIsSaving(false);
       return;
     }
 
@@ -173,8 +179,9 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
     if (mode === "full") {
       if (!fullDate) {
-        alert("Please select the date for Full Day leave.");
+        setNotice("กรุณาเลือกวันที่สำหรับการลาทั้งวัน");
         saveLockRef.current = false;
+        setIsSaving(false);
         return;
       }
       // Use midnight local time for full-day
@@ -184,13 +191,15 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     } else {
       // hourly
       if (!hourDate || !startTime || !endTime) {
-        alert("Please select date, start time and end time for Hourly leave.");
+        setNotice("กรุณาเลือกวัน เวลาเริ่ม และเวลาสิ้นสุดสำหรับการลารายชั่วโมง");
         saveLockRef.current = false;
+        setIsSaving(false);
         return;
       }
       if (endTime <= startTime) {
-        alert("End time must be after start time.");
+        setNotice("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น");
         saveLockRef.current = false;
+        setIsSaving(false);
         return;
       }
       computedDt = `${hourDate}T${startTime}`;
@@ -205,8 +214,9 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       return sp && sp.date === newSpan.date && overlaps({ start: sp.start, end: sp.end }, { start: newSpan.start, end: newSpan.end });
     });
     if (hasOverlap) {
-      alert("Duplicate/overlapping leave exists for this date.");
+      setNotice("มีรายการลาที่ซ้ำ/ทับซ้อนในวันที่เลือก");
       saveLockRef.current = false;
+      setIsSaving(false);
       return;
     }
 
@@ -214,8 +224,9 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     const newIso = toIso(computedDt);
     const dup = rows.some((x) => toIso(x.dt) === newIso);
     if (dup) {
-      alert("This leave date/time is already added.");
+      setNotice("รายการลานี้ถูกเพิ่มไว้แล้ว");
       saveLockRef.current = false;
+      setIsSaving(false);
       return;
     }
     setRows((r) => [...r, { dt: computedDt, type: computedType, reason, mode, date: metaDate, startMinutes: metaStart, endMinutes: metaEnd }]);
@@ -229,6 +240,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
     }
     setReason("");
     saveLockRef.current = false;
+    setIsSaving(false);
   }
 
   async function onSubmit() {
@@ -285,12 +297,17 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       } else {
         setNotice(null);
       }
+      // Optional photo upload once, reuse for all rows
+      let imageUrl: string | null = null;
+      if (photoFile) {
+        try { imageUrl = await uploadPhoto(photoFile); } catch {}
+      }
       // Submit each non-duplicate row to backend (server will enrich with user cookies)
       for (const r of toSend) {
         await fetch("/api/pa/leave", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dt: r.dt, type: r.type, reason: r.reason }),
+          body: JSON.stringify({ dt: r.dt, type: r.type, reason: r.reason, imageUrl }),
         });
       }
       alert("Submitted.");
@@ -303,6 +320,8 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
       setEndTime("");
       setType("");
       setReason("");
+      setPhotoFile(null);
+      setPhotoUrl(null);
     } catch (e: any) {
       alert(e?.message || "Submit failed");
     } finally {
@@ -324,7 +343,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
             <span className="text-xl">🏠</span>
           </Link>
           <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold">
-            Leave
+            ลางาน
           </h1>
         </div>
 
@@ -332,21 +351,21 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
         <div className="mt-5 space-y-4">
           {/* Mode toggle */}
           <div>
-            <div className="text-sm sm:text-base font-semibold">Leave Duration:</div>
+            <div className="text-sm sm:text-base font-semibold">ช่วงเวลาการลา:</div>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
                 onClick={() => setMode("full")}
                 className={`px-4 h-10 sm:h-11 rounded-full border ${mode === "full" ? "bg-[#BFD9C8] border-black/40" : "bg-white border-black/20"}`}
               >
-                Full Day
+                ทั้งวัน
               </button>
               <button
                 type="button"
                 onClick={() => setMode("hourly")}
                 className={`px-4 h-10 sm:h-11 rounded-full border ${mode === "hourly" ? "bg-[#BFD9C8] border-black/40" : "bg-white border-black/20"}`}
               >
-                By Hour
+                รายชั่วโมง
               </button>
             </div>
           </div>
@@ -354,7 +373,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
           {/* Date/time inputs per mode */}
           {mode === "full" ? (
             <div>
-              <div className="text-sm sm:text-base font-semibold">Date (Full Day):</div>
+              <div className="text-sm sm:text-base font-semibold">วันที่ (ทั้งวัน):</div>
               <Input
                 type="date"
                 value={fullDate}
@@ -410,47 +429,75 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
           </div>
 
           <div>
-            <div className="text-sm sm:text-base font-semibold">Reason:</div>
+            <div className="text-sm sm:text-base font-semibold">เหตุผลการลา:</div>
             <Input
               type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="mt-1 h-10 sm:h-11 rounded-full border-black/10 bg-[#D8CBAF]/60"
             />
+            {!reason.trim() ? (
+              <div className="mt-1 text-xs text-red-700">กรุณาระบุเหตุผลการลา</div>
+            ) : null}
+          </div>
+
+          {/* Optional photo attachment */}
+          <div>
+            <div className="text-sm sm:text-base font-semibold">แนบรูป (ถ้ามี)</div>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => (document.getElementById('leave-photo-input') as HTMLInputElement | null)?.click()}
+                className="inline-flex items-center justify-center rounded-full border border-black/30 bg-white px-3 py-1 text-sm hover:bg-gray-50"
+                title="ถ่ายหรือแนบรูป"
+              >
+                📷 แนบรูป
+              </button>
+              <input
+                id="leave-photo-input"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setPhotoFile(f);
+                  setPhotoUrl(URL.createObjectURL(f));
+                }}
+              />
+              {photoUrl ? <span className="text-xs text-gray-700">เลือกรูปแล้ว</span> : <span className="text-xs text-gray-500">ไม่บังคับ</span>}
+            </div>
           </div>
 
           <div className="flex justify-center">
             <Button
               onClick={onSave}
-              className="w-full sm:w-auto rounded-full bg-[#BFD9C8] px-8 text-gray-900 hover:bg-[#b3d0bf] border border-black/20"
+              disabled={isSaving || !type || !reason.trim() || (mode === 'full' ? !fullDate : (!hourDate || !startTime || !endTime))}
+              className="w-full sm:w-auto rounded-full bg-[#BFD9C8] px-8 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Save
+              บันทึก
             </Button>
           </div>
         </div>
 
         {/* Table */}
         <div className="mt-6 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="mb-2 flex justify-end">
-            <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              Export
-            </Button>
-          </div>
+          {/* Export removed for Sales Support mode */}
           <div className="overflow-auto bg-white border border-black/20">
             <Table>
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[160px]">Date/Time</TableHead>
-                  <TableHead className="min-w-[140px]">Leave type</TableHead>
-                  <TableHead className="min-w-[220px]">Reason</TableHead>
-                  <TableHead className="w-[80px] text-center">Action</TableHead>
+                  <TableHead className="min-w-[160px]">วัน/เวลา</TableHead>
+                  <TableHead className="min-w-[140px]">ประเภทการลา</TableHead>
+                  <TableHead className="min-w-[220px]">เหตุผล</TableHead>
+                  <TableHead className="w-[80px] text-center">ลบ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-gray-500">
-                      No items yet
+                      ยังไม่มีรายการ
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -462,7 +509,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
                       <TableCell className="text-center">
                         <button
                           onClick={() => removeRow(i)}
-                          title="Delete"
+                          title="ลบ"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
                         >
                           🗑️
@@ -478,12 +525,12 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
 
         {/* Clear all */}
         <div className="mt-6 flex justify-center">
-          <button
+            <button
             onClick={clearAllRows}
             className="inline-flex h-10 px-4 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50 text-sm"
-            title="Clear all"
+            title="ล้างทั้งหมด"
           >
-            Clear all
+            ล้างทั้งหมด
           </button>
         </div>
 
@@ -509,7 +556,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
             disabled={isSubmitting}
             className="w-full sm:w-auto rounded-full bg-[#E8CC5C] px-10 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Submit
+            ส่งคำขอ
           </Button>
         </div>
       </div>

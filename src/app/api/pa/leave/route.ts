@@ -24,6 +24,7 @@ export async function POST(req: Request) {
       dtISO: enriched.dt ? new Date(enriched.dt).toISOString() : "",
       leaveType: enriched.type ?? "",
       reason: enriched.reason ?? "",
+      imageUrl: enriched.imageUrl ?? "",
       email: enriched.username ?? enriched.email ?? "",
       username: enriched.username ?? enriched.email ?? "",
       name: enriched.name ?? "",

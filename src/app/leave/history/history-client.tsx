@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateDisplay } from "@/lib/utils";
 
-type Row = { date: string; leaveType: string; reason: string };
+type Row = { date: string; leaveType: string; reason: string; imageUrl?: string };
 
 export default function LeaveHistoryClient({ email, employeeNo }: { email: string; employeeNo: string }) {
   const [from, setFrom] = useState("");
@@ -39,7 +39,7 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
     const r = await fetch(`/api/pa/leave?${qs.toString()}`, { cache: "no-store" });
     const data = await r.json();
     if (!r.ok || !data?.ok) throw new Error(data?.error || "Failed to load leaves");
-    setRows((data.rows || []).map((x: any) => ({ date: x.date, leaveType: x.leaveType, reason: x.reason })) as Row[]);
+    setRows((data.rows || []).map((x: any) => ({ date: x.date, leaveType: x.leaveType, reason: x.reason, imageUrl: x.imageUrl })) as Row[]);
   }
 
   useEffect(() => { load().catch(() => {}); }, []);
@@ -70,30 +70,35 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
         </div>
 
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="mb-2 flex justify-end">
-            <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              Export
-            </Button>
-          </div>
+          {/* Export hidden for sales support */}
           <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             <Table className="min-w-[600px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[160px]">Date</TableHead>
-                  <TableHead className="min-w-[180px]">Leave Type</TableHead>
-                  <TableHead className="min-w-[260px]">Reason</TableHead>
+                  <TableHead className="min-w-[160px]">วันที่</TableHead>
+                  <TableHead className="min-w-[180px]">ประเภทการลา</TableHead>
+                  <TableHead className="min-w-[260px]">เหตุผล</TableHead>
+                  <TableHead className="min-w-[160px]">รูปแนบ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-gray-500">No data</TableCell>
+                    <TableCell colSpan={4} className="text-center text-gray-500">ไม่มีข้อมูล</TableCell>
                   </TableRow>
                 ) : rows.map((r, i) => (
                   <TableRow key={i}>
                     <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                     <TableCell>{r.leaveType}</TableCell>
                     <TableCell className="whitespace-pre-wrap">{r.reason}</TableCell>
+                    <TableCell>
+                      {r.imageUrl ? (
+                        <a href={r.imageUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={r.imageUrl} alt="leave" className="h-16 w-auto rounded border border-black/10" />
+                        </a>
+                      ) : ("-")}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
