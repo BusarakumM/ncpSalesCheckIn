@@ -63,7 +63,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
 
   function exportCsv() {
     const header = [
-      "Date","Check-in","Check-out","Location","Detail","District","Emp No","Username","Sales Support Name","In GPS","Out GPS","Distance (km)","Status"
+      "Date","Check-in","Check-out","Location","Location detail","District","Emp No","Username","Sales Support Name","In GPS","Out GPS","Distance (km)","Status"
     ];
     const lines = rows.map((r) => [
       r.date,
@@ -197,7 +197,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                   <TableHead>Check-in</TableHead>
                   <TableHead>Check-out</TableHead>
                   <TableHead className="min-w-[160px]">Location</TableHead>
-                  <TableHead className="min-w-[160px]">Detail</TableHead>
+                  <TableHead className="min-w-[160px]">Location detail</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
                   <TableHead className="min-w-[120px] cursor-pointer" title="Sort by Emp No" onClick={() => { setSortKey('employeeNo'); setSortDir(sortKey === 'employeeNo' && sortDir === 'asc' ? 'desc' : 'asc'); }}>Emp No</TableHead>
                   <TableHead className="min-w-[180px] cursor-pointer" title="Sort by Username" onClick={() => { setSortKey('username'); setSortDir(sortKey === 'username' && sortDir === 'asc' ? 'desc' : 'asc'); }}>Username</TableHead>

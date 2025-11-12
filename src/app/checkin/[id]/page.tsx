@@ -766,9 +766,9 @@ async function onSubmitCheckin() {
           </div>
         </div>
 
-        {/* Job Detail */}
+        {/* Location Detail */}
         <div className="mt-5">
-          <div className="text-sm sm:text-base font-semibold">Job Detail</div>
+          <div className="text-sm sm:text-base font-semibold">Location Detail</div>
           <Textarea
             value={jobDetail}
             onChange={(e) => setJobDetail(e.target.value)}

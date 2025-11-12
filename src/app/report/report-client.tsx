@@ -124,7 +124,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
 
 
   function exportCsv() {
-    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Activity detail", "Sales Support Name", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "Remark", "Status"];
+    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Location detail", "Sales Support Name", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "Remark", "Status"];
     const lines = rows.map((r) => [
       r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.name || "", r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.imageIn || "", r.imageOut || "", r.remark || "", r.status,
     ]);
@@ -221,7 +221,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                   <TableHead className="min-w-[120px]">Check-in</TableHead>
                   <TableHead className="min-w-[120px]">Check-out</TableHead>
                   <TableHead className="min-w-[160px]">Location name</TableHead>
-                  <TableHead className="min-w-[180px]">Activity detail</TableHead>
+                  <TableHead className="min-w-[180px]">Location detail</TableHead>
                   <TableHead className="min-w-[180px]">Sales support name</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
                   <TableHead className="min-w-[180px]">In GPS</TableHead>

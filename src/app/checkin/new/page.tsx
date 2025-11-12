@@ -20,7 +20,6 @@ export default function NewTaskPage() {
   const [checkinAddress, setCheckinAddress] = useState("");
   const [checkoutGps, setCheckoutGps] = useState("");
   const [checkoutAddress, setCheckoutAddress] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
   const [jobDetail, setJobDetail] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -468,7 +467,6 @@ export default function NewTaskPage() {
         locationName,
         gps,
         checkinAddress,
-        jobTitle,
         jobDetail,
         photoUrl: uploadedUrl,
       });
@@ -788,21 +786,15 @@ export default function NewTaskPage() {
           </div>
         </div>
 
-        {/* Job Detail */}
+        {/* Location Detail */}
         <div className="mt-5">
-          <div className="text-sm sm:text-base font-semibold">Job Detail</div>
+          <div className="text-sm sm:text-base font-semibold">Location Detail</div>
           <Input
-            placeholder="Title / short description"
-            value={jobTitle}
-            onChange={(e) => setJobTitle(e.target.value)}
-            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-            disabled={isSubmitting || submittedCheckin}
-          />
-          <Textarea
-            placeholder="More details…"
+            placeholder="Location detail (local name)"
             value={jobDetail}
             onChange={(e) => setJobDetail(e.target.value)}
-            className="mt-3 min-h-[160px] sm:min-h-[180px] border-black/10 bg-[#BFD9C8]"
+            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+            disabled={isSubmitting || submittedCheckin}
           />
         </div>
 
