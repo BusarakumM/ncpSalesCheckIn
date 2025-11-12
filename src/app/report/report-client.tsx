@@ -157,24 +157,24 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
           >
             <span className="text-xl">🏠</span>
           </Link>
-          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">Report</h1>
+          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">รายงาน</h1>
         </div>
 
         {/* Filter */}
         <div className="mt-4">
-          <div className="text-sm font-medium mb-2">Filter : Date</div>
+          <div className="text-sm font-medium mb-2">ตัวกรอง : วันที่</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <Label className="mb-1 block">From</Label>
+            <Label className="mb-1 block">จากวันที่</Label>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
           </div>
           <div>
-            <Label className="mb-1 block">To</Label>
+            <Label className="mb-1 block">ถึงวันที่</Label>
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
           </div>
           {role === "SUPERVISOR" ? (
             <div>
-              <Label className="mb-1 block">District</Label>
+              <Label className="mb-1 block">อำเภอ/เขต</Label>
               <select value={district} onChange={(e) => setDistrict(e.target.value)} className="bg-white w-full h-9 rounded-md border px-2 text-sm">
                 <option value="">All</option>
                 {allDistricts.map((d) => (
@@ -184,7 +184,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
             </div>
           ) : (
             <div>
-              <Label className="mb-1 block">Location</Label>
+              <Label className="mb-1 block">สถานที่</Label>
               <select value={location} onChange={(e) => setLocation(e.target.value)} className="bg-white w-full h-9 rounded-md border px-2 text-sm">
                 <option value="">All</option>
                 {allLocations.map((loc) => (
@@ -199,32 +199,34 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
               onClick={() => load().catch(() => {})}
               className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10"
             >
-              OK
+              ตกลง
             </Button>
             <Button
               onClick={clearFilters}
               className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10"
             >
-              Clear filters
+              ล้างตัวกรอง
             </Button>
           </div>
         </div>
 
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="mb-2 flex justify-end">
-            <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              Export
-            </Button>
-          </div>
+          {role === "SUPERVISOR" ? (
+            <div className="mb-2 flex justify-end">
+              <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
+                ส่งออก
+              </Button>
+            </div>
+          ) : null}
           <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             <Table className="min-w-[1120px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[120px]">Date/Time</TableHead>
+                  <TableHead className="min-w-[120px]">วัน/เวลา</TableHead>
                   <TableHead className="min-w-[120px]">Check-in</TableHead>
                   <TableHead className="min-w-[120px]">Check-out</TableHead>
-                  <TableHead className="min-w-[160px]">Location name</TableHead>
+                  <TableHead className="min-w-[160px]">ชื่อสถานที่</TableHead>
                   <TableHead className="min-w-[180px]">รายละเอียดสถานที่</TableHead>
                   <TableHead className="min-w-[180px]">ปัญหา</TableHead>
                   <TableHead className="min-w-[180px]">หมายเหตุ</TableHead>
@@ -236,7 +238,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                   <TableHead className="min-w-[160px]">Image Check-in</TableHead>
                   <TableHead className="min-w-[160px]">Image check-out</TableHead>
                   <TableHead className="min-w-[220px]">Remark</TableHead>
-                  <TableHead className="min-w-[120px]">Status</TableHead>
+                  <TableHead className="min-w-[120px]">สถานะ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
