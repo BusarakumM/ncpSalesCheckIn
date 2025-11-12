@@ -539,6 +539,7 @@ export async function findUserByEmail(identity: string): Promise<{
   province?: string;
   channel?: string;
   district?: string;
+  group?: string;
 } | null> {
   const table = graphTables.users();
   const [headers, rows] = await Promise.all([getTableHeaders(table), getTableValues(table)]);
@@ -553,6 +554,7 @@ export async function findUserByEmail(identity: string): Promise<{
     province: idx("province"),
     channel: idx("channel"),
     district: idx("district"),
+    group: idx("group"),
   };
   const target = identity.trim().toLowerCase();
   for (const r of rows) {
@@ -571,6 +573,7 @@ export async function findUserByEmail(identity: string): Promise<{
         province: cols.province >= 0 ? String(r[cols.province] || "").trim() : undefined,
         channel: cols.channel >= 0 ? String(r[cols.channel] || "").trim() : undefined,
         district: cols.district >= 0 ? String(r[cols.district] || "").trim() : undefined,
+        group: cols.group >= 0 ? String(r[cols.group] || "").trim() : undefined,
       };
     }
   }
