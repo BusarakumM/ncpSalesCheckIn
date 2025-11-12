@@ -46,10 +46,11 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
 
   useEffect(() => { load().catch(() => {}); }, []);
 
-  function clearFilters() {
+  async function clearFilters() {
     setFrom("");
     setTo("");
-    load().catch(() => {});
+    setIsFiltering(true);
+    try { await load(); } finally { setIsFiltering(false); }
   }
 
   return (
@@ -75,7 +76,7 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
             {isFiltering ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>กำลังโหลด...</>) : 'ตกลง'}
           </Button>
           <Button
-            onClick={() => { setIsFiltering(true); clearFilters(); setIsFiltering(false); }}
+            onClick={clearFilters}
             disabled={isFiltering}
             className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
           >
