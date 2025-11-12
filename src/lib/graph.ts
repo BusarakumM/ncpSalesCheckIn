@@ -260,6 +260,9 @@ export async function listActivities(params: { from?: string; to?: string; name?
       name: findIdx(coHeaders, "name", 5),
       employeeNo: findIdx(coHeaders, "employeeNo", null),
       district: findIdx(coHeaders, "district", 10),
+      // support either column name in Checkout table
+      problem: (() => { const a = findIdx(coHeaders, "problemDetail", null); return a != null ? a : findIdx(coHeaders, "problem", null); })(),
+      remark: (() => { const a = findIdx(coHeaders, "jobRemark", null); return a != null ? a : findIdx(coHeaders, "remark", null); })(),
     },
   };
 
@@ -346,6 +349,11 @@ export async function listActivities(params: { from?: string; to?: string; name?
     const location = String(idx.co.location != null ? r[idx.co.location] || "" : "");
     const email = String(idx.co.email != null ? r[idx.co.email] || "" : "");
     const name = String(idx.co.name != null ? r[idx.co.name] || "" : "");
+    // Parse checkout GPS early for matching heuristics
+    const gpsStr = idx.co.gps != null ? String(r[idx.co.gps] || "") : "";
+    const parsed = idx.co.lat != null && idx.co.lon != null
+      ? normalizeLatLon(Number(r[idx.co.lat]), Number(r[idx.co.lon]))
+      : parseGps(gpsStr);
     // Try to attach this checkout to the most recent ongoing check-in on the same date for this user.
     // Prefer same location if available.
     let key: Key | null = null;
@@ -363,7 +371,19 @@ export async function listActivities(params: { from?: string; to?: string; name?
         };
         const ciMin = ci ? toMinutes(ci) : 0;
         const coMin = time ? toMinutes(time) : 0;
+        // Do not attach a checkout that occurs before the check-in
+        if (ci && time && coMin < ciMin) {
+          continue;
+        }
         const gap = ci && time ? Math.max(0, coMin - ciMin) : 0;
+        // If both positions are known and exceed configured max distance, skip linking
+        const cap = getMaxDistanceKm();
+        if (cap != null && parsed && row.checkinLat != null && row.checkinLon != null) {
+          const d = haversineKm({ lat: row.checkinLat!, lon: row.checkinLon! }, { lat: parsed.lat, lon: parsed.lon });
+          if (d > cap) {
+            continue;
+          }
+        }
         // smaller gap is better
         score += Math.max(0, 500 - gap);
         if (score > bestScore) {
@@ -375,16 +395,16 @@ export async function listActivities(params: { from?: string; to?: string; name?
     if (bestIdx) key = bestIdx;
     // If nothing to attach, fall back to its own key by checkout time
     if (!key) key = keyOfCheckin(email, date, time);
-    const gpsStr = idx.co.gps != null ? String(r[idx.co.gps] || "") : "";
-    const parsed = idx.co.lat != null && idx.co.lon != null
-      ? normalizeLatLon(Number(r[idx.co.lat]), Number(r[idx.co.lon]))
-      : parseGps(gpsStr);
+    // gpsStr/parsed computed above
     const row = map.get(key);
     if (row) {
       row.checkout = time;
       row.status = row.checkin ? "completed" : "incomplete";
       row.checkoutLocation = location || row.checkoutLocation;
       row.imageOut = String(idx.co.photo != null ? r[idx.co.photo] || "" : "");
+      // Pass-through problem/remark from checkout table if present
+      (row as any).problemDetail = String(idx.co.problem != null ? r[idx.co.problem] || "" : "");
+      (row as any).jobRemark = String(idx.co.remark != null ? r[idx.co.remark] || "" : "");
       if (!row.name) row.name = name;
       if (!row.email) row.email = email;
       if (!row.district) row.district = String(idx.co.district != null ? r[idx.co.district] || "" : "");
@@ -421,6 +441,8 @@ export async function listActivities(params: { from?: string; to?: string; name?
         checkoutAddress: String(idx.co.address != null ? r[idx.co.address] || "" : ""),
         checkoutLat: parsed?.lat,
         checkoutLon: parsed?.lon,
+        problemDetail: String(idx.co.problem != null ? r[idx.co.problem] || "" : ""),
+        jobRemark: String(idx.co.remark != null ? r[idx.co.remark] || "" : ""),
         issues: (!parsed && gpsStr) ? ["invalid_checkout_gps"] : [],
       });
       if (!parsed && gpsStr) {

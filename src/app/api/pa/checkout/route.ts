@@ -37,6 +37,11 @@ export async function POST(req: Request) {
       checkoutGps: enriched.checkoutGps ?? "",
       checkoutAddress: enriched.checkoutAddress ?? "",
       checkoutRemark: enriched.checkoutRemark ?? "",
+      // New optional fields (support either header name)
+      problemDetail: enriched.problemDetail ?? enriched.problem ?? "",
+      problem: enriched.problem ?? enriched.problemDetail ?? "",
+      jobRemark: enriched.jobRemark ?? enriched.remark ?? "",
+      remark: enriched.remark ?? enriched.jobRemark ?? "",
       checkoutPhotoUrl: enriched.checkoutPhotoUrl ?? "",
       email: enriched.username ?? enriched.email ?? "",
       username: enriched.username ?? enriched.email ?? "",

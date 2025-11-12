@@ -599,7 +599,9 @@ async function onSubmitCheckin() {
         checkoutPhotoUrl: uploadedUrl,
         checkoutRemark,
         problemDetail,
+        problem: problemDetail,
         jobRemark,
+        remark: jobRemark,
       });
       const st = resp?.status ? String(resp.status) : "";
       alert(st ? `Saved (${st})` : "Saved");

@@ -73,8 +73,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
       r.checkout || "-",
       r.location || "",
       r.detail || "",
-      r.problemDetail || "",
-      r.jobRemark || "",
+      (r as any).problemDetail || (r as any).problem || "",
+      (r as any).jobRemark || (r as any).remark || "",
       r.district || "",
       r.employeeNo || "",
       r.email || "",
@@ -229,8 +229,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                       <TableCell>{r.checkout || "-"}</TableCell>
                       <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
                       <TableCell>{r.detail || ""}</TableCell>
-                      <TableCell>{r.problemDetail || ""}</TableCell>
-                      <TableCell>{r.jobRemark || ""}</TableCell>
+                      <TableCell>{(r as any).problemDetail || (r as any).problem || ""}</TableCell>
+                      <TableCell>{(r as any).jobRemark || (r as any).remark || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
                       <TableCell>{r.employeeNo || ""}</TableCell>
                       <TableCell className="truncate" title={r.email || undefined}>{r.email || ""}</TableCell>
