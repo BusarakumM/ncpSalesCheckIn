@@ -550,10 +550,14 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
         ) : null}
 
         {/* Submit */}
-        <div ref={submitSectionRef} className="mt-4 flex justify-center">
+        <div ref={submitSectionRef} className="mt-4 flex flex-col items-center gap-2">
+          {rows.length === 0 ? (
+            <div className="text-xs text-red-700">กรุณาบันทึกรายการก่อนส่งคำขอ</div>
+          ) : null}
           <Button
             onClick={onSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || rows.length === 0}
+            title={rows.length === 0 ? "กรุณาบันทึกรายการก่อนส่งคำขอ" : undefined}
             className="w-full sm:w-auto rounded-full bg-[#E8CC5C] px-10 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             ส่งคำขอ
