@@ -384,7 +384,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <div className="text-sm sm:text-base font-semibold">Date:</div>
+                <div className="text-sm sm:text-base font-semibold">วันที่:</div>
                 <Input
                   type="date"
                   value={hourDate}
@@ -393,7 +393,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
                 />
               </div>
               <div>
-                <div className="text-sm sm:text-base font-semibold">Start time:</div>
+                <div className="text-sm sm:text-base font-semibold">เวลาเริ่ม:</div>
                 <Input
                   type="time"
                   value={startTime}
@@ -402,7 +402,7 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
                 />
               </div>
               <div>
-                <div className="text-sm sm:text-base font-semibold">End time:</div>
+                <div className="text-sm sm:text-base font-semibold">เวลาสิ้นสุด:</div>
                 <Input
                   type="time"
                   value={endTime}
