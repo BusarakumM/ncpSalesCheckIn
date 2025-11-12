@@ -179,6 +179,7 @@ export type ActivityRow = {
   imageIn?: string;
   imageOut?: string;
   district?: string;
+  group?: string;
   checkinGps?: string;
   checkoutGps?: string;
   checkinAddress?: string;
@@ -208,7 +209,7 @@ function toTimePart(iso: string | undefined): string {
   return `${hh}:${mi}`;
 }
 
-export async function listActivities(params: { from?: string; to?: string; name?: string; email?: string; employeeNo?: string; district?: string; location?: string }): Promise<ActivityRow[]> {
+export async function listActivities(params: { from?: string; to?: string; name?: string; email?: string; employeeNo?: string; district?: string; location?: string; group?: string }): Promise<ActivityRow[]> {
   const tCheckin = graphTables.checkin();
   const tCheckout = graphTables.checkout();
   const [ciHeaders, ciRows, coHeaders, coRows] = await Promise.all([

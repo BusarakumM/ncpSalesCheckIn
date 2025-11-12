@@ -17,6 +17,7 @@ type Row = {
   problemDetail?: string;
   jobRemark?: string;
   name?: string;
+  group?: string;
   imageIn?: string;
   imageOut?: string;
   status: "completed" | "incomplete" | "ongoing";
@@ -35,6 +36,8 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   const [rows, setRows] = useState<Row[]>([]);
   const [location, setLocation] = useState("");
   const [allLocations, setAllLocations] = useState<string[]>([]);
+  const [group, setGroup] = useState("");
+  const [allGroups, setAllGroups] = useState<string[]>([]);
   const [district, setDistrict] = useState("");
   const [allDistricts, setAllDistricts] = useState<string[]>([]);
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
@@ -51,15 +54,16 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
     return "bg-[#E7D6B9] text-black";
   }
 
-  async function load(override?: { from?: string; to?: string; location?: string; district?: string }) {
+  async function load(override?: { from?: string; to?: string; location?: string; district?: string; group?: string }) {
     const sendFrom = override?.from ?? from;
     const sendTo = override?.to ?? to;
     const sendLocation = override?.location ?? location;
     const sendDistrict = override?.district ?? district;
+    const sendGroup = override?.group ?? group;
     const res = await fetch("/api/pa/report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: sendFrom, to: sendTo, location: sendLocation, district: sendDistrict }),
+      body: JSON.stringify({ from: sendFrom, to: sendTo, location: sendLocation, district: sendDistrict, group: sendGroup }),
     });
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load report");
@@ -72,6 +76,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
       problemDetail: r.problemDetail ?? r.problem,
       jobRemark: r.jobRemark ?? r.remark,
       name: r.name,
+      group: r.group,
       imageIn: r.imageIn || "",
       imageOut: r.imageOut || r.image || "",
       status: r.status,
@@ -98,6 +103,11 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
       const uniqD = Array.from(new Set(mapped.map((r) => r.district || "").filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
       setAllDistricts(uniqD);
     } catch {}
+    // Build group dropdown for supervisors
+    try {
+      const uniqG = Array.from(new Set(mapped.map((r) => r.group || "").filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
+      setAllGroups(uniqG);
+    } catch {}
   }
 
   function clearFilters() {
@@ -121,16 +131,33 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
 
   useEffect(() => {
     if (role !== "SUPERVISOR") return; // supervisor mode uses district
-    if (district !== undefined) {
-      load({ district }).catch(() => {});
+    if (district !== undefined || group !== undefined) {
+      load({ district, group }).catch(() => {});
     }
-  }, [district]);
+  }, [district, group]);
 
 
   function exportCsv() {
-    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "รายละเอียดสถานที่", "ปัญหา", "หมายเหตุ", "Sales Support Name", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "System Remark", "Status"];
+    // Supervisor export includes Group column before District
+    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "รายละเอียดสถานที่", "ปัญหา", "หมายเหตุ", "Sales Support Name", "Group", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "System Remark", "Status"];
     const lines = rows.map((r) => [
-      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.problemDetail || "", r.jobRemark || "", r.name || "", r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.imageIn || "", r.imageOut || "", r.remark || "", r.status,
+      r.date,
+      r.checkin,
+      r.checkout || "-",
+      r.location,
+      r.detail,
+      r.problemDetail || "",
+      r.jobRemark || "",
+      r.name || "",
+      (r as any).group || "",
+      r.district || "",
+      r.checkinGps || "",
+      r.checkoutGps || "",
+      r.distanceKm != null ? r.distanceKm.toFixed(3) : "",
+      r.imageIn || "",
+      r.imageOut || "",
+      r.remark || "",
+      r.status,
     ]);
     const csv = [header, ...lines]
       .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -173,15 +200,26 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
           </div>
           {role === "SUPERVISOR" ? (
-            <div>
-              <Label className="mb-1 block">อำเภอ/เขต</Label>
-              <select value={district} onChange={(e) => setDistrict(e.target.value)} className="bg-white w-full h-9 rounded-md border px-2 text-sm">
-                <option value="">All</option>
-                {allDistricts.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <Label className="mb-1 block">กลุ่ม</Label>
+                <select value={group} onChange={(e) => setGroup(e.target.value)} className="bg-white w-full h-9 rounded-md border px-2 text-sm">
+                  <option value="">All</option>
+                  {allGroups.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label className="mb-1 block">อำเภอ/เขต</Label>
+                <select value={district} onChange={(e) => setDistrict(e.target.value)} className="bg-white w-full h-9 rounded-md border px-2 text-sm">
+                  <option value="">All</option>
+                  {allDistricts.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+            </>
           ) : (
             <div>
               <Label className="mb-1 block">สถานที่</Label>
@@ -231,6 +269,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                   <TableHead className="min-w-[180px]">ปัญหา</TableHead>
                   <TableHead className="min-w-[180px]">หมายเหตุ</TableHead>
                   <TableHead className="min-w-[180px]">ชื่อเซลส์ซัพพอร์ต</TableHead>
+                  <TableHead className="min-w-[140px]">กลุ่ม</TableHead>
                   <TableHead className="min-w-[140px]">อำเภอ/เขต</TableHead>
                   <TableHead className="min-w-[180px]">พิกัดเข้า</TableHead>
                   <TableHead className="min-w-[180px]">พิกัดออก</TableHead>
@@ -259,6 +298,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                       <TableCell className="whitespace-pre-wrap">{r.problemDetail || ""}</TableCell>
                       <TableCell className="whitespace-pre-wrap">{r.jobRemark || ""}</TableCell>
                       <TableCell>{r.name || ""}</TableCell>
+                      <TableCell>{(r as any).group || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
                       <TableCell>
                         {r.checkinGps ? (
