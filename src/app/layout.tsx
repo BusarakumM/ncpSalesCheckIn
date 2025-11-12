@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import NavBar from "../components/NavBar";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
+import { Prompt } from "next/font/google";
+
+const prompt = Prompt({
+  subsets: ["thai", "latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "NCP Sales Support",
@@ -15,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="th">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="manifest" href="/manifest.json" />
@@ -23,7 +29,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/brand/salescheckin.png" />
       </head>
-      <body className="min-h-screen bg-[#F7F4EA] antialiased">
+      <body className={`${prompt.className} min-h-screen bg-[#F7F4EA] antialiased`}>
         <ServiceWorkerRegister />
         <InstallPrompt />
         {children}
