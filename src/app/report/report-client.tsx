@@ -157,7 +157,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
           >
             <span className="text-xl">🏠</span>
           </Link>
-          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">รายงาน</h1>
+          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">บันทึกเวลาและการปฏิบัติ (สถานที่)</h1>
         </div>
 
         {/* Filter */}
