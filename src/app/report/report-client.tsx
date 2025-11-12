@@ -230,13 +230,13 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                   <TableHead className="min-w-[180px]">รายละเอียดสถานที่</TableHead>
                   <TableHead className="min-w-[180px]">ปัญหา</TableHead>
                   <TableHead className="min-w-[180px]">หมายเหตุ</TableHead>
-                  <TableHead className="min-w-[180px]">Sales support name</TableHead>
-                  <TableHead className="min-w-[140px]">District</TableHead>
-                  <TableHead className="min-w-[180px]">In GPS</TableHead>
-                  <TableHead className="min-w-[180px]">Out GPS</TableHead>
-                  <TableHead className="min-w-[120px]">Distance (km)</TableHead>
-                  <TableHead className="min-w-[160px]">Image Check-in</TableHead>
-                  <TableHead className="min-w-[160px]">Image check-out</TableHead>
+                  <TableHead className="min-w-[180px]">ชื่อเซลส์ซัพพอร์ต</TableHead>
+                  <TableHead className="min-w-[140px]">อำเภอ/เขต</TableHead>
+                  <TableHead className="min-w-[180px]">พิกัดเข้า</TableHead>
+                  <TableHead className="min-w-[180px]">พิกัดออก</TableHead>
+                  <TableHead className="min-w-[120px]">ระยะทาง (กม.)</TableHead>
+                  <TableHead className="min-w-[160px]">รูปเข้างาน</TableHead>
+                  <TableHead className="min-w-[160px]">รูปออกงาน</TableHead>
                   <TableHead className="min-w-[220px]">Remark</TableHead>
                   <TableHead className="min-w-[120px]">สถานะ</TableHead>
                 </TableRow>
@@ -315,7 +315,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                       <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
                       <TableCell>
                         <span className={`inline-flex w-full justify-center rounded px-2 py-1 text-sm font-medium ${statusClass(r.status)}`}>
-                          {r.status}
+                          {r.status === 'completed' ? 'เสร็จสิ้น' : r.status === 'incomplete' ? 'ไม่เสร็จ' : 'กำลังทำ'}
                         </span>
                       </TableCell>
                     </TableRow>
