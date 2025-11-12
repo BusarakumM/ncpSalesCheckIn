@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
 import { formatDateDisplay } from "@/lib/utils";
 
 type Row = {
@@ -40,6 +41,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   const [allGroups, setAllGroups] = useState<string[]>([]);
   const [district, setDistrict] = useState("");
   const [allDistricts, setAllDistricts] = useState<string[]>([]);
+  const [isFiltering, setIsFiltering] = useState(false);
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
 
@@ -115,7 +117,11 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
     setTo("");
     setLocation("");
     setDistrict("");
-    load({ from: "", to: "", location: "", district: "" }).catch(() => {});
+    setGroup("");
+    setIsFiltering(true);
+    load({ from: "", to: "", location: "", district: "", group: "" })
+      .catch(() => {})
+      .finally(() => setIsFiltering(false));
   }
 
   useEffect(() => { load().catch(() => {}); }, []);
@@ -234,16 +240,34 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
         </div>
           <div className="mt-3 flex justify-center gap-3">
             <Button
-              onClick={() => load().catch(() => {})}
-              className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10"
+              onClick={() => { setIsFiltering(true); load().catch(() => {}).finally(() => setIsFiltering(false)); }}
+              disabled={isFiltering}
+              title={isFiltering ? "กำลังโหลด..." : undefined}
+              className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
             >
-              ตกลง
+              {isFiltering ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังโหลด...
+                </>
+              ) : (
+                "ตกลง"
+              )}
             </Button>
             <Button
               onClick={clearFilters}
-              className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10"
+              disabled={isFiltering}
+              title={isFiltering ? "กำลังโหลด..." : undefined}
+              className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
             >
-              ล้างตัวกรอง
+              {isFiltering ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ล้างตัวกรอง
+                </>
+              ) : (
+                "ล้างตัวกรอง"
+              )}
             </Button>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateDisplay } from "@/lib/utils";
 
@@ -47,6 +48,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
 
   const [sortKey, setSortKey] = useState<"date" | "employeeNo" | "username">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const [isFiltering, setIsFiltering] = useState(false);
 
   async function fetchRows() {
     const payload: any = {};
@@ -183,7 +186,14 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
         </div>
 
         <div className="mt-3 flex justify-center">
-          <Button onClick={fetchRows} className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10">Search</Button>
+          <Button
+            onClick={() => { setIsFiltering(true); fetchRows().catch(() => {}).finally(() => setIsFiltering(false)); }}
+            disabled={isFiltering}
+            title={isFiltering ? "Loading..." : undefined}
+            className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+          >
+            {isFiltering ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Loading...</>) : 'Search'}
+          </Button>
         </div>
 
         {/* Table */}

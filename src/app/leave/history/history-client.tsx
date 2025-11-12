@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateDisplay } from "@/lib/utils";
 
@@ -13,6 +14,7 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [isFiltering, setIsFiltering] = useState(false);
 
   function exportCsv() {
     const header = ["Date","Leave Type","Reason"];
@@ -65,8 +67,20 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="ถึงวันที่" />
         </div>
         <div className="mt-3 flex justify-center gap-3">
-          <Button onClick={() => load().catch(() => {})} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">ตกลง</Button>
-          <Button onClick={clearFilters} className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10">ล้างตัวกรอง</Button>
+          <Button
+            onClick={() => { setIsFiltering(true); load().catch(() => {}).finally(() => setIsFiltering(false)); }}
+            disabled={isFiltering}
+            className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+          >
+            {isFiltering ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>กำลังโหลด...</>) : 'ตกลง'}
+          </Button>
+          <Button
+            onClick={() => { setIsFiltering(true); clearFilters(); setIsFiltering(false); }}
+            disabled={isFiltering}
+            className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+          >
+            {isFiltering ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>ล้างตัวกรอง</>) : 'ล้างตัวกรอง'}
+          </Button>
         </div>
 
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
