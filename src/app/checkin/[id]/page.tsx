@@ -28,6 +28,8 @@ export default function TaskDetailPage() {
   const [checkoutRemark, setCheckoutRemark] = useState("");
   const [problemDetail, setProblemDetail] = useState("");
   const [jobRemark, setJobRemark] = useState("");
+  const [checkinPhotoTakenAt, setCheckinPhotoTakenAt] = useState<number | null>(null);
+  const [checkoutPhotoTakenAt, setCheckoutPhotoTakenAt] = useState<number | null>(null);
   const [checkinCaptureAt, setCheckinCaptureAt] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
@@ -395,6 +397,12 @@ export default function TaskDetailPage() {
     const url = URL.createObjectURL(f);
     setPhotoUrl(url);
     setPhotoFile(f);
+    const ms = typeof f.lastModified === 'number' && f.lastModified > 0 ? f.lastModified : Date.now();
+    setCheckinPhotoTakenAt(ms);
+    try {
+      const isoLocal = new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16);
+      setCheckinTime(isoLocal);
+    } catch {}
   }
 
   function captureCheckoutGPS() {
@@ -418,6 +426,12 @@ export default function TaskDetailPage() {
     const url = URL.createObjectURL(f);
     setCheckoutPhotoUrl(url);
     setCheckoutPhotoFile(f);
+    const ms = typeof f.lastModified === 'number' && f.lastModified > 0 ? f.lastModified : Date.now();
+    setCheckoutPhotoTakenAt(ms);
+    try {
+      const isoLocal = new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16);
+      setCheckoutTime(isoLocal);
+    } catch {}
   }
 
   function onCheckout() {
@@ -518,9 +532,9 @@ async function onSubmitCheckin() {
       }
       let uploadedUrl: string | null = null;
       if (photoFile) uploadedUrl = await uploadPhoto(photoFile);
-      // Enforce real-time check-in timestamp at submit
-      const now = new Date();
-      const isoLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      // Use photo capture time if available; otherwise current time
+      const ms = checkinPhotoTakenAt ?? Date.now();
+      const isoLocal = new Date(ms - new Date().getTimezoneOffset() * 60000)
         .toISOString()
         .slice(0, 16);
       setCheckinTime(isoLocal);
@@ -578,7 +592,7 @@ async function onSubmitCheckin() {
       if (checkoutPhotoFile) uploadedUrl = await uploadPhoto(checkoutPhotoFile);
       const resp = await submitCheckout({
         id,
-        checkout: checkoutTime,
+        checkout: (() => { const ms = checkoutPhotoTakenAt ?? Date.now(); return new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16); })(),
         checkoutGps,
         checkoutAddress,
         locationName,
