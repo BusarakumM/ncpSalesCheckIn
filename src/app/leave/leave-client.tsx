@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import LoadingButton from "@/components/LoadingButton";
 // Use native select for maximum mobile compatibility
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -471,13 +472,15 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
           </div>
 
           <div className="flex justify-center">
-            <Button
+          <LoadingButton
               onClick={onSave}
               disabled={isSaving || !type || !reason.trim() || (mode === 'full' ? !fullDate : (!hourDate || !startTime || !endTime))}
               className="w-full sm:w-auto rounded-full bg-[#BFD9C8] px-8 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              loading={isSaving}
+              loadingLabel="กำลังบันทึก..."
             >
               บันทึก
-            </Button>
+            </LoadingButton>
           </div>
         </div>
 
@@ -555,14 +558,16 @@ export default function LeaveClient({ homeHref }: { homeHref: string }) {
           {rows.length === 0 ? (
             <div className="text-xs text-red-700">กรุณาบันทึกรายการก่อนส่งคำขอ</div>
           ) : null}
-          <Button
+          <LoadingButton
             onClick={onSubmit}
             disabled={isSubmitting || rows.length === 0}
             title={rows.length === 0 ? "กรุณาบันทึกรายการก่อนส่งคำขอ" : undefined}
             className="w-full sm:w-auto rounded-full bg-[#E8CC5C] px-10 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+            loading={isSubmitting}
+            loadingLabel="กำลังส่ง..."
           >
             ส่งคำขอ
-          </Button>
+          </LoadingButton>
         </div>
       </div>
     </div>

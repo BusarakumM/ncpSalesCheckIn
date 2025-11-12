@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import LoadingButton from "@/components/LoadingButton";
 import { submitCheckin, submitCheckout, uploadPhoto } from "@/lib/paClient";
 import { useRouter } from "next/navigation";
 
@@ -864,14 +865,16 @@ export default function NewTaskPage() {
 
         {/* Action buttons */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Button
+          <LoadingButton
             onClick={onSubmitCheckin}
             disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired() || !!locationError}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
             title={!locationName.trim() ? "กรุณาระบุชื่อสถานที่" : !photoFile ? "กรุณาถ่ายรูปเพื่อเข้างาน" : isCheckinExpired() ? "หมดเวลาส่งเข้างาน" : locationError ? locationError : undefined}
+            loading={isSubmitting}
+            loadingLabel="กำลังบันทึก..."
           >
             บันทึกเข้างาน
-          </Button>
+          </LoadingButton>
           {submittedCheckin ? (
             <Button
               onClick={onCheckout}
@@ -1002,14 +1005,16 @@ export default function NewTaskPage() {
 
             {/* Submit Checkout */}
             <div className="mt-4">
-              <Button
+              <LoadingButton
                 onClick={onSubmitCheckout}
                 disabled={!locationName.trim() || !checkoutPhotoFile || checkoutOutOfArea || isSubmitting}
                 className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                loading={isSubmitting}
+                loadingLabel="กำลังบันทึก..."
                 title={!locationName.trim() ? "Please enter a location name" : !checkoutPhotoFile ? "Please take a checkout selfie" : checkoutOutOfArea ? "จุด check-out อยู่นอกพื้นที่ check-in" : undefined}
               >
                 Submit Checkout
-              </Button>
+              </LoadingButton>
             </div>
           </>
         )}

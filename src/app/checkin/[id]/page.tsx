@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import LoadingButton from "@/components/LoadingButton";
 import { submitCheckin, submitCheckout, uploadPhoto } from "@/lib/paClient";
 
 export default function TaskDetailPage() {
@@ -852,14 +853,16 @@ async function onSubmitCheckin() {
 
         {/* Actions */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Button
+          <LoadingButton
             onClick={onSubmitCheckin}
             disabled={hasExistingCheckin || !locationName.trim() || !photoFile || isSubmitting || (!hasExistingCheckin && checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000)}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
             title={!locationName.trim() ? "กรุณาระบุชื่อสถานที่" : !photoFile ? "กรุณาถ่ายรูปเพื่อเข้างาน" : hasExistingCheckin ? "บันทึกเข้างานแล้ว" : undefined}
+            loading={isSubmitting}
+            loadingLabel="กำลังบันทึก..."
           >
             บันทึกเข้างาน
-          </Button>
+          </LoadingButton>
           {hasExistingCheckin && canCheckoutSameDate ? (
             <Button
               onClick={onCheckout}
@@ -989,13 +992,15 @@ async function onSubmitCheckin() {
 
             {/* Submit Checkout */}
             <div className="mt-4">
-              <Button
+              <LoadingButton
                 onClick={onSubmitCheckout}
                 disabled={hasExistingCheckout || !locationName.trim() || !checkoutPhotoFile || checkoutOutOfArea || isSubmitting}
                 className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                loading={isSubmitting}
+                loadingLabel="กำลังบันทึก..."
               >
                 บันทึกออกงาน
-              </Button>
+              </LoadingButton>
             </div>
           </>
         )}
