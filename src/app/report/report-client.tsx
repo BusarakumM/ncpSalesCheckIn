@@ -219,7 +219,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
               </Button>
             </div>
           ) : null}
-          <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
+          <div className="overflow-x-auto overflow-y-auto max-h-[70vh] bg-white border border-black/20 rounded-md">
             <Table className="min-w-[1120px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
