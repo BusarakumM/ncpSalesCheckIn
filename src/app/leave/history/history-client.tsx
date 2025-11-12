@@ -54,19 +54,19 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
     <div className="min-h-screen bg-[#F7F4EA]">
       <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl">
         <div className="flex items-center gap-2">
-          <Link href="/home" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50" title="Back">
+          <Link href="/home" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50" title="ย้อนกลับ">
             <span className="text-xl">←</span>
           </Link>
-          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold">My Leave History</h1>
+          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold">ประวัติการลา</h1>
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="From" />
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="To" />
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="จากวันที่" />
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="ถึงวันที่" />
         </div>
         <div className="mt-3 flex justify-center gap-3">
-          <Button onClick={() => load().catch(() => {})} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">Search</Button>
-          <Button onClick={clearFilters} className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10">Clear filters</Button>
+          <Button onClick={() => load().catch(() => {})} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">ตกลง</Button>
+          <Button onClick={clearFilters} className="rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 px-6 sm:px-10">ล้างตัวกรอง</Button>
         </div>
 
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
