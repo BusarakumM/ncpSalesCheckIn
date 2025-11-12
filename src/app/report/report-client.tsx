@@ -14,6 +14,8 @@ type Row = {
   checkout?: string;
   location: string;
   detail?: string;
+  problemDetail?: string;
+  jobRemark?: string;
   name?: string;
   imageIn?: string;
   imageOut?: string;
@@ -67,6 +69,8 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
       checkout: r.checkout,
       location: r.location,
       detail: r.detail,
+      problemDetail: r.problemDetail,
+      jobRemark: r.jobRemark,
       name: r.name,
       imageIn: r.imageIn || "",
       imageOut: r.imageOut || r.image || "",
@@ -124,9 +128,9 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
 
 
   function exportCsv() {
-    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "Location detail", "Sales Support Name", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "Remark", "Status"];
+    const header = ["Date/Time", "Check-in time", "Check-out time", "Location name", "รายละเอียดสถานที่", "ปัญหา", "หมายเหตุ", "Sales Support Name", "District", "Check-in GPS", "Check-out GPS", "Distance (km)", "Image Check-in", "Image check-out", "System Remark", "Status"];
     const lines = rows.map((r) => [
-      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.name || "", r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.imageIn || "", r.imageOut || "", r.remark || "", r.status,
+      r.date, r.checkin, r.checkout || "-", r.location, r.detail, r.problemDetail || "", r.jobRemark || "", r.name || "", r.district || "", r.checkinGps || "", r.checkoutGps || "", r.distanceKm != null ? r.distanceKm.toFixed(3) : "", r.imageIn || "", r.imageOut || "", r.remark || "", r.status,
     ]);
     const csv = [header, ...lines]
       .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -221,7 +225,9 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                   <TableHead className="min-w-[120px]">Check-in</TableHead>
                   <TableHead className="min-w-[120px]">Check-out</TableHead>
                   <TableHead className="min-w-[160px]">Location name</TableHead>
-                  <TableHead className="min-w-[180px]">Location detail</TableHead>
+                  <TableHead className="min-w-[180px]">รายละเอียดสถานที่</TableHead>
+                  <TableHead className="min-w-[180px]">ปัญหา</TableHead>
+                  <TableHead className="min-w-[180px]">หมายเหตุ</TableHead>
                   <TableHead className="min-w-[180px]">Sales support name</TableHead>
                   <TableHead className="min-w-[140px]">District</TableHead>
                   <TableHead className="min-w-[180px]">In GPS</TableHead>
@@ -248,6 +254,8 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                       <TableCell>{r.checkout || "-"}</TableCell>
                       <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
                       <TableCell>{r.detail}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{r.problemDetail || ""}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{r.jobRemark || ""}</TableCell>
                       <TableCell>{r.name || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
                       <TableCell>

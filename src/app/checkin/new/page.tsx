@@ -26,6 +26,8 @@ export default function NewTaskPage() {
   const [checkoutPhotoUrl, setCheckoutPhotoUrl] = useState<string | null>(null);
   const [checkoutPhotoFile, setCheckoutPhotoFile] = useState<File | null>(null);
   const [checkoutRemark, setCheckoutRemark] = useState("");
+  const [problemDetail, setProblemDetail] = useState("");
+  const [jobRemark, setJobRemark] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const checkoutFileRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -586,6 +588,8 @@ export default function NewTaskPage() {
         checkoutPhotoUrl: uploadedUrl,
         locationName,
         checkoutRemark,
+        problemDetail,
+        jobRemark,
       });
       const st = resp?.status ? String(resp.status) : "";
       alert(st ? `Saved (${st})` : "Saved");
@@ -955,6 +959,30 @@ export default function NewTaskPage() {
             {!checkoutPhotoFile && !isSubmitting && !submittedCheckout ? (
               <div className="mt-1 text-xs text-red-700">Checkout photo is required</div>
             ) : null}
+
+            {/* Problem and Remark inputs */}
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <div>
+                <div className="text-sm sm:text-base font-semibold">ปัญหาที่พบเจอ</div>
+                <Input
+                  placeholder="รายละเอียดปัญหาในการทำงาน (ถ้ามี)"
+                  value={problemDetail}
+                  onChange={(e) => setProblemDetail(e.target.value)}
+                  className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+                  disabled={isSubmitting || submittedCheckout}
+                />
+              </div>
+              <div>
+                <div className="text-sm sm:text-base font-semibold">หมายเหตุ</div>
+                <Input
+                  placeholder="เหตุผลเช็คเอาท์ช้า/เร็วกว่าปกติ (ถ้ามี)"
+                  value={jobRemark}
+                  onChange={(e) => setJobRemark(e.target.value)}
+                  className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+                  disabled={isSubmitting || submittedCheckout}
+                />
+              </div>
+            </div>
 
             {/* Submit Checkout */}
             <div className="mt-4">
