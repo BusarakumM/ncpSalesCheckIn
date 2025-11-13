@@ -122,10 +122,10 @@ export async function POST(req: Request) {
       if (a.checkin && checkinMinutes < agg._firstMinutes) {
         agg._firstMinutes = checkinMinutes;
         agg.firstCheckin = a.checkin;
-        agg.firstLocation = locationName || agg.firstLocation;
-        agg.firstImage = a.imageIn || agg.firstImage;
-        agg.firstGps = a.checkinGps || agg.firstGps;
-        agg.firstAddress = a.checkinAddress || agg.firstAddress;
+        if (locationName) agg.firstLocation = locationName;
+        if (a.imageIn) agg.firstImage = a.imageIn;
+        if (a.checkinGps) agg.firstGps = a.checkinGps;
+        if (a.checkinAddress) agg.firstAddress = a.checkinAddress;
       } else if (!agg.firstLocation && locationName) {
         agg.firstLocation = locationName;
       }
@@ -139,23 +139,34 @@ export async function POST(req: Request) {
         agg.firstAddress = a.checkinAddress;
       }
       const checkoutMinutes = parseMinutes(a.checkout, -1);
-      if (a.checkout && checkoutMinutes > agg._lastMinutes) {
-        agg._lastMinutes = checkoutMinutes;
-        agg.lastCheckout = a.checkout;
-        agg.lastLocation = locationName || agg.lastLocation;
-        agg.lastCheckoutImage = a.imageOut || agg.lastCheckoutImage;
-        agg.lastGps = a.checkoutGps || agg.lastGps;
-        agg.lastAddress = a.checkoutAddress || agg.lastAddress;
-      } else if (!agg.lastCheckoutImage && a.imageOut) {
-        agg.lastCheckoutImage = a.imageOut;
-      } else if (!agg.lastLocation && locationName) {
-        agg.lastLocation = locationName;
-      }
-      if (!agg.lastGps && a.checkoutGps) {
-        agg.lastGps = a.checkoutGps;
-      }
-      if (!agg.lastAddress && a.checkoutAddress) {
-        agg.lastAddress = a.checkoutAddress;
+      if (a.checkout && checkoutMinutes >= agg._lastMinutes) {
+        const shouldUpdate = checkoutMinutes > agg._lastMinutes || !agg.lastCheckout;
+        if (shouldUpdate) {
+          agg._lastMinutes = checkoutMinutes;
+          agg.lastCheckout = a.checkout;
+          if (locationName) agg.lastLocation = locationName;
+          if (a.imageOut) agg.lastCheckoutImage = a.imageOut;
+          if (a.checkoutGps) agg.lastGps = a.checkoutGps;
+          if (a.checkoutAddress) agg.lastAddress = a.checkoutAddress;
+        } else {
+          if (locationName && !agg.lastLocation) agg.lastLocation = locationName;
+          if (a.imageOut && !agg.lastCheckoutImage) agg.lastCheckoutImage = a.imageOut;
+          if (a.checkoutGps && !agg.lastGps) agg.lastGps = a.checkoutGps;
+          if (a.checkoutAddress && !agg.lastAddress) agg.lastAddress = a.checkoutAddress;
+        }
+      } else {
+        if (!agg.lastCheckoutImage && a.imageOut) {
+          agg.lastCheckoutImage = a.imageOut;
+        }
+        if (!agg.lastLocation && locationName) {
+          agg.lastLocation = locationName;
+        }
+        if (!agg.lastGps && a.checkoutGps) {
+          agg.lastGps = a.checkoutGps;
+        }
+        if (!agg.lastAddress && a.checkoutAddress) {
+          agg.lastAddress = a.checkoutAddress;
+        }
       }
     });
 
