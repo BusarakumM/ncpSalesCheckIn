@@ -39,9 +39,23 @@ function resolveUserInfo(
 export async function POST(req: Request) {
   try {
     const raw = (await req.json().catch(() => ({}))) as any;
-    const { from, to, district } = raw || {};
+    const { from, to, district, group, search } = raw || {};
+    let nameFilter: string | undefined;
+    let employeeFilter: string | undefined;
+    if (typeof search === "string" && search.trim()) {
+      const trimmed = search.trim();
+      if (/^\d+$/.test(trimmed)) employeeFilter = trimmed;
+      else nameFilter = trimmed;
+    }
     const [rows, userLookup] = await Promise.all([
-      listActivities({ from, to, district }),
+      listActivities({
+        from,
+        to,
+        district,
+        group,
+        name: nameFilter,
+        employeeNo: employeeFilter,
+      }),
       getUsersLookup(),
     ]);
 

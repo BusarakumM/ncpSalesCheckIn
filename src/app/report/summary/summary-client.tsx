@@ -15,15 +15,23 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [qDistrict, setQDistrict] = useState("");
+  const [qGroup, setQGroup] = useState("");
+  const [qSearch, setQSearch] = useState("");
 
   
   const [rows, setRows] = useState<Row[]>([]);
 
   async function load() {
+    const payload: Record<string, string> = {};
+    if (from) payload.from = from;
+    if (to) payload.to = to;
+    if (qDistrict) payload.district = qDistrict;
+    if (qGroup) payload.group = qGroup;
+    if (qSearch) payload.search = qSearch;
     const res = await fetch("/api/pa/report/summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to, district: qDistrict })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load summary");
@@ -68,21 +76,27 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           </h1>
         </div>
 
-        {/* Filter */}
-        <div className="mt-4">
-          <div className="text-sm font-medium mb-2">Filter : Date</div>
+        {/* Filters */}
+        <div className="mt-4 space-y-3">
+          <div>
+            <Label className="mb-1 block">Date range</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="From" />
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="To" />
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <Label className="mb-1 block">From</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
-            </div>
-            <div>
-              <Label className="mb-1 block">To</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
+              <Label className="mb-1 block">Group</Label>
+              <Input value={qGroup} onChange={(e) => setQGroup(e.target.value)} placeholder="Group" className="bg-white" />
             </div>
             <div>
               <Label className="mb-1 block">District</Label>
               <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} placeholder="District" className="bg-white" />
+            </div>
+            <div>
+              <Label className="mb-1 block">Employee No or Sales Support Name</Label>
+              <Input value={qSearch} onChange={(e) => setQSearch(e.target.value)} placeholder="Employee No or Name" className="bg-white" />
             </div>
           </div>
           <div className="mt-3 flex justify-center">
