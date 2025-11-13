@@ -82,49 +82,6 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           </div>
         </div>
 
-        {/* KPI row */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3 items-stretch">
-          {/* Members (avatar + big number) */}
-          <Card className="border-none bg-transparent shadow-none">
-            <CardContent className="flex flex-col items-center p-0">
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/80 mb-1" />
-              <div className="text-xl sm:text-2xl font-extrabold">{kpis.members}</div>
-            </CardContent>
-          </Card>
-
-          {/* Total */}
-          <Card className="border-none bg-transparent shadow-none">
-            <CardContent className="p-0 text-center">
-              <div className="text-sm">Total</div>
-              <div className="text-xl sm:text-2xl font-extrabold">{kpis.total}</div>
-            </CardContent>
-          </Card>
-
-          {/* Completed (green) */}
-          <Card className="border-none bg-[#BFD9C8]">
-            <CardContent className="p-2 sm:p-3 text-center">
-              <div className="text-sm opacity-80">Completed</div>
-              <div className="text-xl sm:text-2xl font-extrabold">{kpis.completed}</div>
-            </CardContent>
-          </Card>
-
-          {/* Incomplete (red) */}
-          <Card className="border-none bg-[#E9A0A0]">
-            <CardContent className="p-2 sm:p-3 text-center">
-              <div className="text-sm opacity-80">Incomplete</div>
-              <div className="text-xl sm:text-2xl font-extrabold">{kpis.incomplete}</div>
-            </CardContent>
-          </Card>
-
-          {/* Ongoing (yellow) */}
-          <Card className="border-none bg-[#F3E099]">
-            <CardContent className="p-2 sm:p-3 text-center">
-              <div className="text-sm opacity-80">Ongoing</div>
-              <div className="text-xl sm:text-2xl font-extrabold">{kpis.ongoing}</div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Summary Table (beige panel with rounded rows) */}
         <div className="mt-6 rounded-3xl bg-[#D9CDAF] p-4">
           <div className="mb-2 flex justify-end">
@@ -182,6 +139,49 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* KPI row */}
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3 items-stretch">
+          {/* Members (avatar + big number) */}
+          <Card className="border-none bg-transparent shadow-none">
+            <CardContent className="flex flex-col items-center p-0">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/80 mb-1" />
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.members}</div>
+            </CardContent>
+          </Card>
+
+          {/* Total */}
+          <Card className="border-none bg-transparent shadow-none">
+            <CardContent className="p-0 text-center">
+              <div className="text-sm">Total</div>
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.total}</div>
+            </CardContent>
+          </Card>
+
+          {/* Completed (green) */}
+          <Card className="border-none bg-[#BFD9C8]">
+            <CardContent className="p-2 sm:p-3 text-center">
+              <div className="text-sm opacity-80">Completed</div>
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.completed}</div>
+            </CardContent>
+          </Card>
+
+          {/* Incomplete (red) */}
+          <Card className="border-none bg-[#E9A0A0]">
+            <CardContent className="p-2 sm:p-3 text-center">
+              <div className="text-sm opacity-80">Incomplete</div>
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.incomplete}</div>
+            </CardContent>
+          </Card>
+
+          {/* Ongoing (yellow) */}
+          <Card className="border-none bg-[#F3E099]">
+            <CardContent className="p-2 sm:p-3 text-center">
+              <div className="text-sm opacity-80">Ongoing</div>
+              <div className="text-xl sm:text-2xl font-extrabold">{kpis.ongoing}</div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Export moved above table for consistency */}
