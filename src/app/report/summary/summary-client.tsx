@@ -122,7 +122,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
                 <div className="text-center">Ongoing</div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 overflow-y-auto pr-2 max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh]">
                 {rows.length === 0 ? (<div className="text-center text-gray-600">No data</div>) : rows.map((r) => (
                   <div
                     key={r.name}
