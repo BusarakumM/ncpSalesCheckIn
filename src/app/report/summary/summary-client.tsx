@@ -125,7 +125,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} placeholder="ชื่อเขต" className="bg-white" />
             </div>
             <div>
-              <Label className="mb-1 block">รหัสพนักงานหรือชื่อเซลส์ซัพพอร์ต</Label>
+              <Label className="mb-1 block">รหัสพนักงานหรือชื่อ</Label>
               <Input value={qSearch} onChange={(e) => setQSearch(e.target.value)} placeholder="รหัสพนักงาน หรือชื่อ" className="bg-white" />
             </div>
           </div>

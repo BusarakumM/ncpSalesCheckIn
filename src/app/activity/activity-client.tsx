@@ -315,7 +315,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
               />
             </div>
             <div>
-              <Label>รหัสพนักงานหรือชื่อเซลส์ซัพพอร์ต</Label>
+              <Label>รหัสพนักงานหรือชื่อ</Label>
               <Input
                 placeholder="รหัสพนักงาน หรือชื่อ"
                 value={qSearch}
