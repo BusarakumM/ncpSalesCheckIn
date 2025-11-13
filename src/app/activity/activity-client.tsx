@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -28,15 +29,20 @@ type Row = {
   distanceKm?: number;
 };
 
-const DATA: Row[] = [];
-
 export default function ActivityClient({ homeHref }: { homeHref: string }) {
-  const [qIdentity, setQIdentity] = useState(""); // employeeNo or username
-  const [qFrom, setQFrom] = useState("");
-  const [qTo, setQTo] = useState("");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
+  const parseStatusParam = (value: string | null): Row["status"] | "" =>
+    value === "completed" || value === "incomplete" || value === "ongoing" ? value : "";
+
+  const [qIdentity, setQIdentity] = useState(() => searchParams.get("identity") || ""); // employeeNo or username
+  const [qFrom, setQFrom] = useState(() => searchParams.get("from") || "");
+  const [qTo, setQTo] = useState(() => searchParams.get("to") || "");
   const [rows, setRows] = useState<Row[]>([]);
-  const [qDistrict, setQDistrict] = useState("");
+  const [qDistrict, setQDistrict] = useState(() => searchParams.get("district") || "");
+  const [qStatus, setQStatus] = useState<"" | Row["status"]>(() => parseStatusParam(searchParams.get("status")));
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
 
@@ -51,6 +57,32 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
 
   const [isFiltering, setIsFiltering] = useState(false);
 
+  const statusOptions: Array<{ value: "" | Row["status"]; label: string }> = [
+    { value: "", label: "All" },
+    { value: "completed", label: "Completed" },
+    { value: "incomplete", label: "Incomplete" },
+    { value: "ongoing", label: "Ongoing" },
+  ];
+
+  const statusChipStyles: Record<"" | Row["status"], string> = {
+    "": "bg-white text-gray-800",
+    completed: "bg-[#BFD9C8] text-gray-900",
+    incomplete: "bg-[#E9A0A0] text-gray-900",
+    ongoing: "bg-[#F3E099] text-gray-900",
+  };
+
+  function updateStatusFilter(nextStatus: "" | Row["status"]) {
+    setQStatus(nextStatus);
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextStatus) {
+      params.set("status", nextStatus);
+    } else {
+      params.delete("status");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
   async function fetchRows() {
     const payload: any = {};
     const q = qIdentity.trim();
@@ -60,6 +92,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     if (qFrom) payload.from = qFrom;
     if (qTo) payload.to = qTo;
     if (qDistrict) payload.district = qDistrict;
+    if (qStatus) payload.status = qStatus;
     const res = await fetch('/api/pa/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to load');
@@ -102,7 +135,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
 
   useEffect(() => { fetchRows().catch(() => {}); }, []);
   const displayRows = useMemo(() => {
-    const arr = [...rows];
+    const filtered = qStatus ? rows.filter((r) => r.status === qStatus) : rows;
+    const arr = [...filtered];
     if (sortKey === "employeeNo") {
       arr.sort((a, b) => {
         const av = (a.employeeNo || "").toLowerCase();
@@ -119,7 +153,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
       });
     }
     return arr;
-  }, [rows, sortKey, sortDir]);
+  }, [rows, sortKey, sortDir, qStatus]);
 
   function rowBg(status: Row["status"]) {
     if (status === "completed") return "bg-[#6EC3A1] text-white"; // green
@@ -183,6 +217,27 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
               className="bg-white"
             />
           </div>
+        </div>
+
+        {/* Status quick filter */}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          {statusOptions.map(({ value, label }) => {
+            const isActive = value === qStatus;
+            const palette = statusChipStyles[value];
+            const base = "rounded-full border border-black/20 px-4 py-1 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+            const activeClasses = isActive ? `${palette} shadow` : "bg-white text-gray-800 hover:bg-gray-100";
+            return (
+              <button
+                key={value || "all"}
+                type="button"
+                onClick={() => updateStatusFilter(value)}
+                className={`${base} ${activeClasses}`}
+                aria-pressed={isActive}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-3 flex justify-center">

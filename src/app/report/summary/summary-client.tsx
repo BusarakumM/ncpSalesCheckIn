@@ -41,6 +41,16 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
     return { members, total, completed, incomplete, ongoing };
   }, [rows]);
 
+  const buildActivityHref = (status: "completed" | "incomplete" | "ongoing") => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (qDistrict) params.set("district", qDistrict);
+    params.set("status", status);
+    const qs = params.toString();
+    return qs ? `/activity?${qs}` : "/activity";
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
       <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
@@ -160,28 +170,46 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           </Card>
 
           {/* Completed (green) */}
-          <Card className="border-none bg-[#BFD9C8]">
-            <CardContent className="p-2 sm:p-3 text-center">
-              <div className="text-sm opacity-80">Completed</div>
-              <div className="text-xl sm:text-2xl font-extrabold">{kpis.completed}</div>
-            </CardContent>
-          </Card>
+          <Link
+            href={buildActivityHref("completed")}
+            className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#4f9c7a] rounded-2xl"
+            aria-label="View completed activities"
+          >
+            <Card className="border-none bg-[#BFD9C8] hover:shadow-md transition cursor-pointer">
+              <CardContent className="p-2 sm:p-3 text-center">
+                <div className="text-sm opacity-80">Completed</div>
+                <div className="text-xl sm:text-2xl font-extrabold">{kpis.completed}</div>
+              </CardContent>
+            </Card>
+          </Link>
 
           {/* Incomplete (red) */}
-          <Card className="border-none bg-[#E9A0A0]">
-            <CardContent className="p-2 sm:p-3 text-center">
-              <div className="text-sm opacity-80">Incomplete</div>
-              <div className="text-xl sm:text-2xl font-extrabold">{kpis.incomplete}</div>
-            </CardContent>
-          </Card>
+          <Link
+            href={buildActivityHref("incomplete")}
+            className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#c06c6c] rounded-2xl"
+            aria-label="View incomplete activities"
+          >
+            <Card className="border-none bg-[#E9A0A0] hover:shadow-md transition cursor-pointer">
+              <CardContent className="p-2 sm:p-3 text-center">
+                <div className="text-sm opacity-80">Incomplete</div>
+                <div className="text-xl sm:text-2xl font-extrabold">{kpis.incomplete}</div>
+              </CardContent>
+            </Card>
+          </Link>
 
           {/* Ongoing (yellow) */}
-          <Card className="border-none bg-[#F3E099]">
-            <CardContent className="p-2 sm:p-3 text-center">
-              <div className="text-sm opacity-80">Ongoing</div>
-              <div className="text-xl sm:text-2xl font-extrabold">{kpis.ongoing}</div>
-            </CardContent>
-          </Card>
+          <Link
+            href={buildActivityHref("ongoing")}
+            className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#d3b652] rounded-2xl"
+            aria-label="View ongoing activities"
+          >
+            <Card className="border-none bg-[#F3E099] hover:shadow-md transition cursor-pointer">
+              <CardContent className="p-2 sm:p-3 text-center">
+                <div className="text-sm opacity-80">Ongoing</div>
+                <div className="text-xl sm:text-2xl font-extrabold">{kpis.ongoing}</div>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Export moved above table for consistency */}
