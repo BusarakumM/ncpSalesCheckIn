@@ -374,7 +374,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
         {/* Back button */}
         <div className="mt-6 flex justify-center">
           <Link
-            href={homeHref}
+            href="/report/summary"
             className="inline-flex w-full sm:w-auto items-center justify-center rounded-full bg-[#E8CC5C] px-6 py-3 text-gray-900 hover:bg-[#e3c54a] border border-black/20 text-center"
           >
             Back to summary page
