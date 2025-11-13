@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { addLeaveDelete } from "@/lib/graph";
+import { addLeaveDelete, deleteLeaveRow } from "@/lib/graph";
 
 export async function POST(req: Request) {
   try {
@@ -15,10 +15,12 @@ export async function POST(req: Request) {
     const email = body?.email ? String(body.email) : undefined;
     const username = body?.username ? String(body.username) : undefined;
     if (!dt) return NextResponse.json({ ok: false, error: "Missing dt" }, { status: 400 });
-    await addLeaveDelete({ dtISO: dt, employeeNo, email, username, by: c.get("username")?.value || c.get("email")?.value || "" });
+    const deleted = await deleteLeaveRow({ dtISO: dt, employeeNo, email, username });
+    if (!deleted) {
+      await addLeaveDelete({ dtISO: dt, employeeNo, email, username, by: c.get("username")?.value || c.get("email")?.value || "" });
+    }
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Delete failed" }, { status: 500 });
   }
 }
-

@@ -164,6 +164,23 @@ export async function getTableValues(tableName: string): Promise<string[][]> {
   return values.slice(1) as string[][];
 }
 
+async function listTableRows(tableName: string): Promise<Array<{ index: number; values: any[][] }>> {
+  const base = workbookBasePath();
+  const rows: Array<{ index: number; values: any[][] }> = [];
+  let url: string | null = `${base}/tables/${encodeURIComponent(tableName)}/rows`;
+  while (url) {
+    const res = await graphFetch(url);
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`Read rows failed ${res.status}: ${txt}`);
+    }
+    const data = (await res.json()) as any;
+    if (Array.isArray(data?.value)) rows.push(...(data.value as Array<{ index: number; values: any[][] }>));
+    url = typeof data?.["@odata.nextLink"] === "string" ? data["@odata.nextLink"] : null;
+  }
+  return rows;
+}
+
 export type ActivityRow = {
   date: string; // yyyy-mm-dd
   checkin?: string; // HH:mm or ISO
@@ -967,6 +984,55 @@ export async function listLeaves(params: { from?: string; to?: string; email?: s
   }
   items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   return items;
+}
+
+function normalizeIsoCompare(value: string): string {
+  if (!value) return "";
+  try {
+    return new Date(value).toISOString();
+  } catch {
+    return value;
+  }
+}
+
+export async function deleteLeaveRow(params: { dtISO: string; employeeNo?: string; email?: string; username?: string }): Promise<boolean> {
+  const table = graphTables.leave();
+  const [headers, rows] = await Promise.all([getTableHeaders(table), listTableRows(table)]);
+  const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+  const cols = {
+    dt: idx("dtISO"),
+    employeeNo: idx("employeeNo"),
+    email: (() => {
+      const u = idx("username");
+      return u >= 0 ? u : idx("email");
+    })(),
+  };
+  const targetDt = normalizeIsoCompare(params.dtISO);
+  const targetEmp = params.employeeNo ? params.employeeNo.toLowerCase() : null;
+  const targetIdentity = params.username?.toLowerCase() || params.email?.toLowerCase() || null;
+  if (!rows.length || cols.dt < 0) return false;
+  const base = workbookBasePath();
+  for (const entry of rows) {
+    const values = Array.isArray(entry?.values)
+      ? Array.isArray(entry.values[0])
+        ? entry.values[0]
+        : entry.values
+      : [];
+    const dtVal = normalizeIsoCompare(String(cols.dt >= 0 ? values[cols.dt] || "" : ""));
+    if (!dtVal || dtVal !== targetDt) continue;
+    const empVal = (cols.employeeNo >= 0 ? String(values[cols.employeeNo] || "") : "").toLowerCase();
+    const emailVal = (cols.email >= 0 ? String(values[cols.email] || "") : "").toLowerCase();
+    if (targetEmp && empVal && empVal !== targetEmp) continue;
+    if (targetIdentity && emailVal && emailVal !== targetIdentity) continue;
+    const deletePath = `${base}/tables/${encodeURIComponent(table)}/rows/${entry.index}`;
+    const res = await graphFetch(deletePath, { method: "DELETE" });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`Delete leave row failed ${res.status}: ${txt}`);
+    }
+    return true;
+  }
+  return false;
 }
 
 // Record a soft-delete for a specific leave entry. Matches by (dtISO + employeeNo/username/email).
