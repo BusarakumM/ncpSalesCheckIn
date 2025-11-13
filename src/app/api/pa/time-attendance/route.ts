@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listActivities, listLeaves } from "@/lib/graph";
+import { listActivities, listLeaves, getUsersLookup, normalizeLookupKey } from "@/lib/graph";
 
 export async function POST(req: Request) {
   try {
@@ -7,82 +7,180 @@ export async function POST(req: Request) {
     const { from, to, name, email, username, district } = raw || {};
 
     const identity = email || username;
-    const activities = await listActivities({ from, to, name, email: identity, district });
+    const [activities, leaveItems, userLookup] = await Promise.all([
+      listActivities({ from, to, name, email: identity, district }),
+      listLeaves({ from, to }),
+      getUsersLookup(),
+    ]);
 
-    // Leave rows (use header-based reader to avoid column index drift)
-    const leaveItems = await listLeaves({ from, to });
-    let leaveRows = leaveItems.map((r) => {
-      const d = new Date(r.date || "");
-      const date = isNaN(d.getTime())
-        ? ""
-        : `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-      return {
-        date,
-        checkin: "",
-        checkout: "",
-        imageIn: "",
-        imageOut: "",
-        status: String(r.leaveType || ""),
-        remark: String(r.reason || ""),
-        name: String(r.name || ""),
-        district: String(r.district || ""),
-      };
+    const lookupInfo = (row: { employeeNo?: string; email?: string; name?: string }) => {
+      const keys = [
+        normalizeLookupKey(row.employeeNo),
+        normalizeLookupKey(row.email),
+        normalizeLookupKey(row.name),
+      ].filter(Boolean) as string[];
+      for (const key of keys) {
+        const info = userLookup.get(key);
+        if (info) return info;
+      }
+      return null;
+    };
+
+    type AggRow = {
+      date: string;
+      group?: string;
+      district?: string;
+      employeeNo?: string;
+      name?: string;
+      firstCheckin?: string;
+      firstLocation?: string;
+      firstImage?: string;
+      totalLocations: number;
+      lastCheckout?: string;
+      lastLocation?: string;
+      lastCheckoutImage?: string;
+      leaveNote?: string;
+      // internal helpers
+      _firstMinutes: number;
+      _lastMinutes: number;
+      _locationSet: Set<string>;
+    };
+
+    const map = new Map<string, AggRow>();
+
+    const keyFor = (date: string, row: { employeeNo?: string; email?: string; name?: string }) => {
+      const identityKey =
+        normalizeLookupKey(row.employeeNo) ||
+        normalizeLookupKey(row.email) ||
+        normalizeLookupKey(row.name) ||
+        row.employeeNo ||
+        row.email ||
+        row.name ||
+        "unknown";
+      return `${date}|${identityKey}`;
+    };
+
+    const parseMinutes = (value?: string, fallback = Number.POSITIVE_INFINITY) => {
+      if (!value) return fallback;
+      const parts = value.includes(":") ? value.split(":") : value.split(".");
+      const hh = parseInt(parts[0] || "0", 10);
+      const mm = parseInt(parts[1] || "0", 10);
+      if (!isFinite(hh) || !isFinite(mm)) return fallback;
+      return hh * 60 + mm;
+    };
+
+    const ensureRow = (date: string, source: { employeeNo?: string; email?: string; name?: string; district?: string; group?: string }) => {
+      const key = keyFor(date, source);
+      if (!map.has(key)) {
+        const info = lookupInfo(source);
+        map.set(key, {
+          date,
+          group: source.group || info?.group || "",
+          district: source.district || info?.district || "",
+          employeeNo: source.employeeNo || info?.employeeNo || "",
+          name: source.name || info?.name || "",
+          firstCheckin: "",
+          firstLocation: "",
+          firstImage: "",
+          totalLocations: 0,
+          lastCheckout: "",
+          lastCheckoutImage: "",
+          leaveNote: "",
+          _firstMinutes: Number.POSITIVE_INFINITY,
+          _lastMinutes: -1,
+          _locationSet: new Set<string>(),
+        });
+      } else {
+        const row = map.get(key)!;
+        if (!row.group && (source.group || lookupInfo(source)?.group)) row.group = source.group || lookupInfo(source)?.group || row.group;
+        if (!row.district && (source.district || lookupInfo(source)?.district)) row.district = source.district || lookupInfo(source)?.district || row.district;
+        if (!row.employeeNo && (source.employeeNo || lookupInfo(source)?.employeeNo)) row.employeeNo = source.employeeNo || lookupInfo(source)?.employeeNo || row.employeeNo;
+        if (!row.name && (source.name || lookupInfo(source)?.name)) row.name = source.name || lookupInfo(source)?.name || row.name;
+      }
+      return map.get(key)!;
+    };
+
+    const recordLocationVisit = (row: AggRow, loc: string) => {
+      if (!loc) return;
+      row._locationSet.add(loc.trim().toLowerCase());
+    };
+
+    activities.forEach((a) => {
+      const agg = ensureRow(a.date, { employeeNo: a.employeeNo, email: a.email, name: a.name, district: a.district, group: (a as any).group });
+      const locationName = a.location || (a as any).checkinLocation || (a as any).checkoutLocation || "";
+      if (locationName) recordLocationVisit(agg, locationName);
+      const checkinMinutes = parseMinutes(a.checkin);
+      if (a.checkin && checkinMinutes < agg._firstMinutes) {
+        agg._firstMinutes = checkinMinutes;
+        agg.firstCheckin = a.checkin;
+        agg.firstLocation = locationName || agg.firstLocation;
+        agg.firstImage = a.imageIn || agg.firstImage;
+      } else if (!agg.firstLocation && locationName) {
+        agg.firstLocation = locationName;
+      }
+      if (!agg.firstImage && a.imageIn) {
+        agg.firstImage = a.imageIn;
+      }
+      const checkoutMinutes = parseMinutes(a.checkout, -1);
+      if (a.checkout && checkoutMinutes > agg._lastMinutes) {
+        agg._lastMinutes = checkoutMinutes;
+        agg.lastCheckout = a.checkout;
+        agg.lastLocation = locationName || agg.lastLocation;
+        agg.lastCheckoutImage = a.imageOut || agg.lastCheckoutImage;
+      } else if (!agg.lastCheckoutImage && a.imageOut) {
+        agg.lastCheckoutImage = a.imageOut;
+      } else if (!agg.lastLocation && locationName) {
+        agg.lastLocation = locationName;
+      }
     });
-    if (district) {
-      const dd = String(district).toLowerCase();
-      leaveRows = leaveRows.filter((x) => (x.district || "").toLowerCase().includes(dd));
-    }
 
-    // Merge and filter by optional name/email
-    let rows = [
-      ...activities.map((a) => ({
-        date: a.date,
-        checkin: a.checkin || "",
-        checkout: a.checkout || "",
-        imageIn: a.imageIn || "",
-        imageOut: a.imageOut || "",
-        status: a.status === "completed" ? "" : a.status, // keep status only if not normal
-        remark: a.status === "ongoing" ? "No check-out" : a.status === "incomplete" ? "Checkout without check-in" : "",
-        name: a.name || "",
-        district: a.district || "",
-        checkinGps: a.checkinGps || "",
-        checkoutGps: a.checkoutGps || "",
-        checkinAddress: a.checkinAddress || "",
-        checkoutAddress: a.checkoutAddress || "",
-        distanceKm: a.distanceKm ?? undefined,
-      })),
-      ...leaveRows,
-    ];
+    leaveItems.forEach((leave) => {
+      const leaveDate = (() => {
+        const d = new Date(leave.date || "");
+        if (isNaN(d.getTime())) return "";
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      })();
+      if (!leaveDate) return;
+      const agg = ensureRow(leaveDate, { employeeNo: leave.employeeNo, email: leave.email, name: leave.name, district: leave.district, group: leave.group });
+      const note = String(leave.leaveType || "").trim() || "Leave";
+      agg.leaveNote = agg.leaveNote ? `${agg.leaveNote}; ${note}` : note;
+    });
 
+    const result = Array.from(map.values()).map((row) => ({
+      date: row.date,
+      group: row.group || "",
+      district: row.district || "",
+      employeeNo: row.employeeNo || "",
+      name: row.name || "",
+      firstCheckin: row.firstCheckin || "",
+      firstLocation: row.firstLocation || "",
+      firstImage: row.firstImage || "",
+      totalLocations: row._locationSet.size || row.totalLocations,
+      lastCheckout: row.lastCheckout || "",
+      lastLocation: row.lastLocation || "",
+      lastCheckoutImage: row.lastCheckoutImage || "",
+      leaveNote: row.leaveNote || "",
+    }));
+
+    let filtered = result;
     if (name) {
       const n = String(name).toLowerCase();
-      rows = rows.filter((r) => r.name.toLowerCase().includes(n));
+      filtered = filtered.filter((r) => (r.name || "").toLowerCase().includes(n));
+    }
+    if (district) {
+      const d = String(district).toLowerCase();
+      filtered = filtered.filter((r) => (r.district || "").toLowerCase().includes(d));
     }
 
-    // Sort by date (ASC), then check-in time (ASC), then name (ASC)
-    rows.sort((a, b) => {
-      const ad = a.date || "";
-      const bd = b.date || "";
-      if (ad !== bd) return ad < bd ? -1 : 1;
-
-      const toMinutes = (s: string) => {
-        if (!s) return Number.MAX_SAFE_INTEGER;
-        const ss = String(s);
-        const parts = ss.includes(":") ? ss.split(":") : ss.split(".");
-        const hh = parseInt(parts[0] || "0", 10);
-        const mm = parseInt(parts[1] || "0", 10);
-        if (isNaN(hh) || isNaN(mm)) return Number.MAX_SAFE_INTEGER;
-        return hh * 60 + mm;
-      };
-      const byTime = toMinutes(a.checkin || "") - toMinutes(b.checkin || "");
-      if (byTime !== 0) return byTime;
-
+    filtered.sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
       const na = (a.name || "").toLowerCase();
       const nb = (b.name || "").toLowerCase();
-      return na.localeCompare(nb);
+      if (na !== nb) return na.localeCompare(nb);
+      return (a.employeeNo || "").localeCompare(b.employeeNo || "");
     });
 
-    return NextResponse.json({ ok: true, rows });
+    return NextResponse.json({ ok: true, rows: filtered });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Failed to load time-attendance" }, { status: 500 });
   }

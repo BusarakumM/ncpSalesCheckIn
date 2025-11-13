@@ -9,20 +9,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatDateDisplay } from "@/lib/utils";
 
 type Row = {
-  date: string;        // yyyy-mm-dd
-  checkin: string;     // HH.mm
-  checkout: string;    // HH.mm or ""
-  imageIn?: string;
-  imageOut?: string;
-  status?: string;
-  remark?: string;
-  name: string;
+  date: string;
+  group?: string;
   district?: string;
-  checkinGps?: string;
-  checkoutGps?: string;
-  checkinAddress?: string;
-  checkoutAddress?: string;
-  distanceKm?: number;
+  employeeNo?: string;
+  name: string;
+  firstCheckin?: string;
+  firstLocation?: string;
+  firstImage?: string;
+  totalLocations: number;
+  lastCheckout?: string;
+  lastLocation?: string;
+  lastCheckoutImage?: string;
+  leaveNote?: string;
 };
 
 const DATA: Row[] = [];
@@ -33,14 +32,6 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
   const [qName, setQName] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [qDistrict, setQDistrict] = useState("");
-  const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
-  const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
-
-  function mapUrl(coord?: string) {
-    if (!coord || !GMAPS_KEY) return "";
-    const q = encodeURIComponent(coord);
-    return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=160x120&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
-  }
 
   async function load() {
     const res = await fetch("/api/pa/time-attendance", {
@@ -56,10 +47,34 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
   useEffect(() => { load().catch(() => {}); }, []);
   function exportCsv() {
     const header = [
-      "Date/Time","Check-in time","Check-out time","Check-in GPS","Check-out GPS","Distance (km)","Image Check-in","Image check-out","Status/leave","Remark","Sales Support Name","District"
+      "Date/Time",
+      "Group",
+      "District",
+      "Employee No.",
+      "Sales Support Name",
+      "First check-in time",
+      "First location",
+      "Photo (first location)",
+      "Total locations",
+      "Last check-out time",
+      "Last location",
+      "Photo (last location)",
+      "Leave",
     ];
     const lines = rows.map((r) => [
-      r.date, r.checkin || "-", r.checkout || "-", r.checkinGps || "", r.checkoutGps || "", (r.distanceKm != null ? r.distanceKm.toFixed(3) : ""), r.imageIn || "", r.imageOut || "", r.status || "", r.remark || "", r.name, r.district || "",
+      r.date,
+      r.group || "",
+      r.district || "",
+      r.employeeNo || "",
+      r.name || "",
+      r.firstCheckin || "",
+      r.firstLocation || "",
+      r.firstImage || "",
+      r.totalLocations ?? 0,
+      r.lastCheckout || "",
+      r.lastLocation || "",
+      r.lastCheckoutImage || "",
+      r.leaveNote || "",
     ]);
     const csv = [header, ...lines]
       .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -148,17 +163,18 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="min-w-[140px]">Date/Time</TableHead>
-                  <TableHead className="min-w-[220px]">Sales Support Name</TableHead>
-                  <TableHead className="min-w-[160px]">District</TableHead>
-                  <TableHead className="min-w-[120px]">Check-in</TableHead>
-                  <TableHead className="min-w-[120px]">Check-out</TableHead>
-                  <TableHead className="min-w-[160px]">Check-in GPS</TableHead>
-                  <TableHead className="min-w-[160px]">Check-out GPS</TableHead>
-                  <TableHead className="min-w-[120px]">Distance (km)</TableHead>
-                  <TableHead className="min-w-[160px]">Image Check-in</TableHead>
-                  <TableHead className="min-w-[160px]">Image check-out</TableHead>
-                  <TableHead className="min-w-[140px]">Status/leave</TableHead>
-                  <TableHead className="min-w-[200px]">Remark</TableHead>
+                  <TableHead className="min-w-[140px]">Group</TableHead>
+                  <TableHead className="min-w-[140px]">District</TableHead>
+                  <TableHead className="min-w-[140px]">Employee No.</TableHead>
+                  <TableHead className="min-w-[200px]">Sales Support Name</TableHead>
+                  <TableHead className="min-w-[140px]">First check-in</TableHead>
+                  <TableHead className="min-w-[200px]">First location</TableHead>
+                  <TableHead className="min-w-[160px]">Photo (first)</TableHead>
+                  <TableHead className="min-w-[140px]">Total locations</TableHead>
+                  <TableHead className="min-w-[140px]">Last check-out</TableHead>
+                  <TableHead className="min-w-[200px]">Last location</TableHead>
+                  <TableHead className="min-w-[160px]">Photo (last)</TableHead>
+                  <TableHead className="min-w-[160px]">Leave</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -170,69 +186,38 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                   </TableRow>
                 ) : (
                   rows.map((r, i) => (
-                    <TableRow
-                      key={i}
-                      className={!r.checkin && !r.checkout && !!r.status ? "bg-yellow-100" : undefined}
-                    >
+                    <TableRow key={i}>
                       <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
-                      <TableCell>{r.name || ""}</TableCell>
+                      <TableCell>{r.group || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
-                      <TableCell title={r.checkinGps || undefined}>{r.checkin || "-"}</TableCell>
-                      <TableCell title={r.checkoutGps || undefined}>{r.checkout || "-"}</TableCell>
+                      <TableCell>{r.employeeNo || ""}</TableCell>
+                      <TableCell>{r.name || ""}</TableCell>
+                      <TableCell>{r.firstCheckin || "-"}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{r.firstLocation || ""}</TableCell>
                       <TableCell>
-                        {r.checkinGps ? (
-                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkinGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
-                            {r.checkinGps}
-                          </a>
-                         ) : ("")}
-                        {r.checkinAddress ? (
-                          <div className="mt-1 text-xs text-gray-700" title={r.checkinAddress}>{r.checkinAddress}</div>
-                        ) : null}
-                        {r.checkinGps && GMAPS_KEY ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        {r.checkoutGps ? (
-                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkoutGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
-                            {r.checkoutGps}
-                          </a>
-                         ) : ("")}
-                        {r.checkoutAddress ? (
-                          <div className="mt-1 text-xs text-gray-700" title={r.checkoutAddress}>{r.checkoutAddress}</div>
-                        ) : null}
-                        {r.checkoutGps && GMAPS_KEY ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        {r.distanceKm != null ? (
-                          <span className={MAX_KM && r.distanceKm > MAX_KM ? "text-red-700 font-semibold" : ""}>
-                            {r.distanceKm.toFixed(3)}
-                            {MAX_KM && r.distanceKm > MAX_KM ? " !" : ""}
-                          </span>
-                        ) : ""}
-                      </TableCell>
-                      <TableCell>
-                        {r.imageIn ? (
-                          <a href={r.imageIn} target="_blank" rel="noopener noreferrer">
+                        {r.firstImage ? (
+                          <a href={r.firstImage} target="_blank" rel="noopener noreferrer">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={r.imageIn} alt="check-in" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                            <img src={r.firstImage} alt="first location" className="mt-1 h-20 w-auto rounded border border-black/10" />
                           </a>
-                        ) : ("")}
+                        ) : (
+                          ""
+                        )}
                       </TableCell>
+                      <TableCell>{r.totalLocations ?? 0}</TableCell>
+                      <TableCell>{r.lastCheckout || "-"}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{r.lastLocation || ""}</TableCell>
                       <TableCell>
-                        {r.imageOut ? (
-                          <a href={r.imageOut} target="_blank" rel="noopener noreferrer">
+                        {r.lastCheckoutImage ? (
+                          <a href={r.lastCheckoutImage} target="_blank" rel="noopener noreferrer">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={r.imageOut} alt="check-out" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                            <img src={r.lastCheckoutImage} alt="last location" className="mt-1 h-20 w-auto rounded border border-black/10" />
                           </a>
-                        ) : ("")}
+                        ) : (
+                          ""
+                        )}
                       </TableCell>
-                      <TableCell>{r.status || ""}</TableCell>
-                      <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{r.leaveNote || ""}</TableCell>
                     </TableRow>
                   ))
                 )}
