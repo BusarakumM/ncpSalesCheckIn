@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatDateDisplay } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
-type Row = { date: string; leaveType: string; reason: string; name?: string; email?: string; employeeNo?: string; district?: string; group?: string };
+type Row = { date: string; leaveType: string; reason: string; imageUrl?: string; name?: string; email?: string; employeeNo?: string; district?: string; group?: string };
 
 export default function LeaveManageClient() {
   const [from, setFrom] = useState("");
@@ -40,7 +40,7 @@ export default function LeaveManageClient() {
   }
 
   function exportCsv() {
-    const header = ["วันที่","รหัสพนักงาน","ชื่อ","ชื่อผู้ใช้","เขต","กลุ่ม","ประเภทการลา","เหตุผล"];
+    const header = ["วันที่","รหัสพนักงาน","ชื่อ","ชื่อผู้ใช้","เขต","กลุ่ม","ประเภทการลา","เหตุผล","รูปภาพ"];
     const lines = rows.map((r) => [
       r.date,
       r.employeeNo || "",
@@ -50,6 +50,7 @@ export default function LeaveManageClient() {
       r.group || "",
       r.leaveType,
       r.reason,
+      r.imageUrl || "",
     ]);
     const csv = [header, ...lines]
       .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -180,7 +181,8 @@ export default function LeaveManageClient() {
             </Button>
           </div>
           <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
-            <Table className="min-w-[1040px] text-sm">
+            <div className="min-w-[1040px] max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh] overflow-y-auto">
+            <Table className="text-sm w-full">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="min-w-[120px]">วันที่</TableHead>
@@ -190,7 +192,8 @@ export default function LeaveManageClient() {
                   <TableHead className="min-w-[120px]">เขต</TableHead>
                   <TableHead className="min-w-[120px]">กลุ่ม</TableHead>
                   <TableHead className="min-w-[140px]">ประเภทการลา</TableHead>
-                  <TableHead className="min-w-[240px]">เหตุผล</TableHead>
+                  <TableHead className="min-w-[220px]">เหตุผล</TableHead>
+                  <TableHead className="min-w-[140px]">รูปภาพ</TableHead>
                   <TableHead className="min-w-[100px] text-center">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
@@ -209,6 +212,25 @@ export default function LeaveManageClient() {
                     <TableCell>{r.group || ""}</TableCell>
                     <TableCell>{r.leaveType}</TableCell>
                     <TableCell className="whitespace-pre-wrap">{r.reason}</TableCell>
+                    <TableCell>
+                      {r.imageUrl ? (
+                        <a
+                          href={r.imageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={r.imageUrl}
+                            alt="หลักฐานการลา"
+                            className="h-16 w-auto rounded border border-black/10"
+                          />
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-500">ไม่มี</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">
                       <button
                         onClick={() => deleteRow(r)}
@@ -222,6 +244,7 @@ export default function LeaveManageClient() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </div>
         </div>
 
