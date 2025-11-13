@@ -180,21 +180,21 @@ export default function LeaveManageClient() {
               ส่งออก
             </Button>
           </div>
-          <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
-            <div className="min-w-[1040px] max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh] overflow-y-auto">
-            <Table className="text-sm w-full">
+          <div className="bg-white border border-black/20 rounded-md">
+            <div className="max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh] overflow-y-auto">
+            <Table className="w-full text-xs sm:text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[120px]">วันที่</TableHead>
-                  <TableHead className="min-w-[120px]">รหัสพนักงาน</TableHead>
-                  <TableHead className="min-w-[160px]">ชื่อ</TableHead>
-                  <TableHead className="min-w-[200px]">ชื่อผู้ใช้</TableHead>
-                  <TableHead className="min-w-[120px]">เขต</TableHead>
-                  <TableHead className="min-w-[120px]">กลุ่ม</TableHead>
-                  <TableHead className="min-w-[140px]">ประเภทการลา</TableHead>
-                  <TableHead className="min-w-[220px]">เหตุผล</TableHead>
-                  <TableHead className="min-w-[140px]">รูปภาพ</TableHead>
-                  <TableHead className="min-w-[100px] text-center">จัดการ</TableHead>
+                  <TableHead className="w-[11%]">วันที่</TableHead>
+                  <TableHead className="w-[11%]">รหัสพนักงาน</TableHead>
+                  <TableHead className="w-[12%]">ชื่อ</TableHead>
+                  <TableHead className="w-[15%]">ชื่อผู้ใช้</TableHead>
+                  <TableHead className="w-[10%]">เขต</TableHead>
+                  <TableHead className="w-[10%]">กลุ่ม</TableHead>
+                  <TableHead className="w-[12%]">ประเภทการลา</TableHead>
+                  <TableHead className="w-[14%]">เหตุผล</TableHead>
+                  <TableHead className="w-[10%]">รูปภาพ</TableHead>
+                  <TableHead className="w-[5%] text-center">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
