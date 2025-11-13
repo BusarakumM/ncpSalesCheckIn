@@ -209,6 +209,47 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
               Export
             </Button>
           </div>
+
+          {/* Mobile stacked layout */}
+          <div className="sm:hidden space-y-3">
+            {rows.length === 0 ? (
+              <div className="rounded-2xl border border-black/20 bg-white px-4 py-3 text-center text-gray-500">
+                No data for the selected filters
+              </div>
+            ) : (
+              rows.map((r, i) => (
+                <div key={i} className="rounded-2xl border border-black/20 bg-white px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span>{formatDateDisplay(r.date)}</span>
+                    <span>{r.name || ""}</span>
+                  </div>
+                  <div className="text-sm">
+                    <div>กลุ่ม: {r.group || "-"}</div>
+                    <div>เขต: {r.district || "-"}</div>
+                    <div>รหัสพนักงาน: {r.employeeNo || "-"}</div>
+                  </div>
+                  <div className="text-sm">
+                    <div>เข้างาน: {r.firstCheckin || "-"}</div>
+                    <div>แรกสุด: {r.firstLocation || "-"}</div>
+                  </div>
+                  <div className="text-sm">
+                    <div>ออกงาน: {r.lastCheckout || "-"}</div>
+                    <div>สุดท้าย: {r.lastLocation || "-"}</div>
+                  </div>
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <div>พิกัดแรก: {summarizeLocation(r.firstLocation, r.firstGps, r.firstAddress) || "-"}</div>
+                    <div>พิกัดสุดท้าย: {summarizeLocation(r.lastLocation, r.lastGps, r.lastAddress) || "-"}</div>
+                  </div>
+                  <div className="text-sm font-semibold">
+                    สถานะ/ลา: <span className="font-normal">{r.leaveNote || "-"}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block">
           <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             {/* keep enough width so columns don't squish on phones */}
             <Table className="min-w-[1100px] text-sm">
@@ -276,6 +317,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
               </TableBody>
             </Table>
           </div>
+          </div>
         </div>
 
         {/* Export moved above table for consistency */}
@@ -283,8 +325,6 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
     </div>
   );
 }
-
-
 
 
 
