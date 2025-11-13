@@ -376,45 +376,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
               ส่งออก
             </Button>
           </div>
-
-          {/* Mobile stacked cards */}
-          <div className="sm:hidden space-y-3">
-            {displayRows.length === 0 ? (
-              <div className="rounded-2xl border border-black/20 bg-white px-4 py-3 text-center text-gray-500">
-                ไม่พบข้อมูล
-              </div>
-            ) : (
-              displayRows.map((r, i) => (
-                <div key={i} className="rounded-2xl border border-black/20 bg-white px-4 py-3 space-y-2">
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span>{formatDateDisplay(r.date)}</span>
-                    <span>{r.name || ""}</span>
-                  </div>
-                  <div className="text-sm">
-                    <div>รหัสพนักงาน: {r.employeeNo || "-"}</div>
-                    <div>เขต: {r.district || "-"}</div>
-                  </div>
-                  <div className="text-sm">
-                    <div>เข้างาน: {r.checkin || "-"}</div>
-                    <div>ออกงาน: {r.checkout || "-"}</div>
-                  </div>
-                  <div className="text-sm">
-                    <div className="font-medium">สถานที่</div>
-                    <div>{r.location || "-"}</div>
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    <div>พิกัดเข้า: {r.checkinGps || "-"}</div>
-                    <div>พิกัดออก: {r.checkoutGps || "-"}</div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Desktop table */}
-          <div className="hidden sm:block">
-            <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
-            <Table className="min-w-[900px] text-sm">
+          <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
+            <Table className="min-w-[700px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#E0D4B9] [&>*]:text-black">
                   <TableHead className="min-w-[120px]">วันที่</TableHead>
@@ -526,8 +489,6 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                 )}
               </TableBody>
             </Table>
-            </Table>
-          </div>
           </div>
         </div>
 
@@ -544,3 +505,4 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     </div>
   );
 }
+
