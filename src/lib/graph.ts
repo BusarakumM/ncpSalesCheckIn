@@ -866,7 +866,7 @@ export async function getWeeklyOffConfig(idValue: string) {
 
 // Leaves table reader: expected columns
 // [dtISO, leaveType, reason, email, name, employeeNo, supervisorEmail, province, channel, district]
-export async function listLeaves(params: { from?: string; to?: string; email?: string; employeeNo?: string }) {
+export async function listLeaves(params: { from?: string; to?: string; email?: string; employeeNo?: string; name?: string; district?: string; group?: string }) {
   const tbl = graphTables.leave();
   const [headers, rows] = await Promise.all([getTableHeaders(tbl), getTableValues(tbl)]);
   const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
@@ -893,7 +893,24 @@ export async function listLeaves(params: { from?: string; to?: string; email?: s
     province: id.province >= 0 ? String(r[id.province] || "") : "",
     channel: id.channel >= 0 ? String(r[id.channel] || "") : "",
     district: id.district >= 0 ? String(r[id.district] || "") : "",
+    group: "",
   }));
+
+  const userLookup = await getUsersLookup();
+  const identityKeys = (row: { email?: string; employeeNo?: string; name?: string }) =>
+    [normalizeLookupKey(row.email), normalizeLookupKey(row.employeeNo), normalizeLookupKey(row.name)].filter(Boolean) as string[];
+  for (const item of items) {
+    if (item.group && item.district) continue;
+    for (const key of identityKeys(item)) {
+      const info = userLookup.get(key);
+      if (!info) continue;
+      if (!item.group && info.group) item.group = info.group;
+      if (!item.district && info.district) item.district = info.district;
+      if (!item.name && info.name) item.name = info.name;
+      if (!item.employeeNo && info.employeeNo) item.employeeNo = info.employeeNo;
+      break;
+    }
+  }
 
   // Subtract soft-deleted entries if the optional deletes table exists and is readable.
   try {
@@ -928,6 +945,18 @@ export async function listLeaves(params: { from?: string; to?: string; email?: s
   } catch {}
   if (params.employeeNo) items = items.filter((x) => (x.employeeNo || "").toLowerCase() === params.employeeNo!.toLowerCase());
   if (params.email) items = items.filter((x) => (x.email || "").toLowerCase() === params.email!.toLowerCase());
+  if (params.name) {
+    const needle = params.name.toLowerCase();
+    items = items.filter((x) => (x.name || "").toLowerCase().includes(needle));
+  }
+  if (params.group) {
+    const g = params.group.toLowerCase();
+    items = items.filter((x) => (x.group || "").toLowerCase().includes(g));
+  }
+  if (params.district) {
+    const d = params.district.toLowerCase();
+    items = items.filter((x) => (x.district || "").toLowerCase().includes(d));
+  }
   if (params.from) {
     const f = new Date(params.from);
     items = items.filter((x) => new Date(x.date) >= f);

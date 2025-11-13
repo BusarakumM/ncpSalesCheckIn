@@ -46,6 +46,10 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const from = url.searchParams.get("from") || undefined;
     const to = url.searchParams.get("to") || undefined;
+    const district = url.searchParams.get("district") || undefined;
+    const group = url.searchParams.get("group") || undefined;
+    const search = url.searchParams.get("search") || undefined;
+    let name = url.searchParams.get("name") || undefined;
     let email = url.searchParams.get("email") || url.searchParams.get("username") || undefined;
     let employeeNo = url.searchParams.get("employeeNo") || undefined;
     const me = url.searchParams.get("me");
@@ -54,7 +58,12 @@ export async function GET(req: Request) {
       email = (await c).get("username")?.value || (await c).get("email")?.value || email;
       employeeNo = (await c).get("employeeNo")?.value || employeeNo;
     }
-    const rows = await listLeaves({ from, to, email, employeeNo });
+    if (!name && search) {
+      const trimmed = search.trim();
+      if (/^\d+$/.test(trimmed)) employeeNo = trimmed;
+      else name = trimmed;
+    }
+    const rows = await listLeaves({ from, to, email, employeeNo, name, district, group });
     return NextResponse.json({ ok: true, rows });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Failed to list leaves" }, { status: 500 });

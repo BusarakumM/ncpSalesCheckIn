@@ -1,25 +1,31 @@
-"use client";
+ "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateDisplay } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
-type Row = { date: string; leaveType: string; reason: string; name?: string; email?: string; employeeNo?: string; district?: string };
+type Row = { date: string; leaveType: string; reason: string; name?: string; email?: string; employeeNo?: string; district?: string; group?: string };
 
 export default function LeaveManageClient() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [q, setQ] = useState(""); // username or emp no
+  const [qGroup, setQGroup] = useState("");
+  const [qDistrict, setQDistrict] = useState("");
+  const [qSearch, setQSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   async function deleteRow(r: Row) {
     if (!r?.date) return;
     const id = r.employeeNo || r.email || "";
     const label = `${r.date} – ${r.leaveType} ${r.name ? `(${r.name})` : id ? `(${id})` : ""}`.trim();
-    if (!confirm(`Delete this leave record?\n${label}`)) return;
+    if (!confirm(`ยืนยันการลบข้อมูลการลานี้หรือไม่?\n${label}`)) return;
     const res = await fetch("/api/pa/leave/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -27,20 +33,21 @@ export default function LeaveManageClient() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.ok) {
-      alert(data?.error || "Delete failed");
+      alert(data?.error || "ลบข้อมูลไม่สำเร็จ");
       return;
     }
-    await load();
+    await handleApply();
   }
 
   function exportCsv() {
-    const header = ["Date","Emp No","Name","Username","District","Leave Type","Reason"];
+    const header = ["วันที่","รหัสพนักงาน","ชื่อ","ชื่อผู้ใช้","เขต","กลุ่ม","ประเภทการลา","เหตุผล"];
     const lines = rows.map((r) => [
       r.date,
       r.employeeNo || "",
       r.name || "",
       r.email || "",
       r.district || "",
+      r.group || "",
       r.leaveType,
       r.reason,
     ]);
@@ -57,80 +64,155 @@ export default function LeaveManageClient() {
     URL.revokeObjectURL(url);
   }
 
-  async function load() {
+  async function load(overrides?: Partial<{ from: string; to: string; group: string; district: string; search: string }>) {
+    const nextFrom = overrides?.from ?? from;
+    const nextTo = overrides?.to ?? to;
+    const nextGroup = overrides?.group ?? qGroup;
+    const nextDistrict = overrides?.district ?? qDistrict;
+    const nextSearch = overrides?.search ?? qSearch;
     const qs = new URLSearchParams();
-    if (from) qs.set("from", from);
-    if (to) qs.set("to", to);
-    if (q) {
-      const v = q.trim();
-      if (/^\d+$/.test(v)) qs.set("employeeNo", v); else qs.set("username", v);
-    }
+    if (nextFrom) qs.set("from", nextFrom);
+    if (nextTo) qs.set("to", nextTo);
+    if (nextGroup) qs.set("group", nextGroup);
+    if (nextDistrict) qs.set("district", nextDistrict);
+    if (nextSearch) qs.set("search", nextSearch);
     const r = await fetch(`/api/pa/leave?${qs.toString()}`, { cache: "no-store" });
     const data = await r.json();
-    if (!r.ok || !data?.ok) throw new Error(data?.error || "Failed to load leaves");
+    if (!r.ok || !data?.ok) throw new Error(data?.error || "โหลดข้อมูลการลาไม่สำเร็จ");
     setRows(data.rows as Row[]);
   }
 
   useEffect(() => { load().catch(() => {}); }, []);
 
+  async function handleApply() {
+    setLoading(true);
+    try {
+      await load();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleClear() {
+    setClearing(true);
+    setFrom("");
+    setTo("");
+    setQGroup("");
+    setQDistrict("");
+    setQSearch("");
+    try {
+      await load({ from: "", to: "", group: "", district: "", search: "" });
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
       <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
         <div className="flex items-center gap-2">
-          <Link href="/supervisor" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50" title="Back">
+          <Link href="/supervisor" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50" title="ย้อนกลับ">
             <span className="text-xl">←</span>
           </Link>
-          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold">Leave Submissions</h1>
+          <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">รายการคำขอลา</h1>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="From" />
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="To" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} className="bg-white" placeholder="Employee No or Username" />
-        </div>
-        <div className="mt-3 flex justify-center">
-          <Button onClick={load} className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10">Search</Button>
+        <div className="mt-4 space-y-3">
+          <div>
+            <Label className="mb-1 block">ช่วงวันที่</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="จากวันที่" />
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="ถึงวันที่" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <Label className="mb-1 block">กลุ่ม</Label>
+              <Input value={qGroup} onChange={(e) => setQGroup(e.target.value)} className="bg-white" placeholder="ชื่อกลุ่ม" />
+            </div>
+            <div>
+              <Label className="mb-1 block">เขต</Label>
+              <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} className="bg-white" placeholder="ชื่อเขต" />
+            </div>
+            <div>
+              <Label className="mb-1 block">รหัสพนักงานหรือชื่อ</Label>
+              <Input value={qSearch} onChange={(e) => setQSearch(e.target.value)} className="bg-white" placeholder="รหัสพนักงาน หรือชื่อ" />
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap justify-center gap-3">
+            <Button
+              onClick={handleApply}
+              disabled={loading || clearing}
+              className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังโหลด...
+                </>
+              ) : (
+                "ตกลง"
+              )}
+            </Button>
+            <Button
+              onClick={handleClear}
+              disabled={loading || clearing}
+              variant="outline"
+              className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+            >
+              {clearing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังล้างค่า...
+                </>
+              ) : (
+                "ล้างทั้งหมด"
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Export */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
           <div className="mb-2 flex justify-end">
             <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              Export
+              ส่งออก
             </Button>
           </div>
           <div className="overflow-x-auto bg-white border border-black/20 rounded-md">
-            <Table className="min-w-[960px] text-sm">
+            <Table className="min-w-[1040px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[120px]">Date</TableHead>
-                  <TableHead className="min-w-[120px]">Emp No</TableHead>
-                  <TableHead className="min-w-[180px]">Name</TableHead>
-                  <TableHead className="min-w-[200px]">Username</TableHead>
-                  <TableHead className="min-w-[120px]">District</TableHead>
-                  <TableHead className="min-w-[140px]">Leave Type</TableHead>
-                  <TableHead className="min-w-[240px]">Reason</TableHead>
-                  <TableHead className="min-w-[100px] text-center">Action</TableHead>
+                  <TableHead className="min-w-[120px]">วันที่</TableHead>
+                  <TableHead className="min-w-[120px]">รหัสพนักงาน</TableHead>
+                  <TableHead className="min-w-[160px]">ชื่อ</TableHead>
+                  <TableHead className="min-w-[200px]">ชื่อผู้ใช้</TableHead>
+                  <TableHead className="min-w-[120px]">เขต</TableHead>
+                  <TableHead className="min-w-[120px]">กลุ่ม</TableHead>
+                  <TableHead className="min-w-[140px]">ประเภทการลา</TableHead>
+                  <TableHead className="min-w-[240px]">เหตุผล</TableHead>
+                  <TableHead className="min-w-[100px] text-center">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-500">No data</TableCell>
+                    <TableCell colSpan={9} className="text-center text-gray-500">ไม่มีข้อมูล</TableCell>
                   </TableRow>
                 ) : rows.map((r, i) => (
                   <TableRow key={i}>
-                    <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
+                    <TableCell title={formatDateDisplay(r.date) === "–" ? "ข้อมูลวันที่ไม่ถูกต้อง" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                     <TableCell>{r.employeeNo || ""}</TableCell>
                     <TableCell>{r.name || ""}</TableCell>
                     <TableCell className="truncate">{r.email || ""}</TableCell>
                     <TableCell>{r.district || ""}</TableCell>
+                    <TableCell>{r.group || ""}</TableCell>
                     <TableCell>{r.leaveType}</TableCell>
                     <TableCell className="whitespace-pre-wrap">{r.reason}</TableCell>
                     <TableCell className="text-center">
                       <button
                         onClick={() => deleteRow(r)}
-                        title="Delete"
+                        title="ลบ"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
                       >
                         🗑️
