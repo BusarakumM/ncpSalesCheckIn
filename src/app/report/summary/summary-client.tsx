@@ -97,36 +97,36 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           <Link
             href={homeHref}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
-            title="Home"
+            title="กลับหน้าหลัก"
           >
             <span className="text-xl">🏠</span>
           </Link>
           <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">
-            Sales Supports Summary
+            สรุปผลงานทีมเซลส์ซัพพอร์ต
           </h1>
         </div>
 
         {/* Filters */}
         <div className="mt-4 space-y-3">
           <div>
-            <Label className="mb-1 block">Date range</Label>
+            <Label className="mb-1 block">ช่วงวันที่</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="From" />
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="To" />
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="จากวันที่" />
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="ถึงวันที่" />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <Label className="mb-1 block">Group</Label>
-              <Input value={qGroup} onChange={(e) => setQGroup(e.target.value)} placeholder="Group" className="bg-white" />
+              <Label className="mb-1 block">กลุ่ม</Label>
+              <Input value={qGroup} onChange={(e) => setQGroup(e.target.value)} placeholder="ชื่อกลุ่ม" className="bg-white" />
             </div>
             <div>
-              <Label className="mb-1 block">District</Label>
-              <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} placeholder="District" className="bg-white" />
+              <Label className="mb-1 block">เขต</Label>
+              <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} placeholder="ชื่อเขต" className="bg-white" />
             </div>
             <div>
-              <Label className="mb-1 block">Employee No or Sales Support Name</Label>
-              <Input value={qSearch} onChange={(e) => setQSearch(e.target.value)} placeholder="Employee No or Name" className="bg-white" />
+              <Label className="mb-1 block">รหัสพนักงานหรือชื่อเซลส์ซัพพอร์ต</Label>
+              <Input value={qSearch} onChange={(e) => setQSearch(e.target.value)} placeholder="รหัสพนักงาน หรือชื่อ" className="bg-white" />
             </div>
           </div>
           <div className="mt-3 flex flex-wrap justify-center gap-3">
@@ -138,10 +138,10 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
+                  กำลังโหลด...
                 </>
               ) : (
-                "OK"
+                "ตกลง"
               )}
             </Button>
             <Button
@@ -153,10 +153,10 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               {clearing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Clearing...
+                  กำลังล้างค่า...
                 </>
               ) : (
-                "Clear All"
+                "ล้างทั้งหมด"
               )}
             </Button>
           </div>
@@ -167,7 +167,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           <div className="mb-2 flex justify-end">
             <Button
               onClick={() => {
-                const header = ["Group","District","Employee No","Name","Total","Completed","Incomplete","Ongoing"];
+                const header = ["กลุ่ม","เขต","รหัสพนักงาน","ชื่อเซลส์ซัพพอร์ต","รวมงาน","เสร็จสิ้น","ไม่เสร็จ","กำลังทำ"];
                 const lines = rows.map((r) => [
                   r.group || "",
                   r.district || "",
@@ -192,10 +192,10 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               variant="outline"
               className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2"
             >
-              Export
+              ส่งออก
             </Button>
           </div>
-          <h2 className="mb-3 text-center text-lg sm:text-xl font-extrabold">Summary Table</h2>
+          <h2 className="mb-3 text-center text-lg sm:text-xl font-extrabold">ตารางสรุป</h2>
 
           {/* Wrap in horizontal scroll on small screens */}
           <div className="overflow-x-auto">
@@ -203,18 +203,18 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
             <div className="min-w-[900px]">
               {/* Header row */}
               <div className="grid grid-cols-8 px-2 pb-2 text-sm font-medium">
-                <div className="text-center">Group</div>
-                <div className="text-center">District</div>
-                <div className="text-center">Employee No</div>
-                <div>Sale support name</div>
-                <div className="text-center">Task total</div>
-                <div className="text-center">Completed</div>
-                <div className="text-center">Incomplete</div>
-                <div className="text-center">Ongoing</div>
+                <div className="text-center">กลุ่ม</div>
+                <div className="text-center">เขต</div>
+                <div className="text-center">รหัสพนักงาน</div>
+                <div>ชื่อเซลส์ซัพพอร์ต</div>
+                <div className="text-center">รวมงาน</div>
+                <div className="text-center">เสร็จสิ้น</div>
+                <div className="text-center">ไม่เสร็จ</div>
+                <div className="text-center">กำลังทำ</div>
               </div>
 
               <div className="space-y-3 overflow-y-auto pr-2 max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh]">
-                {rows.length === 0 ? (<div className="text-center text-gray-600">No data</div>) : rows.map((r) => (
+                {rows.length === 0 ? (<div className="text-center text-gray-600">ไม่มีข้อมูล</div>) : rows.map((r) => (
                   <div
                     key={`${r.employeeNo || r.name}`}
                     className="grid grid-cols-8 items-center rounded-2xl bg-white px-3 py-3 shadow-sm gap-2"
@@ -240,6 +240,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           <Card className="border-none bg-transparent shadow-none">
             <CardContent className="flex flex-col items-center p-0">
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/80 mb-1" />
+              <div className="text-sm text-gray-600">จำนวนคน</div>
               <div className="text-xl sm:text-2xl font-extrabold">{kpis.members}</div>
             </CardContent>
           </Card>
@@ -247,7 +248,7 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           {/* Total */}
           <Card className="border-none bg-transparent shadow-none">
             <CardContent className="p-0 text-center">
-              <div className="text-sm">Total</div>
+              <div className="text-sm">รวมงานทั้งหมด</div>
               <div className="text-xl sm:text-2xl font-extrabold">{kpis.total}</div>
             </CardContent>
           </Card>
@@ -256,11 +257,11 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           <Link
             href={buildActivityHref("completed")}
             className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#4f9c7a] rounded-2xl"
-            aria-label="View completed activities"
+            aria-label="ดูรายการที่เสร็จสิ้น"
           >
             <Card className="border-none bg-[#BFD9C8] hover:shadow-md transition cursor-pointer">
               <CardContent className="p-2 sm:p-3 text-center">
-                <div className="text-sm opacity-80">Completed</div>
+                <div className="text-sm opacity-80">เสร็จสิ้น</div>
                 <div className="text-xl sm:text-2xl font-extrabold">{kpis.completed}</div>
               </CardContent>
             </Card>
@@ -270,11 +271,11 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           <Link
             href={buildActivityHref("incomplete")}
             className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#c06c6c] rounded-2xl"
-            aria-label="View incomplete activities"
+            aria-label="ดูรายการที่ยังไม่เสร็จ"
           >
             <Card className="border-none bg-[#E9A0A0] hover:shadow-md transition cursor-pointer">
               <CardContent className="p-2 sm:p-3 text-center">
-                <div className="text-sm opacity-80">Incomplete</div>
+                <div className="text-sm opacity-80">ยังไม่เสร็จ</div>
                 <div className="text-xl sm:text-2xl font-extrabold">{kpis.incomplete}</div>
               </CardContent>
             </Card>
@@ -284,11 +285,11 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           <Link
             href={buildActivityHref("ongoing")}
             className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#d3b652] rounded-2xl"
-            aria-label="View ongoing activities"
+            aria-label="ดูรายการที่กำลังทำ"
           >
             <Card className="border-none bg-[#F3E099] hover:shadow-md transition cursor-pointer">
               <CardContent className="p-2 sm:p-3 text-center">
-                <div className="text-sm opacity-80">Ongoing</div>
+                <div className="text-sm opacity-80">กำลังทำ</div>
                 <div className="text-xl sm:text-2xl font-extrabold">{kpis.ongoing}</div>
               </CardContent>
             </Card>

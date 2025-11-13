@@ -72,10 +72,10 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   const [isClearing, setIsClearing] = useState(false);
 
   const statusOptions: Array<{ value: StatusFilter; label: string }> = [
-    { value: "", label: "All" },
-    { value: "completed", label: "Completed" },
-    { value: "incomplete", label: "Incomplete" },
-    { value: "ongoing", label: "Ongoing" },
+    { value: "", label: "ทั้งหมด" },
+    { value: "completed", label: "เสร็จสิ้น" },
+    { value: "incomplete", label: "ยังไม่เสร็จ" },
+    { value: "ongoing", label: "กำลังทำ" },
   ];
 
   const statusChipStyles: Record<StatusFilter, string> = {
@@ -83,6 +83,11 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     completed: "bg-[#BFD9C8] text-gray-900",
     incomplete: "bg-[#E9A0A0] text-gray-900",
     ongoing: "bg-[#F3E099] text-gray-900",
+  };
+  const statusText: Record<Row["status"], string> = {
+    completed: "เสร็จสิ้น",
+    incomplete: "ยังไม่เสร็จ",
+    ongoing: "กำลังทำ",
   };
   function syncQueryParams(overrides?: FilterOverrides) {
     const params = new URLSearchParams();
@@ -171,7 +176,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
 
   function exportCsv() {
     const header = [
-      "Date","Check-in","Check-out","Location","รายละเอียดสถานที่","ปัญหา","หมายเหตุ","District","Emp No","Username","Sales Support Name","In GPS","Out GPS","Distance (km)","Status"
+      "วันที่","เวลาเข้างาน","เวลาออกงาน","สถานที่","รายละเอียดสถานที่","ปัญหา","หมายเหตุ","เขต","รหัสพนักงาน","ชื่อผู้ใช้","ชื่อเซลส์ซัพพอร์ต","พิกัดเข้า","พิกัดออก","ระยะทาง (กม.)","สถานะ"
     ];
     const lines = rows.map((r) => [
       r.date,
@@ -188,7 +193,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
       r.checkinGps || "",
       r.checkoutGps || "",
       r.distanceKm != null ? r.distanceKm.toFixed(3) : "",
-      r.status || "",
+      r.status ? statusText[r.status] : "",
     ]);
     const csv = [header, ...lines]
       .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -239,12 +244,12 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
           <Link
             href={homeHref}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
-            title="Home"
+            title="กลับหน้าหลัก"
           >
             <span className="text-xl">🏠</span>
           </Link>
           <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">
-            Sales Support Activity
+            กิจกรรมเซลส์ซัพพอร์ต
           </h1>
         </div>
 
@@ -272,47 +277,47 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
         {/* Filters */}
         <div className="mt-4 space-y-3">
           <div>
-            <Label className="block mb-1">Date range</Label>
+            <Label className="block mb-1">ช่วงวันที่</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Input
                 type="date"
                 value={qFrom}
                 onChange={(e) => setQFrom(e.target.value)}
                 className="bg-white w-full min-w-0"
-                placeholder="From"
+                placeholder="จากวันที่"
               />
               <Input
                 type="date"
                 value={qTo}
                 onChange={(e) => setQTo(e.target.value)}
                 className="bg-white w-full min-w-0"
-                placeholder="To"
+                placeholder="ถึงวันที่"
               />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <Label>Group</Label>
+              <Label>กลุ่ม</Label>
               <Input
-                placeholder="Group"
+                placeholder="ชื่อกลุ่ม"
                 value={qGroup}
                 onChange={(e) => setQGroup(e.target.value)}
                 className="bg-white"
               />
             </div>
             <div>
-              <Label>District</Label>
+              <Label>เขต</Label>
               <Input
-                placeholder="District"
+                placeholder="ชื่อเขต"
                 value={qDistrict}
                 onChange={(e) => setQDistrict(e.target.value)}
                 className="bg-white"
               />
             </div>
             <div>
-              <Label>Employee No or Sales Support Name</Label>
+              <Label>รหัสพนักงานหรือชื่อเซลส์ซัพพอร์ต</Label>
               <Input
-                placeholder="Employee No or Name"
+                placeholder="รหัสพนักงาน หรือชื่อ"
                 value={qSearch}
                 onChange={(e) => setQSearch(e.target.value)}
                 className="bg-white"
@@ -325,16 +330,16 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
           <Button
             onClick={handleApply}
             disabled={isFiltering || isClearing}
-            title={isFiltering ? "Loading..." : undefined}
+            title={isFiltering ? "กำลังค้นหา..." : undefined}
             className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
           >
             {isFiltering ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
+                กำลังค้นหา...
               </>
             ) : (
-              "OK"
+              "ตกลง"
             )}
           </Button>
           <Button
@@ -346,10 +351,10 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
             {isClearing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Clearing...
+                กำลังล้างค่า...
               </>
             ) : (
-              "Clear All"
+              "ล้างทั้งหมด"
             )}
           </Button>
         </div>
@@ -358,41 +363,41 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
           <div className="mb-2 flex justify-end">
             <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              Export
+              ส่งออก
             </Button>
           </div>
           <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
             <Table className="min-w-[700px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#E0D4B9] [&>*]:text-black">
-                  <TableHead className="min-w-[120px]">Date</TableHead>
-                  <TableHead>Check-in</TableHead>
-                  <TableHead>Check-out</TableHead>
-                  <TableHead className="min-w-[160px]">Location</TableHead>
+                  <TableHead className="min-w-[120px]">วันที่</TableHead>
+                  <TableHead>เวลาเข้างาน</TableHead>
+                  <TableHead>เวลาออกงาน</TableHead>
+                  <TableHead className="min-w-[160px]">สถานที่</TableHead>
                   <TableHead className="min-w-[160px]">รายละเอียดสถานที่</TableHead>
                   <TableHead className="min-w-[160px]">ปัญหา</TableHead>
                   <TableHead className="min-w-[160px]">หมายเหตุ</TableHead>
-                  <TableHead className="min-w-[140px]">District</TableHead>
-                  <TableHead className="min-w-[120px] cursor-pointer" title="Sort by Emp No" onClick={() => { setSortKey('employeeNo'); setSortDir(sortKey === 'employeeNo' && sortDir === 'asc' ? 'desc' : 'asc'); }}>Emp No</TableHead>
-                  <TableHead className="min-w-[180px] cursor-pointer" title="Sort by Username" onClick={() => { setSortKey('username'); setSortDir(sortKey === 'username' && sortDir === 'asc' ? 'desc' : 'asc'); }}>Username</TableHead>
-                  <TableHead className="min-w-[180px]">Sales Support Name</TableHead>
-                  <TableHead className="min-w-[180px]">In gps</TableHead>
-                  <TableHead className="min-w-[180px]">Out gps</TableHead>
-                  <TableHead className="min-w-[120px]">Distance (km)</TableHead>
-                  <TableHead className="min-w-[120px]">Status</TableHead>
+                  <TableHead className="min-w-[140px]">เขต</TableHead>
+                  <TableHead className="min-w-[120px] cursor-pointer" title="เรียงตามรหัสพนักงาน" onClick={() => { setSortKey('employeeNo'); setSortDir(sortKey === 'employeeNo' && sortDir === 'asc' ? 'desc' : 'asc'); }}>รหัสพนักงาน</TableHead>
+                  <TableHead className="min-w-[180px] cursor-pointer" title="เรียงตามชื่อผู้ใช้" onClick={() => { setSortKey('username'); setSortDir(sortKey === 'username' && sortDir === 'asc' ? 'desc' : 'asc'); }}>ชื่อผู้ใช้</TableHead>
+                  <TableHead className="min-w-[180px]">ชื่อเซลส์ซัพพอร์ต</TableHead>
+                  <TableHead className="min-w-[180px]">พิกัดเข้า</TableHead>
+                  <TableHead className="min-w-[180px]">พิกัดออก</TableHead>
+                  <TableHead className="min-w-[120px]">ระยะทาง (กม.)</TableHead>
+                  <TableHead className="min-w-[120px]">สถานะ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {displayRows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={13} className="text-center text-gray-500">
-                      No results
+                      ไม่พบข้อมูล
                     </TableCell>
                   </TableRow>
                 ) : (
                   displayRows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
+                      <TableCell title={formatDateDisplay(r.date) === "–" ? "ข้อมูลวันที่ไม่ถูกต้อง" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell>{r.checkin || "-"}</TableCell>
                       <TableCell>{r.checkout || "-"}</TableCell>
                       <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
@@ -406,7 +411,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                       <TableCell>
                         {(r as any).checkinLocation || r.location ? (
                           <div className="text-xs text-gray-700" title={(r as any).checkinLocation || r.location}>
-                            Location: {(r as any).checkinLocation || r.location}
+                            สถานที่: {(r as any).checkinLocation || r.location}
                           </div>
                         ) : null}
                         {r.checkinGps ? (
@@ -426,7 +431,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                       <TableCell>
                         {(r as any).checkoutLocation ? (
                           <div className="text-xs text-gray-700" title={(r as any).checkoutLocation}>
-                            Location: {(r as any).checkoutLocation}
+                            สถานที่: {(r as any).checkoutLocation}
                           </div>
                         ) : null}
                         {r.checkoutGps ? (
@@ -454,7 +459,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                           )
                         ) : (
                           // No checkout GPS to compare
-                          "No check out GPS"
+                          "ไม่มีพิกัดออกงาน"
                         )}
                       </TableCell>
                       <TableCell>
@@ -463,7 +468,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                             r.status
                           )}`}
                         >
-                          {r.status}
+                          {statusText[r.status]}
                         </span>
                       </TableCell>
                     </TableRow>
@@ -480,7 +485,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
             href="/report/summary"
             className="inline-flex w-full sm:w-auto items-center justify-center rounded-full bg-[#E8CC5C] px-6 py-3 text-gray-900 hover:bg-[#e3c54a] border border-black/20 text-center"
           >
-            Back to summary page
+            กลับไปหน้าสรุป
           </Link>
         </div>
       </div>
