@@ -65,6 +65,16 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=160x120&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
   }
 
+  function formatLatLon(gps?: string) {
+    if (!gps) return "";
+    const parts = gps.split(",");
+    if (parts.length < 2) return gps;
+    const lat = parts[0]?.trim();
+    const lon = parts[1]?.trim();
+    if (!lat || !lon) return gps;
+    return `Lat: ${lat}, Lon: ${lon}`;
+  }
+
   const [sortKey, setSortKey] = useState<"date" | "employeeNo" | "username">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -395,12 +405,37 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  displayRows.map((r, i) => (
+                  displayRows.map((r, i) => {
+                    const locationGps = r.checkinGps || r.checkoutGps || "";
+                    const latLonText = formatLatLon(locationGps);
+                    return (
                     <TableRow key={i}>
                       <TableCell title={formatDateDisplay(r.date) === "–" ? "ข้อมูลวันที่ไม่ถูกต้อง" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell>{r.checkin || "-"}</TableCell>
                       <TableCell>{r.checkout || "-"}</TableCell>
-                      <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium">{r.location || "-"}</div>
+                          {(r.checkinAddress || r.checkoutAddress) ? (
+                            <div className="text-xs text-gray-700 whitespace-pre-wrap">
+                              {r.checkinAddress || r.checkoutAddress}
+                            </div>
+                          ) : null}
+                          {latLonText ? (
+                            <div className="text-xs text-gray-600">
+                              {latLonText}
+                            </div>
+                          ) : null}
+                          {GMAPS_KEY && locationGps ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={mapUrl(locationGps)}
+                              alt="แผนที่สถานที่"
+                              className="mt-1 h-24 w-auto rounded border border-black/10"
+                            />
+                          ) : null}
+                        </div>
+                      </TableCell>
                       <TableCell>{r.detail || ""}</TableCell>
                       <TableCell>{(r as any).problemDetail || (r as any).problem || ""}</TableCell>
                       <TableCell>{(r as any).jobRemark || (r as any).remark || ""}</TableCell>
@@ -472,7 +507,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                         </span>
                       </TableCell>
                     </TableRow>
-                  ))
+                  )})
                 )}
               </TableBody>
             </Table>
@@ -492,8 +527,5 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     </div>
   );
 }
-
-
-
 
 

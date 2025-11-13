@@ -35,10 +35,14 @@ export async function POST(req: Request) {
       firstCheckin?: string;
       firstLocation?: string;
       firstImage?: string;
+      firstGps?: string;
+      firstAddress?: string;
       totalLocations: number;
       lastCheckout?: string;
       lastLocation?: string;
       lastCheckoutImage?: string;
+      lastGps?: string;
+      lastAddress?: string;
       leaveNote?: string;
       // internal helpers
       _firstMinutes: number;
@@ -82,9 +86,14 @@ export async function POST(req: Request) {
           firstCheckin: "",
           firstLocation: "",
           firstImage: "",
+          firstGps: "",
+          firstAddress: "",
           totalLocations: 0,
           lastCheckout: "",
+          lastLocation: "",
           lastCheckoutImage: "",
+          lastGps: "",
+          lastAddress: "",
           leaveNote: "",
           _firstMinutes: Number.POSITIVE_INFINITY,
           _lastMinutes: -1,
@@ -115,11 +124,19 @@ export async function POST(req: Request) {
         agg.firstCheckin = a.checkin;
         agg.firstLocation = locationName || agg.firstLocation;
         agg.firstImage = a.imageIn || agg.firstImage;
+        agg.firstGps = a.checkinGps || agg.firstGps;
+        agg.firstAddress = a.checkinAddress || agg.firstAddress;
       } else if (!agg.firstLocation && locationName) {
         agg.firstLocation = locationName;
       }
       if (!agg.firstImage && a.imageIn) {
         agg.firstImage = a.imageIn;
+      }
+      if (!agg.firstGps && a.checkinGps) {
+        agg.firstGps = a.checkinGps;
+      }
+      if (!agg.firstAddress && a.checkinAddress) {
+        agg.firstAddress = a.checkinAddress;
       }
       const checkoutMinutes = parseMinutes(a.checkout, -1);
       if (a.checkout && checkoutMinutes > agg._lastMinutes) {
@@ -127,10 +144,18 @@ export async function POST(req: Request) {
         agg.lastCheckout = a.checkout;
         agg.lastLocation = locationName || agg.lastLocation;
         agg.lastCheckoutImage = a.imageOut || agg.lastCheckoutImage;
+        agg.lastGps = a.checkoutGps || agg.lastGps;
+        agg.lastAddress = a.checkoutAddress || agg.lastAddress;
       } else if (!agg.lastCheckoutImage && a.imageOut) {
         agg.lastCheckoutImage = a.imageOut;
       } else if (!agg.lastLocation && locationName) {
         agg.lastLocation = locationName;
+      }
+      if (!agg.lastGps && a.checkoutGps) {
+        agg.lastGps = a.checkoutGps;
+      }
+      if (!agg.lastAddress && a.checkoutAddress) {
+        agg.lastAddress = a.checkoutAddress;
       }
     });
 
@@ -155,10 +180,14 @@ export async function POST(req: Request) {
       firstCheckin: row.firstCheckin || "",
       firstLocation: row.firstLocation || "",
       firstImage: row.firstImage || "",
+      firstGps: row.firstGps || "",
+      firstAddress: row.firstAddress || "",
       totalLocations: row._locationSet.size || row.totalLocations,
       lastCheckout: row.lastCheckout || "",
       lastLocation: row.lastLocation || "",
       lastCheckoutImage: row.lastCheckoutImage || "",
+      lastGps: row.lastGps || "",
+      lastAddress: row.lastAddress || "",
       leaveNote: row.leaveNote || "",
     }));
 

@@ -17,10 +17,14 @@ type Row = {
   firstCheckin?: string;
   firstLocation?: string;
   firstImage?: string;
+  firstGps?: string;
+  firstAddress?: string;
   totalLocations: number;
   lastCheckout?: string;
   lastLocation?: string;
   lastCheckoutImage?: string;
+  lastGps?: string;
+  lastAddress?: string;
   leaveNote?: string;
 };
 
@@ -32,6 +36,50 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
   const [qName, setQName] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [qDistrict, setQDistrict] = useState("");
+  const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
+
+  function mapUrl(coord?: string) {
+    if (!coord || !GMAPS_KEY) return "";
+    const q = encodeURIComponent(coord);
+    return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=16&size=200x140&markers=color:red%7C${q}&key=${GMAPS_KEY}`;
+  }
+
+  function formatLatLon(gps?: string) {
+    if (!gps) return "";
+    const parts = gps.split(",");
+    if (parts.length < 2) return gps;
+    const lat = parts[0]?.trim();
+    const lon = parts[1]?.trim();
+    if (!lat || !lon) return gps;
+    return `Lat: ${lat}, Lon: ${lon}`;
+  }
+
+  const renderLocationCell = (loc: { name?: string; address?: string; gps?: string }) => (
+    <div className="space-y-1">
+      <div className="font-medium">{loc.name || "-"}</div>
+      {loc.address ? (
+        <div className="text-xs text-gray-700 whitespace-pre-wrap">{loc.address}</div>
+      ) : null}
+      {formatLatLon(loc.gps) ? (
+        <div className="text-xs text-gray-600">{formatLatLon(loc.gps)}</div>
+      ) : null}
+      {loc.gps && GMAPS_KEY ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={mapUrl(loc.gps)}
+          alt="แผนที่สถานที่"
+          className="mt-1 h-20 w-auto rounded border border-black/10"
+        />
+      ) : null}
+    </div>
+  );
+
+  const summarizeLocation = (name?: string, gps?: string, address?: string) => {
+    let value = name || "";
+    if (gps) value += value ? ` (GPS: ${gps})` : `GPS: ${gps}`;
+    if (address) value += value ? ` – ${address}` : address;
+    return value;
+  };
 
   async function load() {
     const res = await fetch("/api/pa/time-attendance", {
@@ -54,10 +102,12 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
       "Sales Support Name",
       "First check-in time",
       "First location",
+      "First location GPS/Address",
       "Photo (first location)",
       "Total locations",
       "Last check-out time",
       "Last location",
+      "Last location GPS/Address",
       "Photo (last location)",
       "Leave",
     ];
@@ -69,10 +119,12 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
       r.name || "",
       r.firstCheckin || "",
       r.firstLocation || "",
+      summarizeLocation(r.firstLocation, r.firstGps, r.firstAddress),
       r.firstImage || "",
       r.totalLocations ?? 0,
       r.lastCheckout || "",
       r.lastLocation || "",
+      summarizeLocation(r.lastLocation, r.lastGps, r.lastAddress),
       r.lastCheckoutImage || "",
       r.leaveNote || "",
     ]);
@@ -168,11 +220,11 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                   <TableHead className="min-w-[140px]">Employee No.</TableHead>
                   <TableHead className="min-w-[200px]">Sales Support Name</TableHead>
                   <TableHead className="min-w-[140px]">First check-in</TableHead>
-                  <TableHead className="min-w-[200px]">First location</TableHead>
+                  <TableHead className="min-w-[220px]">First location</TableHead>
                   <TableHead className="min-w-[160px]">Photo (first)</TableHead>
                   <TableHead className="min-w-[140px]">Total locations</TableHead>
                   <TableHead className="min-w-[140px]">Last check-out</TableHead>
-                  <TableHead className="min-w-[200px]">Last location</TableHead>
+                  <TableHead className="min-w-[220px]">Last location</TableHead>
                   <TableHead className="min-w-[160px]">Photo (last)</TableHead>
                   <TableHead className="min-w-[160px]">Leave</TableHead>
                 </TableRow>
@@ -180,7 +232,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center text-gray-500">
+                    <TableCell colSpan={13} className="text-center text-gray-500">
                       No data for the selected filters
                     </TableCell>
                   </TableRow>
@@ -193,7 +245,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                       <TableCell>{r.employeeNo || ""}</TableCell>
                       <TableCell>{r.name || ""}</TableCell>
                       <TableCell>{r.firstCheckin || "-"}</TableCell>
-                      <TableCell className="whitespace-pre-wrap">{r.firstLocation || ""}</TableCell>
+                      <TableCell>{renderLocationCell({ name: r.firstLocation, address: r.firstAddress, gps: r.firstGps })}</TableCell>
                       <TableCell>
                         {r.firstImage ? (
                           <a href={r.firstImage} target="_blank" rel="noopener noreferrer">
@@ -231,7 +283,6 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
     </div>
   );
 }
-
 
 
 
