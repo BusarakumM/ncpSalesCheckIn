@@ -258,7 +258,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                       </TableCell>
                       <TableCell>{r.totalLocations ?? 0}</TableCell>
                       <TableCell>{r.lastCheckout || "-"}</TableCell>
-                      <TableCell className="whitespace-pre-wrap">{r.lastLocation || ""}</TableCell>
+                      <TableCell>{renderLocationCell({ name: r.lastLocation, address: r.lastAddress, gps: r.lastGps })}</TableCell>
                       <TableCell>
                         {r.lastCheckoutImage ? (
                           <a href={r.lastCheckoutImage} target="_blank" rel="noopener noreferrer">
@@ -283,7 +283,6 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
     </div>
   );
 }
-
 
 
 

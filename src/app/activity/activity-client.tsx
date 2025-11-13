@@ -413,29 +413,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                       <TableCell title={formatDateDisplay(r.date) === "–" ? "ข้อมูลวันที่ไม่ถูกต้อง" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell>{r.checkin || "-"}</TableCell>
                       <TableCell>{r.checkout || "-"}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium">{r.location || "-"}</div>
-                          {(r.checkinAddress || r.checkoutAddress) ? (
-                            <div className="text-xs text-gray-700 whitespace-pre-wrap">
-                              {r.checkinAddress || r.checkoutAddress}
-                            </div>
-                          ) : null}
-                          {latLonText ? (
-                            <div className="text-xs text-gray-600">
-                              {latLonText}
-                            </div>
-                          ) : null}
-                          {GMAPS_KEY && locationGps ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={mapUrl(locationGps)}
-                              alt="แผนที่สถานที่"
-                              className="mt-1 h-24 w-auto rounded border border-black/10"
-                            />
-                          ) : null}
-                        </div>
-                      </TableCell>
+                      <TableCell title={locationGps || undefined}>{r.location || "-"}</TableCell>
                       <TableCell>{r.detail || ""}</TableCell>
                       <TableCell>{(r as any).problemDetail || (r as any).problem || ""}</TableCell>
                       <TableCell>{(r as any).jobRemark || (r as any).remark || ""}</TableCell>
@@ -527,5 +505,4 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     </div>
   );
 }
-
 
