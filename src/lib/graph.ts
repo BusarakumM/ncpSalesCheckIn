@@ -129,6 +129,84 @@ export async function getTableHeaders(tableName: string): Promise<string[]> {
   return headers;
 }
 
+function columnLabel(idx: number): string {
+  let n = Math.max(1, idx);
+  let label = "";
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    label = String.fromCharCode(65 + rem) + label;
+    n = Math.floor((n - 1) / 26);
+  }
+  return label;
+}
+
+async function listWorksheets(): Promise<Array<{ id: string; name: string }>> {
+  const base = workbookBasePath();
+  const res = await graphFetch(`${base}/worksheets`);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`List worksheets failed ${res.status}: ${txt}`);
+  }
+  const data = (await res.json()) as any;
+  return Array.isArray(data?.value) ? data.value.map((w: any) => ({ id: w.id as string, name: w.name as string })) : [];
+}
+
+async function getOrCreateWorksheetId(name: string): Promise<string> {
+  const existing = (await listWorksheets()).find((w) => (w.name || "").toLowerCase() === name.toLowerCase());
+  if (existing?.id) return existing.id;
+  const base = workbookBasePath();
+  const res = await graphFetch(`${base}/worksheets/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (res.ok) {
+    const data = (await res.json()) as any;
+    if (data?.id) return data.id as string;
+  } else {
+    const txt = await res.text().catch(() => "");
+    console.warn("Create worksheet failed", txt);
+  }
+  const refreshed = (await listWorksheets()).find((w) => (w.name || "").toLowerCase() === name.toLowerCase());
+  if (refreshed?.id) return refreshed.id;
+  throw new Error(`Unable to prepare worksheet ${name}`);
+}
+
+async function ensureTableWithHeaders(tableName: string, headers: string[]): Promise<void> {
+  try {
+    await getTableHeaders(tableName);
+    return;
+  } catch (err: any) {
+    const msg = String(err?.message || "");
+    if (!msg.includes("Read headers failed")) throw err;
+  }
+  const base = workbookBasePath();
+  const worksheetId = await getOrCreateWorksheetId("LeaveDeletesStore");
+  const lastCol = columnLabel(headers.length);
+  const addRes = await graphFetch(`${base}/worksheets/${worksheetId}/tables/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address: `A1:${lastCol}1`, hasHeaders: true }),
+  });
+  if (!addRes.ok) {
+    const txt = await addRes.text().catch(() => "");
+    throw new Error(`Create deletes table failed ${addRes.status}: ${txt}`);
+  }
+  const tableData = (await addRes.json()) as any;
+  const createdId = tableData?.id ? encodeURIComponent(tableData.id as string) : encodeURIComponent(tableName);
+  await graphFetch(`${base}/tables/${createdId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: tableName }),
+  }).catch(() => Promise.resolve());
+  await graphFetch(`${base}/tables/${encodeURIComponent(tableName)}/headerRowRange`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ values: [headers] }),
+  });
+  headerCache.set(tableName, headers);
+}
+
 export async function addRowToTableByObject(tableName: string, data: Record<string, any>): Promise<void> {
   const headers = await getTableHeaders(tableName);
   const values = headers.map((h) => (data[h] ?? ""));
@@ -996,48 +1074,57 @@ function normalizeIsoCompare(value: string): string {
 }
 
 export async function deleteLeaveRow(params: { dtISO: string; employeeNo?: string; email?: string; username?: string }): Promise<boolean> {
-  const table = graphTables.leave();
-  const [headers, rows] = await Promise.all([getTableHeaders(table), listTableRows(table)]);
-  const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
-  const cols = {
-    dt: idx("dtISO"),
-    employeeNo: idx("employeeNo"),
-    email: (() => {
-      const u = idx("username");
-      return u >= 0 ? u : idx("email");
-    })(),
-  };
-  const targetDt = normalizeIsoCompare(params.dtISO);
-  const targetEmp = params.employeeNo ? params.employeeNo.toLowerCase() : null;
-  const targetIdentity = params.username?.toLowerCase() || params.email?.toLowerCase() || null;
-  if (!rows.length || cols.dt < 0) return false;
-  const base = workbookBasePath();
-  for (const entry of rows) {
-    const values = Array.isArray(entry?.values)
-      ? Array.isArray(entry.values[0])
-        ? entry.values[0]
-        : entry.values
-      : [];
-    const dtVal = normalizeIsoCompare(String(cols.dt >= 0 ? values[cols.dt] || "" : ""));
-    if (!dtVal || dtVal !== targetDt) continue;
-    const empVal = (cols.employeeNo >= 0 ? String(values[cols.employeeNo] || "") : "").toLowerCase();
-    const emailVal = (cols.email >= 0 ? String(values[cols.email] || "") : "").toLowerCase();
-    if (targetEmp && empVal && empVal !== targetEmp) continue;
-    if (targetIdentity && emailVal && emailVal !== targetIdentity) continue;
-    const deletePath = `${base}/tables/${encodeURIComponent(table)}/rows/${entry.index}`;
-    const res = await graphFetch(deletePath, { method: "DELETE" });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Delete leave row failed ${res.status}: ${txt}`);
+  try {
+    const table = graphTables.leave();
+    const [headers, rows] = await Promise.all([getTableHeaders(table), listTableRows(table)]);
+    const idx = (name: string) => headers.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+    const cols = {
+      dt: idx("dtISO"),
+      employeeNo: idx("employeeNo"),
+      email: (() => {
+        const u = idx("username");
+        return u >= 0 ? u : idx("email");
+      })(),
+    };
+    const targetDt = normalizeIsoCompare(params.dtISO);
+    const targetEmp = params.employeeNo ? params.employeeNo.toLowerCase() : null;
+    const targetIdentity = params.username?.toLowerCase() || params.email?.toLowerCase() || null;
+    if (!rows.length || cols.dt < 0) return false;
+    const base = workbookBasePath();
+    for (const entry of rows) {
+      const values = Array.isArray(entry?.values)
+        ? Array.isArray(entry.values[0])
+          ? entry.values[0]
+          : entry.values
+        : [];
+      const dtVal = normalizeIsoCompare(String(cols.dt >= 0 ? values[cols.dt] || "" : ""));
+      if (!dtVal || dtVal !== targetDt) continue;
+      const empVal = (cols.employeeNo >= 0 ? String(values[cols.employeeNo] || "") : "").toLowerCase();
+      const emailVal = (cols.email >= 0 ? String(values[cols.email] || "") : "").toLowerCase();
+      if (targetEmp && empVal && empVal !== targetEmp) continue;
+      if (targetIdentity && emailVal && emailVal !== targetIdentity) continue;
+      const deletePath = `${base}/tables/${encodeURIComponent(table)}/rows/${entry.index}`;
+      const res = await graphFetch(deletePath, { method: "DELETE" });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Delete leave row failed ${res.status}: ${txt}`);
+      }
+      return true;
     }
-    return true;
+    return false;
+  } catch (err: any) {
+    const msg = err?.message || "";
+    if (/apiNotFound/i.test(msg) || /ApiNotFound/i.test(msg)) {
+      return false;
+    }
+    throw err;
   }
-  return false;
 }
 
 // Record a soft-delete for a specific leave entry. Matches by (dtISO + employeeNo/username/email).
 export async function addLeaveDelete(row: { dtISO: string; employeeNo?: string; email?: string; username?: string; by?: string }) {
   const tbl = graphTables.leaveDeletes();
+  await ensureTableWithHeaders(tbl, ["dtISO", "employeeNo", "email", "username", "deletedAt", "deletedBy"]);
   await addRowToTableByObject(tbl, {
     dtISO: row.dtISO,
     // write all identity variants to support whichever header the table uses
