@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 // ---- Mock data (per your screenshot) ----
 type Row = { name: string; employeeNo?: string; group?: string; district?: string; total: number; completed: number; incomplete: number; ongoing: number };
@@ -17,17 +18,23 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
   const [qDistrict, setQDistrict] = useState("");
   const [qGroup, setQGroup] = useState("");
   const [qSearch, setQSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
-  
   const [rows, setRows] = useState<Row[]>([]);
 
-  async function load() {
+  async function load(overrides?: Partial<{ from: string; to: string; district: string; group: string; search: string }>) {
+    const nextFrom = overrides?.from ?? from;
+    const nextTo = overrides?.to ?? to;
+    const nextDistrict = overrides?.district ?? qDistrict;
+    const nextGroup = overrides?.group ?? qGroup;
+    const nextSearch = overrides?.search ?? qSearch;
     const payload: Record<string, string> = {};
-    if (from) payload.from = from;
-    if (to) payload.to = to;
-    if (qDistrict) payload.district = qDistrict;
-    if (qGroup) payload.group = qGroup;
-    if (qSearch) payload.search = qSearch;
+    if (nextFrom) payload.from = nextFrom;
+    if (nextTo) payload.to = nextTo;
+    if (nextDistrict) payload.district = nextDistrict;
+    if (nextGroup) payload.group = nextGroup;
+    if (nextSearch) payload.search = nextSearch;
     const res = await fetch("/api/pa/report/summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -39,6 +46,29 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
   }
 
   useEffect(() => { load().catch(() => {}); }, []);
+
+  async function handleApply() {
+    setLoading(true);
+    try {
+      await load();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleClear() {
+    setClearing(true);
+    setFrom("");
+    setTo("");
+    setQDistrict("");
+    setQGroup("");
+    setQSearch("");
+    try {
+      await load({ from: "", to: "", district: "", group: "", search: "" });
+    } finally {
+      setClearing(false);
+    }
+  }
 
   const kpis = useMemo(() => {
     const members = rows.length;
@@ -99,9 +129,35 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               <Input value={qSearch} onChange={(e) => setQSearch(e.target.value)} placeholder="Employee No or Name" className="bg-white" />
             </div>
           </div>
-          <div className="mt-3 flex justify-center">
-            <Button onClick={load} className="rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 px-6 sm:px-10">
-              OK
+          <div className="mt-3 flex flex-wrap justify-center gap-3">
+            <Button
+              onClick={handleApply}
+              disabled={loading || clearing}
+              className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                "OK"
+              )}
+            </Button>
+            <Button
+              onClick={handleClear}
+              disabled={loading || clearing}
+              variant="outline"
+              className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+            >
+              {clearing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Clearing...
+                </>
+              ) : (
+                "Clear All"
+              )}
             </Button>
           </div>
         </div>
