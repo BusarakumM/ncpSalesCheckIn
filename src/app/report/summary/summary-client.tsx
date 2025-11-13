@@ -97,12 +97,12 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           <div className="mb-2 flex justify-end">
             <Button
               onClick={() => {
-                const header = ["Employee No","Name","Group","District","Total","Completed","Incomplete","Ongoing"];
+                const header = ["Group","District","Employee No","Name","Total","Completed","Incomplete","Ongoing"];
                 const lines = rows.map((r) => [
-                  r.employeeNo || "",
-                  r.name,
                   r.group || "",
                   r.district || "",
+                  r.employeeNo || "",
+                  r.name,
                   r.total,
                   r.completed,
                   r.incomplete,
@@ -133,10 +133,10 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
             <div className="min-w-[900px]">
               {/* Header row */}
               <div className="grid grid-cols-8 px-2 pb-2 text-sm font-medium">
-                <div className="text-center">Employee No</div>
-                <div>Sale support name</div>
                 <div className="text-center">Group</div>
                 <div className="text-center">District</div>
+                <div className="text-center">Employee No</div>
+                <div>Sale support name</div>
                 <div className="text-center">Task total</div>
                 <div className="text-center">Completed</div>
                 <div className="text-center">Incomplete</div>
@@ -149,10 +149,10 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
                     key={`${r.employeeNo || r.name}`}
                     className="grid grid-cols-8 items-center rounded-2xl bg-white px-3 py-3 shadow-sm gap-2"
                   >
-                    <div className="text-center font-semibold">{r.employeeNo || "-"}</div>
-                    <div className="truncate">{r.name}</div>
                     <div className="text-center font-semibold">{r.group || "-"}</div>
                     <div className="text-center font-semibold">{r.district || ""}</div>
+                    <div className="text-center font-semibold">{r.employeeNo || "-"}</div>
+                    <div className="truncate">{r.name}</div>
                     <div className="text-center font-semibold">{r.total}</div>
                     <div className="text-center font-semibold">{r.completed}</div>
                     <div className="text-center font-semibold">{r.incomplete}</div>

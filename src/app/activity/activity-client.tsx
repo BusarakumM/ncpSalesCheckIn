@@ -34,15 +34,28 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const parseStatusParam = (value: string | null): Row["status"] | "" =>
+  type StatusFilter = "" | Row["status"];
+  type FilterOverrides = {
+    from?: string;
+    to?: string;
+    district?: string;
+    group?: string;
+    search?: string;
+    status?: StatusFilter;
+  };
+
+  const parseStatusParam = (value: string | null): StatusFilter =>
     value === "completed" || value === "incomplete" || value === "ongoing" ? value : "";
 
-  const [qIdentity, setQIdentity] = useState(() => searchParams.get("identity") || ""); // employeeNo or username
   const [qFrom, setQFrom] = useState(() => searchParams.get("from") || "");
   const [qTo, setQTo] = useState(() => searchParams.get("to") || "");
   const [rows, setRows] = useState<Row[]>([]);
+  const [qGroup, setQGroup] = useState(() => searchParams.get("group") || "");
   const [qDistrict, setQDistrict] = useState(() => searchParams.get("district") || "");
-  const [qStatus, setQStatus] = useState<"" | Row["status"]>(() => parseStatusParam(searchParams.get("status")));
+  const [qSearch, setQSearch] = useState(
+    () => searchParams.get("search") || searchParams.get("identity") || searchParams.get("name") || ""
+  ); // employeeNo or sales support name
+  const [qStatus, setQStatus] = useState<StatusFilter>(() => parseStatusParam(searchParams.get("status")));
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
 
@@ -56,47 +69,104 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const [isFiltering, setIsFiltering] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
-  const statusOptions: Array<{ value: "" | Row["status"]; label: string }> = [
+  const statusOptions: Array<{ value: StatusFilter; label: string }> = [
     { value: "", label: "All" },
     { value: "completed", label: "Completed" },
     { value: "incomplete", label: "Incomplete" },
     { value: "ongoing", label: "Ongoing" },
   ];
 
-  const statusChipStyles: Record<"" | Row["status"], string> = {
+  const statusChipStyles: Record<StatusFilter, string> = {
     "": "bg-white text-gray-800",
     completed: "bg-[#BFD9C8] text-gray-900",
     incomplete: "bg-[#E9A0A0] text-gray-900",
     ongoing: "bg-[#F3E099] text-gray-900",
   };
-
-  function updateStatusFilter(nextStatus: "" | Row["status"]) {
-    setQStatus(nextStatus);
-    const params = new URLSearchParams(searchParams.toString());
-    if (nextStatus) {
-      params.set("status", nextStatus);
-    } else {
-      params.delete("status");
-    }
+  function syncQueryParams(overrides?: FilterOverrides) {
+    const params = new URLSearchParams();
+    const fromVal = overrides?.from ?? qFrom;
+    const toVal = overrides?.to ?? qTo;
+    const districtVal = overrides?.district ?? qDistrict;
+    const groupVal = overrides?.group ?? qGroup;
+    const searchVal = overrides?.search ?? qSearch;
+    const statusVal = overrides?.status ?? qStatus;
+    if (fromVal) params.set("from", fromVal);
+    if (toVal) params.set("to", toVal);
+    if (groupVal) params.set("group", groupVal);
+    if (districtVal) params.set("district", districtVal);
+    if (searchVal) params.set("search", searchVal);
+    if (statusVal) params.set("status", statusVal);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
-  async function fetchRows() {
+  function updateStatusFilter(nextStatus: StatusFilter, opts: { sync?: boolean } = {}) {
+    setQStatus(nextStatus);
+    if (opts.sync === false) return;
+    syncQueryParams({ status: nextStatus });
+  }
+
+  async function fetchRows(overrides?: FilterOverrides) {
     const payload: any = {};
-    const q = qIdentity.trim();
-    if (q) {
-      if (/^\d+$/.test(q)) payload.employeeNo = q; else payload.username = q;
+    const searchVal = (overrides?.search ?? qSearch).trim();
+    if (searchVal) {
+      if (/^\d+$/.test(searchVal)) payload.employeeNo = searchVal;
+      else payload.name = searchVal;
     }
-    if (qFrom) payload.from = qFrom;
-    if (qTo) payload.to = qTo;
-    if (qDistrict) payload.district = qDistrict;
-    if (qStatus) payload.status = qStatus;
+    const fromVal = overrides?.from ?? qFrom;
+    if (fromVal) payload.from = fromVal;
+    const toVal = overrides?.to ?? qTo;
+    if (toVal) payload.to = toVal;
+    const districtVal = overrides?.district ?? qDistrict;
+    if (districtVal) payload.district = districtVal;
+    const groupVal = overrides?.group ?? qGroup;
+    if (groupVal) payload.group = groupVal;
+    const statusVal = overrides?.status ?? qStatus;
+    if (statusVal) payload.status = statusVal;
     const res = await fetch('/api/pa/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to load');
     setRows(data.rows as Row[]);
+  }
+
+  async function handleApply() {
+    setIsFiltering(true);
+    try {
+      await fetchRows();
+      syncQueryParams();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsFiltering(false);
+    }
+  }
+
+  async function handleClear() {
+    setIsClearing(true);
+    const defaults: Required<FilterOverrides> = {
+      from: "",
+      to: "",
+      district: "",
+      group: "",
+      search: "",
+      status: "" as StatusFilter,
+    };
+    setQFrom("");
+    setQTo("");
+    setQDistrict("");
+    setQGroup("");
+    setQSearch("");
+    updateStatusFilter("", { sync: false });
+    try {
+      await fetchRows(defaults);
+      syncQueryParams(defaults);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsClearing(false);
+    }
   }
 
   function exportCsv() {
@@ -200,19 +270,10 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
         </div>
 
         {/* Filters */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <Label>Employee No or Username</Label>
-            <Input
-              placeholder="Employee No or Username"
-              value={qIdentity}
-              onChange={(e) => setQIdentity(e.target.value)}
-              className="bg-white"
-            />
-          </div>
+        <div className="mt-4 space-y-3">
           <div>
             <Label className="block mb-1">Date range</Label>
-            <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Input
                 type="date"
                 value={qFrom}
@@ -229,25 +290,67 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
               />
             </div>
           </div>
-          <div>
-            <Label>District</Label>
-            <Input
-              placeholder="District"
-              value={qDistrict}
-              onChange={(e) => setQDistrict(e.target.value)}
-              className="bg-white"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <Label>Group</Label>
+              <Input
+                placeholder="Group"
+                value={qGroup}
+                onChange={(e) => setQGroup(e.target.value)}
+                className="bg-white"
+              />
+            </div>
+            <div>
+              <Label>District</Label>
+              <Input
+                placeholder="District"
+                value={qDistrict}
+                onChange={(e) => setQDistrict(e.target.value)}
+                className="bg-white"
+              />
+            </div>
+            <div>
+              <Label>Employee No or Sales Support Name</Label>
+              <Input
+                placeholder="Employee No or Name"
+                value={qSearch}
+                onChange={(e) => setQSearch(e.target.value)}
+                className="bg-white"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="mt-3 flex justify-center">
+        <div className="mt-3 flex flex-wrap justify-center gap-3">
           <Button
-            onClick={() => { setIsFiltering(true); fetchRows().catch(() => {}).finally(() => setIsFiltering(false)); }}
-            disabled={isFiltering}
+            onClick={handleApply}
+            disabled={isFiltering || isClearing}
             title={isFiltering ? "Loading..." : undefined}
             className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
           >
-            {isFiltering ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Loading...</>) : 'Search'}
+            {isFiltering ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              "OK"
+            )}
+          </Button>
+          <Button
+            onClick={handleClear}
+            disabled={isFiltering || isClearing}
+            variant="outline"
+            className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+          >
+            {isClearing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Clearing...
+              </>
+            ) : (
+              "Clear All"
+            )}
           </Button>
         </div>
 

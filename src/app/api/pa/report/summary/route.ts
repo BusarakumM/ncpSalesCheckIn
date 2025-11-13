@@ -1,13 +1,5 @@
 import { NextResponse } from "next/server";
-import { listActivities, graphTables, getTableHeaders, getTableValues } from "@/lib/graph";
-
-type UserInfo = {
-  name?: string;
-  email?: string;
-  employeeNo?: string;
-  district?: string;
-  group?: string;
-};
+import { listActivities, getUsersLookup, normalizeLookupKey, type UserLookupInfo } from "@/lib/graph";
 
 type SummaryEntry = {
   name: string;
@@ -21,56 +13,27 @@ type SummaryEntry = {
   ongoing: number;
 };
 
-function normalizeKey(value?: string | null): string | null {
-  const key = (value || "").trim().toLowerCase();
-  return key ? key : null;
-}
-
-async function buildUserLookup(): Promise<Map<string, UserInfo>> {
-  try {
-    const tbl = graphTables.users();
-    const [headers, rows] = await Promise.all([getTableHeaders(tbl), getTableValues(tbl)]);
-    const idx = (name: string) => headers.findIndex((h) => String(h).trim().toLowerCase() === name.toLowerCase());
-    const cols = {
-      email: idx("email"),
-      username: idx("username"),
-      name: idx("name"),
-      employeeNo: idx("employeeNo"),
-      district: idx("district"),
-      group: idx("group"),
-    };
-    const map = new Map<string, UserInfo>();
-    for (const row of rows) {
-      const info: UserInfo = {
-        name: cols.name >= 0 ? String(row[cols.name] || "").trim() : undefined,
-        email: cols.email >= 0 ? String(row[cols.email] || "").trim() : undefined,
-        employeeNo: cols.employeeNo >= 0 ? String(row[cols.employeeNo] || "").trim() : undefined,
-        district: cols.district >= 0 ? String(row[cols.district] || "").trim() : undefined,
-        group: cols.group >= 0 ? String(row[cols.group] || "").trim() : undefined,
-      };
-      const keys = [
-        normalizeKey(cols.email >= 0 ? row[cols.email] : undefined),
-        normalizeKey(cols.username >= 0 ? row[cols.username] : undefined),
-        normalizeKey(info.employeeNo),
-      ].filter(Boolean) as string[];
-      for (const key of keys) {
-        if (key && !map.has(key)) {
-          map.set(key, info);
-        }
-      }
-    }
-    return map;
-  } catch (err) {
-    console.warn("Failed to load users table for summary", err);
-    return new Map();
-  }
-}
-
 function identityKey(row: { email?: string; employeeNo?: string; name?: string }): string {
-  const emailKey = normalizeKey(row.email);
-  const employeeKey = normalizeKey(row.employeeNo);
-  const nameKey = normalizeKey(row.name);
+  const emailKey = normalizeLookupKey(row.email);
+  const employeeKey = normalizeLookupKey(row.employeeNo);
+  const nameKey = normalizeLookupKey(row.name);
   return emailKey ?? employeeKey ?? nameKey ?? "unknown";
+}
+
+function resolveUserInfo(
+  row: { email?: string; employeeNo?: string; name?: string },
+  userLookup: Map<string, UserLookupInfo>
+) {
+  const keys = [
+    normalizeLookupKey(row.email),
+    normalizeLookupKey(row.employeeNo),
+    normalizeLookupKey(row.name),
+  ].filter(Boolean) as string[];
+  for (const key of keys) {
+    const info = userLookup.get(key);
+    if (info) return info;
+  }
+  return null;
 }
 
 export async function POST(req: Request) {
@@ -79,18 +42,13 @@ export async function POST(req: Request) {
     const { from, to, district } = raw || {};
     const [rows, userLookup] = await Promise.all([
       listActivities({ from, to, district }),
-      buildUserLookup(),
+      getUsersLookup(),
     ]);
 
     const summaryMap = new Map<string, SummaryEntry>();
     for (const r of rows) {
       const key = identityKey(r);
-      const emailKey = normalizeKey(r.email);
-      const employeeKey = normalizeKey(r.employeeNo);
-      const userInfo =
-        (emailKey && userLookup.get(emailKey)) ||
-        (employeeKey && userLookup.get(employeeKey)) ||
-        null;
+      const userInfo = resolveUserInfo(r, userLookup);
       let s = summaryMap.get(key);
       if (!s) {
         s = {

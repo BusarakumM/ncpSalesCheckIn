@@ -192,6 +192,62 @@ export type ActivityRow = {
   issues?: string[]; // server-side flags for diagnostics
 };
 
+export type UserLookupInfo = {
+  name?: string;
+  email?: string;
+  username?: string;
+  employeeNo?: string;
+  district?: string;
+  group?: string;
+};
+
+export function normalizeLookupKey(value?: string | null): string | null {
+  const key = (value || "").trim().toLowerCase();
+  return key ? key : null;
+}
+
+export async function getUsersLookup(): Promise<Map<string, UserLookupInfo>> {
+  try {
+    const tbl = graphTables.users();
+    const [headers, rows] = await Promise.all([getTableHeaders(tbl), getTableValues(tbl)]);
+    const idx = (name: string) => headers.findIndex((h) => String(h).trim().toLowerCase() === name.toLowerCase());
+    const cols = {
+      email: idx("email"),
+      username: idx("username"),
+      name: idx("name"),
+      employeeNo: idx("employeeNo"),
+      district: idx("district"),
+      group: idx("group"),
+    };
+    const map = new Map<string, UserLookupInfo>();
+    for (const row of rows) {
+      const info: UserLookupInfo = {
+        name: cols.name >= 0 ? String(row[cols.name] || "").trim() : undefined,
+        email: cols.email >= 0 ? String(row[cols.email] || "").trim() : undefined,
+        username: cols.username >= 0 ? String(row[cols.username] || "").trim() : undefined,
+        employeeNo: cols.employeeNo >= 0 ? String(row[cols.employeeNo] || "").trim() : undefined,
+        district: cols.district >= 0 ? String(row[cols.district] || "").trim() : undefined,
+        group: cols.group >= 0 ? String(row[cols.group] || "").trim() : undefined,
+      };
+      const keys = [
+        normalizeLookupKey(info.email),
+        normalizeLookupKey(info.username),
+        normalizeLookupKey(info.employeeNo),
+        normalizeLookupKey(info.name),
+      ].filter(Boolean) as string[];
+      for (const key of keys) {
+        if (key && !map.has(key)) {
+          map.set(key, info);
+        }
+      }
+    }
+    return map;
+  } catch (err) {
+    console.warn("Unable to load users lookup", err);
+    return new Map();
+  }
+}
+
 function toDatePart(iso: string | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -209,7 +265,17 @@ function toTimePart(iso: string | undefined): string {
   return `${hh}:${mi}`;
 }
 
-export async function listActivities(params: { from?: string; to?: string; name?: string; email?: string; employeeNo?: string; district?: string; location?: string; group?: string }): Promise<ActivityRow[]> {
+export async function listActivities(params: {
+  from?: string;
+  to?: string;
+  name?: string;
+  email?: string;
+  employeeNo?: string;
+  district?: string;
+  location?: string;
+  group?: string;
+  status?: ActivityRow["status"];
+}): Promise<ActivityRow[]> {
   const tCheckin = graphTables.checkin();
   const tCheckout = graphTables.checkout();
   const [ciHeaders, ciRows, coHeaders, coRows] = await Promise.all([
@@ -453,6 +519,19 @@ export async function listActivities(params: { from?: string; to?: string; name?
   }
 
   let rows = Array.from(map.values());
+  let userLookup: Map<string, UserLookupInfo> | null = null;
+  const identityKeys = (row: ActivityRow) =>
+    [
+      normalizeLookupKey(row.email),
+      normalizeLookupKey(row.employeeNo),
+      normalizeLookupKey(row.name),
+    ].filter(Boolean) as string[];
+  const ensureUserLookup = async () => {
+    if (!userLookup) {
+      userLookup = await getUsersLookup();
+    }
+    return userLookup;
+  };
 
   // Filter
   if (params.from) {
@@ -482,6 +561,33 @@ export async function listActivities(params: { from?: string; to?: string; name?
   if (params.location) {
     const l = params.location.toLowerCase();
     rows = rows.filter((r) => (r.location || "").toLowerCase().includes(l));
+  }
+  if (params.group) {
+    const g = params.group.toLowerCase();
+    const lookup = await ensureUserLookup();
+    if (!lookup.size) {
+      rows = rows.filter((r) => (r.group || "").toLowerCase().includes(g));
+    } else {
+      rows = rows.filter((r) => {
+        const rowGroup = (r.group || "").toLowerCase();
+        if (rowGroup && rowGroup.includes(g)) return true;
+        for (const key of identityKeys(r)) {
+          if (!key) continue;
+          const info = lookup.get(key);
+          if (info?.group && info.group.toLowerCase().includes(g)) {
+            if (!r.group) r.group = info.group;
+            if (!r.employeeNo && info.employeeNo) r.employeeNo = info.employeeNo;
+            if (!r.district && info.district) r.district = info.district;
+            if (!r.name && info.name) r.name = info.name;
+            return true;
+          }
+        }
+        return false;
+      });
+    }
+  }
+  if (params.status) {
+    rows = rows.filter((r) => r.status === params.status);
   }
 
   // Order by date ASC then name ASC for readability
