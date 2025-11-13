@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateDisplay } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 type Row = {
   date: string;
@@ -33,9 +34,12 @@ const DATA: Row[] = [];
 export default function TimeAttendanceClient({ homeHref }: { homeHref: string }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [qName, setQName] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [qGroup, setQGroup] = useState("");
   const [qDistrict, setQDistrict] = useState("");
+  const [qSearch, setQSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
 
   function mapUrl(coord?: string) {
@@ -81,11 +85,16 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
     return value;
   };
 
-  async function load() {
+  async function load(overrides?: Partial<{ from: string; to: string; group: string; district: string; search: string }>) {
+    const nextFrom = overrides?.from ?? from;
+    const nextTo = overrides?.to ?? to;
+    const nextGroup = overrides?.group ?? qGroup;
+    const nextDistrict = overrides?.district ?? qDistrict;
+    const nextSearch = overrides?.search ?? qSearch;
     const res = await fetch("/api/pa/time-attendance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to, name: qName, district: qDistrict })
+      body: JSON.stringify({ from: nextFrom, to: nextTo, group: nextGroup, district: nextDistrict, search: nextSearch })
     });
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load time-attendance");
@@ -153,51 +162,78 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
             <span className="text-xl">🏠</span>
           </Link>
           <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">
-            Time Attendance report
+            รายงานเวลาเข้า-ออกงาน
           </h1>
         </div>
 
         {/* Filters */}
         <div className="mt-4 space-y-3">
-          <div className="text-sm font-medium">Filter : Date</div>
+          <Label className="mb-1 block text-sm font-medium">ช่วงวันที่</Label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1 block">From</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" placeholder="จากวันที่" />
             </div>
             <div>
-              <Label className="mb-1 block">To</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" placeholder="ถึงวันที่" />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <div className="text-sm font-medium">Filter : Sales Support Name</div>
-              <Input
-                placeholder="Search by name"
-                value={qName}
-                onChange={(e) => setQName(e.target.value)}
-                className="bg-white"
-              />
+              <Label className="mb-1 block">กลุ่ม</Label>
+              <Input value={qGroup} onChange={(e) => setQGroup(e.target.value)} placeholder="ชื่อกลุ่ม" className="bg-white" />
             </div>
             <div>
-              <div className="text-sm font-medium">Filter : District</div>
-              <Input
-                placeholder="District"
-                value={qDistrict}
-                onChange={(e) => setQDistrict(e.target.value)}
-                className="bg-white"
-              />
+              <Label className="mb-1 block">เขต</Label>
+              <Input value={qDistrict} onChange={(e) => setQDistrict(e.target.value)} placeholder="ชื่อเขต" className="bg-white" />
+            </div>
+            <div>
+              <Label className="mb-1 block">รหัสพนักงานหรือชื่อ</Label>
+              <Input value={qSearch} onChange={(e) => setQSearch(e.target.value)} placeholder="รหัสพนักงาน หรือชื่อ" className="bg-white" />
             </div>
           </div>
 
-          <div className="mt-2 flex justify-center">
+          <div className="mt-3 flex flex-wrap justify-center gap-3">
             <Button
-              onClick={load}
-              className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 px-6 sm:px-10"
+              onClick={async () => { setLoading(true); try { await load(); } finally { setLoading(false); } }}
+              disabled={loading || clearing}
+              className="rounded-full bg-[#BFD9C8] text-gray-900 hover:bg-[#b3d0bf] border border-black/10 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
             >
-              OK
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังโหลด...
+                </>
+              ) : (
+                "ตกลง"
+              )}
+            </Button>
+            <Button
+              onClick={async () => {
+                setClearing(true);
+                setFrom("");
+                setTo("");
+                setQGroup("");
+                setQDistrict("");
+                setQSearch("");
+                try {
+                  await load({ from: "", to: "", group: "", district: "", search: "" });
+                } finally {
+                  setClearing(false);
+                }
+              }}
+              disabled={loading || clearing}
+              variant="outline"
+              className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+            >
+              {clearing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังล้างค่า...
+                </>
+              ) : (
+                "ล้างทั้งหมด"
+              )}
             </Button>
           </div>
         </div>
@@ -206,7 +242,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
           <div className="mb-2 flex justify-end">
             <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              Export
+              ส่งออก
             </Button>
           </div>
 
@@ -214,7 +250,7 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
           <div className="sm:hidden space-y-3">
             {rows.length === 0 ? (
               <div className="rounded-2xl border border-black/20 bg-white px-4 py-3 text-center text-gray-500">
-                No data for the selected filters
+                ไม่มีข้อมูลตามตัวกรอง
               </div>
             ) : (
               rows.map((r, i) => (
@@ -254,32 +290,32 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
             <Table className="w-full text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="w-[9%]">Date/Time</TableHead>
-                  <TableHead className="w-[8%]">Group</TableHead>
-                  <TableHead className="w-[9%]">District</TableHead>
-                  <TableHead className="w-[9%]">Employee No.</TableHead>
-                  <TableHead className="w-[14%]">Sales Support Name</TableHead>
-                  <TableHead className="w-[10%]">First check-in</TableHead>
-                  <TableHead className="w-[15%]">First location</TableHead>
-                  <TableHead className="w-[10%]">Photo (first)</TableHead>
-                  <TableHead className="w-[6%]">Total locations</TableHead>
-                  <TableHead className="w-[10%]">Last check-out</TableHead>
-                  <TableHead className="w-[15%]">Last location</TableHead>
-                  <TableHead className="w-[10%]">Photo (last)</TableHead>
-                  <TableHead className="w-[15%]">Leave</TableHead>
+                  <TableHead className="w-[9%]">วันที่/เวลา</TableHead>
+                  <TableHead className="w-[8%]">กลุ่ม</TableHead>
+                  <TableHead className="w-[9%]">เขต</TableHead>
+                  <TableHead className="w-[9%]">รหัสพนักงาน</TableHead>
+                  <TableHead className="w-[14%]">ชื่อเซลส์ซัพพอร์ต</TableHead>
+                  <TableHead className="w-[10%]">เวลาเข้างานแรก</TableHead>
+                  <TableHead className="w-[15%]">สถานที่แรก</TableHead>
+                  <TableHead className="w-[10%]">รูปภาพ (แรก)</TableHead>
+                  <TableHead className="w-[6%]">จำนวนสถานที่</TableHead>
+                  <TableHead className="w-[10%]">เวลาออกงานสุดท้าย</TableHead>
+                  <TableHead className="w-[15%]">สถานที่สุดท้าย</TableHead>
+                  <TableHead className="w-[10%]">รูปภาพ (สุดท้าย)</TableHead>
+                  <TableHead className="w-[15%]">สถานะ/ลา</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={13} className="text-center text-gray-500">
-                      No data for the selected filters
+                      ไม่มีข้อมูลตามตัวกรอง
                     </TableCell>
                   </TableRow>
                 ) : (
                   rows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
+                      <TableCell title={formatDateDisplay(r.date) === "–" ? "ข้อมูลวันที่ไม่ถูกต้อง" : undefined}>{formatDateDisplay(r.date)}</TableCell>
                       <TableCell>{r.group || ""}</TableCell>
                       <TableCell>{r.district || ""}</TableCell>
                       <TableCell>{r.employeeNo || ""}</TableCell>
@@ -324,7 +360,3 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
     </div>
   );
 }
-
-
-
-

@@ -4,12 +4,35 @@ import { listActivities, listLeaves, getUsersLookup, normalizeLookupKey } from "
 export async function POST(req: Request) {
   try {
     const raw = (await req.json().catch(() => ({}))) as any;
-    const { from, to, name, email, username, district } = raw || {};
+    const { from, to, name, email, username, district, group, search } = raw || {};
 
     const identity = email || username;
+    let nameFilter: string | undefined;
+    let employeeFilter: string | undefined;
+    if (typeof search === "string" && search.trim()) {
+      const trimmed = search.trim();
+      if (/^\d+$/.test(trimmed)) employeeFilter = trimmed;
+      else nameFilter = trimmed;
+    }
+
     const [activities, leaveItems, userLookup] = await Promise.all([
-      listActivities({ from, to, name, email: identity, district }),
-      listLeaves({ from, to }),
+      listActivities({
+        from,
+        to,
+        name: nameFilter || name,
+        email: identity,
+        employeeNo: employeeFilter,
+        district,
+        group,
+      }),
+      listLeaves({
+        from,
+        to,
+        name: nameFilter || name,
+        employeeNo: employeeFilter,
+        district,
+        group,
+      }),
       getUsersLookup(),
     ]);
 
@@ -203,13 +226,22 @@ export async function POST(req: Request) {
     }));
 
     let filtered = result;
-    if (name) {
-      const n = String(name).toLowerCase();
-      filtered = filtered.filter((r) => (r.name || "").toLowerCase().includes(n));
+    if (employeeFilter) {
+      const emp = employeeFilter.toLowerCase();
+      filtered = filtered.filter((r) => (r.employeeNo || "").toLowerCase() === emp);
+    }
+    const nameQuery = nameFilter || (name ? String(name).trim() : "");
+    if (nameQuery) {
+      const nq = nameQuery.toLowerCase();
+      filtered = filtered.filter((r) => (r.name || "").toLowerCase().includes(nq));
     }
     if (district) {
       const d = String(district).toLowerCase();
       filtered = filtered.filter((r) => (r.district || "").toLowerCase().includes(d));
+    }
+    if (group) {
+      const g = String(group).toLowerCase();
+      filtered = filtered.filter((r) => (r.group || "").toLowerCase().includes(g));
     }
 
     filtered.sort((a, b) => {
