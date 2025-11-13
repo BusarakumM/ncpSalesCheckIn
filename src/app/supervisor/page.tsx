@@ -11,16 +11,16 @@ export default async function SupervisorPage() {
   if (role !== "SUPERVISOR") {
     redirect("/home");
   }
-  const name = c.get("name")?.value || "Supervisor";
+  const name = c.get("name")?.value || "หัวหน้างาน";
   const email = c.get("username")?.value || c.get("email")?.value || "supervisor";
 
   const tiles = [
-    { href: "/calendar",        title: "Calendar",                 bg: "bg-[#CFE4DD]", icon: CalendarDays, span2: false },
-    { href: "/activity",        title: "Sales Support\nActivity",  bg: "bg-[#E6D8B9]", icon: Users,        span2: false },
-    { href: "/report/summary",  title: "Sales Supports\nSummary",  bg: "bg-[#CFE4DD]", icon: BarChart3,     span2: false },
-    { href: "/report",          title: "Report",                   bg: "bg-[#E6D8B9]", icon: FileText,      span2: false },
-    { href: "/leave/manage",    title: "Leave\nSubmissions",       bg: "bg-[#CFE4DD]", icon: FileText,      span2: false },
-    { href: "/time-attendance", title: "Time Attendance\nReport",  bg: "bg-[#E6D8B9]", icon: Clock,         span2: false },
+    { href: "/calendar",        title: "ปฏิทิน",                        bg: "bg-[#CFE4DD]", icon: CalendarDays, span2: false },
+    { href: "/activity",        title: "กิจกรรมเซลส์ซัพพอร์ต",          bg: "bg-[#E6D8B9]", icon: Users,        span2: false },
+    { href: "/report/summary",  title: "สรุปผลงาน\nเซลส์ซัพพอร์ต",     bg: "bg-[#CFE4DD]", icon: BarChart3,     span2: false },
+    { href: "/report",          title: "บันทึกเวลาและการปฏิบัติ\n(สถานที่)",                        bg: "bg-[#E6D8B9]", icon: FileText,      span2: false },
+    { href: "/leave/manage",    title: "จัดการคำขอลา",                  bg: "bg-[#CFE4DD]", icon: FileText,      span2: false },
+    { href: "/time-attendance", title: "บันทึกเข้างาน-ออกงาน\n(รายวัน)",        bg: "bg-[#E6D8B9]", icon: Clock,         span2: false },
   ];
 
   return (
@@ -55,7 +55,7 @@ export default async function SupervisorPage() {
               type="submit"
               className="rounded-full bg-[#E8CC5C] px-4 py-1 text-gray-900 hover:bg-[#e3c54a] border border-black/20 font-semibold text-sm sm:text-base"
             >
-              Logout
+              ออกจากระบบ
             </button>
           </form>
         </div>
