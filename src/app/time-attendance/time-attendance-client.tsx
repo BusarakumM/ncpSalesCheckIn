@@ -250,24 +250,23 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
 
           {/* Desktop table */}
           <div className="hidden sm:block">
-          <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
-            {/* keep enough width so columns don't squish on phones */}
-            <Table className="min-w-[1100px] text-sm">
+          <div className="overflow-x-auto overflow-y-auto max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh] bg-white border border-black/20 rounded-md">
+            <Table className="w-full text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
-                  <TableHead className="min-w-[140px]">Date/Time</TableHead>
-                  <TableHead className="min-w-[140px]">Group</TableHead>
-                  <TableHead className="min-w-[140px]">District</TableHead>
-                  <TableHead className="min-w-[140px]">Employee No.</TableHead>
-                  <TableHead className="min-w-[200px]">Sales Support Name</TableHead>
-                  <TableHead className="min-w-[140px]">First check-in</TableHead>
-                  <TableHead className="min-w-[220px]">First location</TableHead>
-                  <TableHead className="min-w-[160px]">Photo (first)</TableHead>
-                  <TableHead className="min-w-[140px]">Total locations</TableHead>
-                  <TableHead className="min-w-[140px]">Last check-out</TableHead>
-                  <TableHead className="min-w-[220px]">Last location</TableHead>
-                  <TableHead className="min-w-[160px]">Photo (last)</TableHead>
-                  <TableHead className="min-w-[160px]">Leave</TableHead>
+                  <TableHead className="w-[9%]">Date/Time</TableHead>
+                  <TableHead className="w-[8%]">Group</TableHead>
+                  <TableHead className="w-[9%]">District</TableHead>
+                  <TableHead className="w-[9%]">Employee No.</TableHead>
+                  <TableHead className="w-[14%]">Sales Support Name</TableHead>
+                  <TableHead className="w-[10%]">First check-in</TableHead>
+                  <TableHead className="w-[15%]">First location</TableHead>
+                  <TableHead className="w-[10%]">Photo (first)</TableHead>
+                  <TableHead className="w-[6%]">Total locations</TableHead>
+                  <TableHead className="w-[10%]">Last check-out</TableHead>
+                  <TableHead className="w-[15%]">Last location</TableHead>
+                  <TableHead className="w-[10%]">Photo (last)</TableHead>
+                  <TableHead className="w-[15%]">Leave</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -325,7 +324,6 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
     </div>
   );
 }
-
 
 
 
