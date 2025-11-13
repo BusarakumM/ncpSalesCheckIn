@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 // ---- Mock data (per your screenshot) ----
-type Row = { name: string; district?: string; total: number; completed: number; incomplete: number; ongoing: number };
+type Row = { name: string; employeeNo?: string; group?: string; district?: string; total: number; completed: number; incomplete: number; ongoing: number };
 const DATA: Row[] = [];
 
 export default function SummaryClient({ homeHref }: { homeHref: string }) {
@@ -97,8 +97,17 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           <div className="mb-2 flex justify-end">
             <Button
               onClick={() => {
-                const header = ["Name","District","Total","Completed","Incomplete","Ongoing"];
-                const lines = rows.map((r) => [r.name, r.district || "", r.total, r.completed, r.incomplete, r.ongoing]);
+                const header = ["Employee No","Name","Group","District","Total","Completed","Incomplete","Ongoing"];
+                const lines = rows.map((r) => [
+                  r.employeeNo || "",
+                  r.name,
+                  r.group || "",
+                  r.district || "",
+                  r.total,
+                  r.completed,
+                  r.incomplete,
+                  r.ongoing,
+                ]);
                 const csv = [header, ...lines]
                   .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
                   .join("\n");
@@ -121,10 +130,12 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
           {/* Wrap in horizontal scroll on small screens */}
           <div className="overflow-x-auto">
             {/* Use a min-width grid so columns don't squish on phones */}
-            <div className="min-w-[680px]">
+            <div className="min-w-[900px]">
               {/* Header row */}
-              <div className="grid grid-cols-6 px-2 pb-2 text-sm font-medium">
+              <div className="grid grid-cols-8 px-2 pb-2 text-sm font-medium">
+                <div className="text-center">Employee No</div>
                 <div>Sale support name</div>
+                <div className="text-center">Group</div>
                 <div className="text-center">District</div>
                 <div className="text-center">Task total</div>
                 <div className="text-center">Completed</div>
@@ -135,10 +146,12 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               <div className="space-y-3 overflow-y-auto pr-2 max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh]">
                 {rows.length === 0 ? (<div className="text-center text-gray-600">No data</div>) : rows.map((r) => (
                   <div
-                    key={r.name}
-                    className="grid grid-cols-6 items-center rounded-2xl bg-white px-3 py-3 shadow-sm"
+                    key={`${r.employeeNo || r.name}`}
+                    className="grid grid-cols-8 items-center rounded-2xl bg-white px-3 py-3 shadow-sm gap-2"
                   >
+                    <div className="text-center font-semibold">{r.employeeNo || "-"}</div>
                     <div className="truncate">{r.name}</div>
+                    <div className="text-center font-semibold">{r.group || "-"}</div>
                     <div className="text-center font-semibold">{r.district || ""}</div>
                     <div className="text-center font-semibold">{r.total}</div>
                     <div className="text-center font-semibold">{r.completed}</div>
