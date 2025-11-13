@@ -178,6 +178,27 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
           </h1>
         </div>
 
+        {/* Status quick filter */}
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          {statusOptions.map(({ value, label }) => {
+            const isActive = value === qStatus;
+            const palette = statusChipStyles[value];
+            const base = "rounded-full border border-black/20 px-4 py-1 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+            const activeClasses = isActive ? `${palette} shadow` : "bg-white text-gray-800 hover:bg-gray-100";
+            return (
+              <button
+                key={value || "all"}
+                type="button"
+                onClick={() => updateStatusFilter(value)}
+                className={`${base} ${activeClasses}`}
+                aria-pressed={isActive}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Filters */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
@@ -217,27 +238,6 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
               className="bg-white"
             />
           </div>
-        </div>
-
-        {/* Status quick filter */}
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          {statusOptions.map(({ value, label }) => {
-            const isActive = value === qStatus;
-            const palette = statusChipStyles[value];
-            const base = "rounded-full border border-black/20 px-4 py-1 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
-            const activeClasses = isActive ? `${palette} shadow` : "bg-white text-gray-800 hover:bg-gray-100";
-            return (
-              <button
-                key={value || "all"}
-                type="button"
-                onClick={() => updateStatusFilter(value)}
-                className={`${base} ${activeClasses}`}
-                aria-pressed={isActive}
-              >
-                {label}
-              </button>
-            );
-          })}
         </div>
 
         <div className="mt-3 flex justify-center">
