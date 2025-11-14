@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Row = { dateTime: string; name: string; email: string; employeeNo?: string; leaveType: string; remark?: string };
 type Holiday = { date: string; name: string; type?: string };
+type SalesSupportUser = { employeeNo: string; name: string; identity: string; group?: string };
 
 export default function CalendarClient({ homeHref }: { homeHref: string }) {
-  const [gtsCal, setGtsCal] = useState(false);
-  const [mtsCal, setMtsCal] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<"" | "GTS" | "MTS">("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [employeeNo, setEmployeeNo] = useState("");
@@ -33,18 +34,61 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [sat, setSat] = useState(false);
   const [sun, setSun] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [salesSupports, setSalesSupports] = useState<SalesSupportUser[]>([]);
+  const [supportsLoading, setSupportsLoading] = useState(false);
+  const [supportsError, setSupportsError] = useState<string | null>(null);
+  const [selectedEmployeeNo, setSelectedEmployeeNo] = useState("");
+  const selectedSupport = useMemo(
+    () => salesSupports.find((u) => u.employeeNo === selectedEmployeeNo) || null,
+    [salesSupports, selectedEmployeeNo]
+  );
 
-  function onAdd() {
-    if (!name || (!email && !employeeNo) || !dt || !leaveType)
-      return alert("Please fill Name, Employee No or Username, Date/Time and Leave Type.");
-    setRows((r) => [{ dateTime: dt, name, email, employeeNo, leaveType, remark }, ...r]);
-    setLeaveType("");
-    setRemark("");
+  function buildRow(): Row | null {
+    if (!selectedEmployeeNo || !selectedSupport) {
+      alert("Please select a sales support first.");
+      return null;
+    }
+    if (!dt || !leaveType) {
+      alert("Please fill Date/Time and Leave Type.");
+      return null;
+    }
+    return {
+      dateTime: dt,
+      name: name || selectedSupport.name,
+      email: email || selectedSupport.identity,
+      employeeNo: selectedEmployeeNo,
+      leaveType,
+      remark,
+    };
   }
   function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     setUploadedFileName(f.name);
+  }
+
+  function resetWeeklyDays() {
+    setMon(false);
+    setTue(false);
+    setWed(false);
+    setThu(false);
+    setFri(false);
+    setSat(false);
+    setSun(false);
+  }
+
+  function applyWeeklyDays(cfg?: { mon?: boolean; tue?: boolean; wed?: boolean; thu?: boolean; fri?: boolean; sat?: boolean; sun?: boolean }) {
+    if (!cfg) {
+      resetWeeklyDays();
+      return;
+    }
+    setMon(!!cfg.mon);
+    setTue(!!cfg.tue);
+    setWed(!!cfg.wed);
+    setThu(!!cfg.thu);
+    setFri(!!cfg.fri);
+    setSat(!!cfg.sat);
+    setSun(!!cfg.sun);
   }
 
   async function fetchHolidays() {
@@ -57,18 +101,20 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     if (r.ok && data?.ok) setHolidays(data.holidays as Holiday[]);
   }
 
-  async function loadWeekly() {
-    if (!weeklyEmpNo) return;
-    const r = await fetch(`/api/pa/calendar/weekly?employeeNo=${encodeURIComponent(weeklyEmpNo)}`, { cache: "no-store" });
+  async function loadWeekly(target?: string) {
+    const id = target ?? weeklyEmpNo;
+    if (!id) return;
+    const r = await fetch(`/api/pa/calendar/weekly?employeeNo=${encodeURIComponent(id)}`, { cache: "no-store" });
     const data = await r.json();
     if (r.ok && data?.ok && data?.config) {
-      setMon(!!data.config.mon); setTue(!!data.config.tue); setWed(!!data.config.wed);
-      setThu(!!data.config.thu); setFri(!!data.config.fri); setSat(!!data.config.sat); setSun(!!data.config.sun);
+      applyWeeklyDays(data.config);
+    } else {
+      applyWeeklyDays();
     }
   }
 
   async function saveWeekly() {
-    if (!weeklyEmpNo) return alert("Please fill Employee No");
+    if (!weeklyEmpNo) return alert("Please select a sales support first");
     const r = await fetch(`/api/pa/calendar/weekly`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ employeeNo: weeklyEmpNo, mon, tue, wed, thu, fri, sat, sun })
@@ -88,6 +134,67 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   }
 
   useEffect(() => { fetchHolidays().catch(() => {}); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedGroup) {
+      setSalesSupports([]);
+      setSelectedEmployeeNo("");
+      setSupportsError(null);
+      setSupportsLoading(false);
+      return;
+    }
+    setSupportsLoading(true);
+    setSupportsError(null);
+    (async () => {
+      try {
+        const res = await fetch(`/api/pa/users?group=${encodeURIComponent(selectedGroup)}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load sales support");
+        if (cancelled) return;
+        const mapped: SalesSupportUser[] = Array.isArray(data.users)
+          ? data.users
+              .map((u: any) => ({
+                employeeNo: String(u.employeeNo || "").trim(),
+                name: String(u.name || "").trim(),
+                identity: String(u.username || u.email || "").trim(),
+                group: u.group ? String(u.group).trim() : undefined,
+              }))
+              .filter((u: SalesSupportUser) => u.employeeNo && u.identity)
+          : [];
+        setSalesSupports(mapped);
+        setSelectedEmployeeNo((prev) => (mapped.some((u) => u.employeeNo === prev) ? prev : ""));
+      } catch (err: any) {
+        if (cancelled) return;
+        setSupportsError(err?.message || "Failed to load sales support");
+        setSalesSupports([]);
+        setSelectedEmployeeNo("");
+      } finally {
+        if (!cancelled) setSupportsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    if (!selectedEmployeeNo) {
+      setWeeklyEmpNo("");
+      resetWeeklyDays();
+      setName("");
+      setEmployeeNo("");
+      setEmail("");
+      return;
+    }
+    const user = salesSupports.find((u) => u.employeeNo === selectedEmployeeNo);
+    if (!user) return;
+    setWeeklyEmpNo(selectedEmployeeNo);
+    setName(user.name);
+    setEmployeeNo(user.employeeNo);
+    setEmail(user.identity);
+    loadWeekly(selectedEmployeeNo).catch(() => {});
+  }, [selectedEmployeeNo, salesSupports]);
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
@@ -111,39 +218,90 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => setGtsCal((v) => !v)}
+            onClick={() => setSelectedGroup((prev) => (prev === "GTS" ? "" : "GTS"))}
             className={`rounded-xl px-4 py-3 text-left border ${
-              gtsCal ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
+              selectedGroup === "GTS" ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
             }`}
           >
             <div className="flex items-center gap-3">
-              <input type="checkbox" checked={gtsCal} readOnly />
+              <input type="checkbox" checked={selectedGroup === "GTS"} readOnly />
               <span className="font-medium">GTS Calendar</span>
             </div>
           </button>
 
           <button
             type="button"
-            onClick={() => setMtsCal((v) => !v)}
+            onClick={() => setSelectedGroup((prev) => (prev === "MTS" ? "" : "MTS"))}
             className={`rounded-xl px-4 py-3 text-left border ${
-              mtsCal ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
+              selectedGroup === "MTS" ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
             }`}
           >
             <div className="flex items-center gap-3">
-              <input type="checkbox" checked={mtsCal} readOnly />
+              <input type="checkbox" checked={selectedGroup === "MTS"} readOnly />
               <span className="font-medium">MTS Calendar</span>
             </div>
           </button>
         </div>
 
+        <Card className="mt-4 border-none bg-[#E0D4B9]">
+          <CardContent className="pt-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 2 · Select sales support</p>
+            <div className="space-y-1">
+              <Label>Sales support (Employee No)</Label>
+              <Select
+                value={selectedEmployeeNo}
+                onValueChange={(val) => setSelectedEmployeeNo(val)}
+                disabled={!selectedGroup || supportsLoading || salesSupports.length === 0}
+              >
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue
+                    placeholder={
+                      !selectedGroup
+                        ? "Select a group first"
+                        : supportsLoading
+                          ? "Loading sales support..."
+                          : salesSupports.length
+                            ? "Choose sales support"
+                            : "No sales support in this group"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {salesSupports.map((support) => (
+                    <SelectItem key={support.employeeNo} value={support.employeeNo}>
+                      <span className="font-semibold">{support.employeeNo}</span>
+                      <span className="text-muted-foreground">{support.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-gray-600">
+                {supportsError ? (
+                  <span className="text-red-600">{supportsError}</span>
+                ) : selectedGroup ? (
+                  supportsLoading
+                    ? "Fetching sales support…"
+                    : `Loaded ${salesSupports.length} member${salesSupports.length === 1 ? "" : "s"} for ${selectedGroup}.`
+                ) : (
+                  "Pick GTS or MTS to load sales support."
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Weekly off config (supervisor sets by agent) */}
         <Card className="mt-4 border-none bg-[#E0D4B9]">
           <CardContent className="pt-4">
+            <div className="flex flex-col gap-1 mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 3 · Weekly day-off</p>
+              <p className="text-sm text-gray-700">
+                {selectedSupport
+                  ? `Editing schedule for ${selectedSupport.name} (${selectedSupport.employeeNo}).`
+                  : "Select a sales support above to configure their weekly days off."}
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-              <div className="space-y-1">
-                <Label>Sales support Employee No</Label>
-                <Input value={weeklyEmpNo} onChange={(e) => setWeeklyEmpNo(e.target.value)} className="bg-white" onBlur={loadWeekly} />
-              </div>
               <div className="space-y-1 md:col-span-2">
                 <Label>Weekly day-off</Label>
                 <div className="flex flex-wrap gap-3 bg-white rounded-md border border-black/10 p-2">
@@ -151,14 +309,20 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                     { k: "Mon", v: mon, s: setMon }, { k: "Tue", v: tue, s: setTue }, { k: "Wed", v: wed, s: setWed },
                     { k: "Thu", v: thu, s: setThu }, { k: "Fri", v: fri, s: setFri }, { k: "Sat", v: sat, s: setSat }, { k: "Sun", v: sun, s: setSun },
                   ].map((d) => (
-                    <label key={d.k} className="inline-flex items-center gap-1 text-sm">
-                      <input type="checkbox" checked={d.v} onChange={(e) => d.s(e.target.checked)} /> {d.k}
+                    <label key={d.k} className={`inline-flex items-center gap-1 text-sm ${!selectedSupport ? "opacity-40" : ""}`}>
+                      <input type="checkbox" checked={d.v} onChange={(e) => d.s(e.target.checked)} disabled={!selectedSupport} /> {d.k}
                     </label>
                   ))}
                 </div>
               </div>
               <div className="md:col-span-3">
-                <Button onClick={saveWeekly} className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20">Save Weekly Calendar</Button>
+                <Button
+                  onClick={saveWeekly}
+                  disabled={!selectedSupport}
+                  className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
+                >
+                  Save Weekly Calendar
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -238,8 +402,20 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
               <div className="md:col-span-2 pt-1">
                 <Button
-                  onClick={async () => { try { onAdd(); await submitDayOff({ dateTime: dt, name, email, leaveType, remark }); } catch (e: any) { alert(e?.message || 'Failed'); } }}
-                  className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20"
+                  disabled={!selectedSupport}
+                  onClick={async () => {
+                    const row = buildRow();
+                    if (!row) return;
+                    try {
+                      await submitDayOff(row);
+                      setRows((r) => [row, ...r]);
+                      setLeaveType("");
+                      setRemark("");
+                    } catch (e: any) {
+                      alert(e?.message || "Failed");
+                    }
+                  }}
+                  className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
                 >
                   Add
                 </Button>
