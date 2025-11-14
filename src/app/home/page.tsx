@@ -3,11 +3,13 @@ import { cookies } from "next/headers";
 import LogoBadge from "@/components/LogoBadge";
 import Image from "next/image";
 import { ClipboardCheck, CalendarX, FileText } from "lucide-react";
+import SalesSupportCalendar from "@/components/SalesSupportCalendar";
 
 export default async function SalesSupportHome() {
   const cookieStore = cookies();
   const name = (await cookieStore).get("name")?.value || "Sales Support";
   const email = (await cookieStore).get("username")?.value || (await cookieStore).get("email")?.value || "salesupport";
+  const employeeNo = (await cookieStore).get("employeeNo")?.value || "";
 
   const tiles = [
     { href: "/checkin", title: "เข้างาน\nออกงาน", bg: "bg-[#BFD9C8]", icon: ClipboardCheck, span2: false },
@@ -71,6 +73,11 @@ export default async function SalesSupportHome() {
               </div>
             </Link>
           ))}
+        </div>
+
+        {/* Monthly calendar */}
+        <div className="mt-6">
+          <SalesSupportCalendar employeeNo={employeeNo} email={email} />
         </div>
 
         {/* Bottom-right logo */}
