@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 const WEEKDAY_LABELS = ["อา", "จ", "อ.", "พ.", "พฤ.", "ศ.", "ส."] as const;
 
@@ -33,7 +33,7 @@ function toDateKey(value?: string | null) {
 }
 
 export default function SalesSupportCalendar({ employeeNo, email }: { employeeNo?: string; email?: string }) {
-  const [calendarMonth] = useState(() => {
+  const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
@@ -42,6 +42,11 @@ export default function SalesSupportCalendar({ employeeNo, email }: { employeeNo
     []
   );
   const monthLabel = useMemo(() => monthFormatter.format(calendarMonth), [monthFormatter, calendarMonth]);
+  const monthInputValue = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = String(calendarMonth.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  }, [calendarMonth]);
   const monthMeta = useMemo(() => {
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
@@ -170,12 +175,25 @@ export default function SalesSupportCalendar({ employeeNo, email }: { employeeNo
     };
   }, [hasIdentity, identity.email, identity.employeeNo, monthMeta.endIso, monthMeta.startIso]);
 
+  function shiftMonth(delta: number) {
+    setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+  }
+
+  function handleMonthInputChange(value: string) {
+    if (!value) return;
+    const [yearStr, monthStr] = value.split("-");
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    if (Number.isNaN(year) || Number.isNaN(month)) return;
+    setCalendarMonth(new Date(year, month - 1, 1));
+  }
+
   return (
     <Card className="border border-black/20 bg-[#F8F2E1] shadow-sm">
       <CardContent className="pt-4">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <p className="text-sm text-gray-600">ปฏิทินการทำงาน (เดือนปัจจุบัน)</p>
+            <p className="text-sm text-gray-600">ปฏิทินการทำงาน</p>
             <p className="text-lg font-bold text-gray-900">{monthLabel}</p>
             <p className="text-xs text-gray-600">
               {hasIdentity
@@ -197,6 +215,35 @@ export default function SalesSupportCalendar({ employeeNo, email }: { employeeNo
               <span>ลางาน</span>
             </div>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-full border border-black/10 bg-white shadow-sm">
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              className="px-3 py-1 text-gray-700 hover:bg-gray-100 rounded-l-full"
+              aria-label="เดือนก่อนหน้า"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              className="px-3 py-1 text-gray-700 hover:bg-gray-100 rounded-r-full"
+              aria-label="เดือนถัดไป"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          <label className="text-xs text-gray-600 flex items-center gap-2">
+            เลือกเดือน
+            <input
+              type="month"
+              value={monthInputValue}
+              onChange={(e) => handleMonthInputChange(e.target.value)}
+              className="rounded-full border border-black/20 px-3 py-1 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6EC3A1]"
+            />
+          </label>
         </div>
         {calendarError ? <div className="mt-3 text-xs text-red-700">{calendarError}</div> : null}
         {calendarLoading ? (
