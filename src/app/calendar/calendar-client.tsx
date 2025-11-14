@@ -419,8 +419,10 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </h1>
         </div>
 
-        {/* Toggles / Controls */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Step 1: Group selection */}
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 1 · Choose calendar group</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setSelectedGroup((prev) => (prev === "GTS" ? "" : "GTS"))}
@@ -440,12 +442,14 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             className={`rounded-xl px-4 py-3 text-left border ${
               selectedGroup === "MTS" ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
             }`}
-          >
-            <div className="flex items-center gap-3">
-              <input type="checkbox" checked={selectedGroup === "MTS"} readOnly />
-              <span className="font-medium">MTS Calendar</span>
-            </div>
-          </button>
+            >
+              <div className="flex items-center gap-3">
+                <input type="checkbox" checked={selectedGroup === "MTS"} readOnly />
+                <span className="font-medium">MTS Calendar</span>
+              </div>
+            </button>
+          </div>
+        </div>
         </div>
 
         <Card className="mt-4 border-none bg-[#E0D4B9]">
