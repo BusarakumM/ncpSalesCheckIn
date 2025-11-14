@@ -14,8 +14,8 @@ type Row = { dateTime: string; name: string; email: string; employeeNo?: string;
 type Holiday = { date: string; name: string; type?: string };
 
 export default function CalendarClient({ homeHref }: { homeHref: string }) {
-  const [companyCal, setCompanyCal] = useState(false);
-  const [supportCal, setSupportCal] = useState(false);
+  const [gtsCal, setGtsCal] = useState(false);
+  const [mtsCal, setMtsCal] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [employeeNo, setEmployeeNo] = useState("");
@@ -111,27 +111,27 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => setCompanyCal((v) => !v)}
+            onClick={() => setGtsCal((v) => !v)}
             className={`rounded-xl px-4 py-3 text-left border ${
-              companyCal ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
+              gtsCal ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
             }`}
           >
             <div className="flex items-center gap-3">
-              <input type="checkbox" checked={companyCal} readOnly />
-              <span className="font-medium">Company Calendar</span>
+              <input type="checkbox" checked={gtsCal} readOnly />
+              <span className="font-medium">GTS Calendar</span>
             </div>
           </button>
 
           <button
             type="button"
-            onClick={() => setSupportCal((v) => !v)}
+            onClick={() => setMtsCal((v) => !v)}
             className={`rounded-xl px-4 py-3 text-left border ${
-              supportCal ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
+              mtsCal ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
             }`}
           >
             <div className="flex items-center gap-3">
-              <input type="checkbox" checked={supportCal} readOnly />
-              <span className="font-medium">Sales Support Calendar</span>
+              <input type="checkbox" checked={mtsCal} readOnly />
+              <span className="font-medium">MTS Calendar</span>
             </div>
           </button>
         </div>
