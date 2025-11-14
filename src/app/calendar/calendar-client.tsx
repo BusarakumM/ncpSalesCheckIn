@@ -9,18 +9,17 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Row = { dateTime: string; name: string; email: string; employeeNo?: string; leaveType: string; remark?: string };
 type Holiday = { date: string; name: string; type?: string };
 type SalesSupportUser = { employeeNo: string; name: string; identity: string; group?: string };
+const MAX_BULK_SELECTION = 10;
 
 export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [selectedGroup, setSelectedGroup] = useState<"" | "GTS" | "MTS">("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [employeeNo, setEmployeeNo] = useState("");
-  const [weeklyEmpNo, setWeeklyEmpNo] = useState("");
   const [dt, setDt] = useState("");
   const [leaveType, setLeaveType] = useState("");
   const [remark, setRemark] = useState("");
@@ -37,29 +36,48 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [salesSupports, setSalesSupports] = useState<SalesSupportUser[]>([]);
   const [supportsLoading, setSupportsLoading] = useState(false);
   const [supportsError, setSupportsError] = useState<string | null>(null);
-  const [selectedEmployeeNo, setSelectedEmployeeNo] = useState("");
-  const selectedSupport = useMemo(
-    () => salesSupports.find((u) => u.employeeNo === selectedEmployeeNo) || null,
-    [salesSupports, selectedEmployeeNo]
+  const [selectedEmployeeNos, setSelectedEmployeeNos] = useState<string[]>([]);
+  const selectedSupports = useMemo(
+    () => salesSupports.filter((u) => selectedEmployeeNos.includes(u.employeeNo)),
+    [salesSupports, selectedEmployeeNos]
   );
+  function toggleSupportSelection(employeeNo: string) {
+    setSelectedEmployeeNos((prev) => {
+      if (prev.includes(employeeNo)) {
+        return prev.filter((id) => id !== employeeNo);
+      }
+      if (prev.length >= MAX_BULK_SELECTION) {
+        alert(`You can select up to ${MAX_BULK_SELECTION} sales supports at a time.`);
+        return prev;
+      }
+      return [...prev, employeeNo];
+    });
+  }
+  const primarySupport = selectedSupports[0] || null;
+  const canEditWeekly = selectedSupports.length === 1 && !!primarySupport;
+  const selectionLimitReached = selectedEmployeeNos.length >= MAX_BULK_SELECTION;
 
-  function buildRow(): Row | null {
-    if (!selectedEmployeeNo || !selectedSupport) {
-      alert("Please select a sales support first.");
+  function buildRows(): Row[] | null {
+    if (selectedSupports.length === 0) {
+      alert("Please select at least one sales support first.");
       return null;
     }
     if (!dt || !leaveType) {
       alert("Please fill Date/Time and Leave Type.");
       return null;
     }
-    return {
+    const overrideName = name?.trim();
+    const overrideEmail = email?.trim();
+    const allowEmployeeOverride = selectedSupports.length === 1;
+    const overrideEmployeeNo = allowEmployeeOverride ? employeeNo?.trim() : "";
+    return selectedSupports.map((support) => ({
       dateTime: dt,
-      name: name || selectedSupport.name,
-      email: email || selectedSupport.identity,
-      employeeNo: selectedEmployeeNo,
+      name: overrideName || support.name,
+      email: overrideEmail || support.identity,
+      employeeNo: overrideEmployeeNo || support.employeeNo,
       leaveType,
       remark,
-    };
+    }));
   }
   function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -102,7 +120,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   }
 
   async function loadWeekly(target?: string) {
-    const id = target ?? weeklyEmpNo;
+    const id = target?.trim();
     if (!id) return;
     const r = await fetch(`/api/pa/calendar/weekly?employeeNo=${encodeURIComponent(id)}`, { cache: "no-store" });
     const data = await r.json();
@@ -114,10 +132,11 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   }
 
   async function saveWeekly() {
-    if (!weeklyEmpNo) return alert("Please select a sales support first");
+    const targetEmployee = primarySupport?.employeeNo;
+    if (!targetEmployee) return alert("Select a single sales support to edit weekly days off.");
     const r = await fetch(`/api/pa/calendar/weekly`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ employeeNo: weeklyEmpNo, mon, tue, wed, thu, fri, sat, sun })
+      body: JSON.stringify({ employeeNo: targetEmployee, mon, tue, wed, thu, fri, sat, sun })
     });
     const data = await r.json();
     if (!r.ok || !data?.ok) return alert(data?.error || "Save failed");
@@ -139,7 +158,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     let cancelled = false;
     if (!selectedGroup) {
       setSalesSupports([]);
-      setSelectedEmployeeNo("");
+      setSelectedEmployeeNos([]);
       setSupportsError(null);
       setSupportsLoading(false);
       return;
@@ -163,12 +182,12 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
               .filter((u: SalesSupportUser) => u.employeeNo && u.identity)
           : [];
         setSalesSupports(mapped);
-        setSelectedEmployeeNo((prev) => (mapped.some((u) => u.employeeNo === prev) ? prev : ""));
+        setSelectedEmployeeNos((prev) => prev.filter((id) => mapped.some((u) => u.employeeNo === id)));
       } catch (err: any) {
         if (cancelled) return;
         setSupportsError(err?.message || "Failed to load sales support");
         setSalesSupports([]);
-        setSelectedEmployeeNo("");
+        setSelectedEmployeeNos([]);
       } finally {
         if (!cancelled) setSupportsLoading(false);
       }
@@ -179,22 +198,18 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   }, [selectedGroup]);
 
   useEffect(() => {
-    if (!selectedEmployeeNo) {
-      setWeeklyEmpNo("");
+    if (!primarySupport) {
       resetWeeklyDays();
       setName("");
       setEmployeeNo("");
       setEmail("");
       return;
     }
-    const user = salesSupports.find((u) => u.employeeNo === selectedEmployeeNo);
-    if (!user) return;
-    setWeeklyEmpNo(selectedEmployeeNo);
-    setName(user.name);
-    setEmployeeNo(user.employeeNo);
-    setEmail(user.identity);
-    loadWeekly(selectedEmployeeNo).catch(() => {});
-  }, [selectedEmployeeNo, salesSupports]);
+    setName(primarySupport.name);
+    setEmployeeNo(primarySupport.employeeNo);
+    setEmail(primarySupport.identity);
+    loadWeekly(primarySupport.employeeNo).catch(() => {});
+  }, [primarySupport]);
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
@@ -246,45 +261,66 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         <Card className="mt-4 border-none bg-[#E0D4B9]">
           <CardContent className="pt-4 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 2 · Select sales support</p>
+            <div className="flex items-center justify-between text-sm text-gray-700">
+              <span>
+                Selected {selectedEmployeeNos.length}/{MAX_BULK_SELECTION}
+              </span>
+              {selectedEmployeeNos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedEmployeeNos([])}
+                  className="text-xs text-blue-800 underline-offset-2 hover:underline"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
             <div className="space-y-1">
-              <Label>Sales support (Employee No)</Label>
-              <Select
-                value={selectedEmployeeNo}
-                onValueChange={(val) => setSelectedEmployeeNo(val)}
-                disabled={!selectedGroup || supportsLoading || salesSupports.length === 0}
-              >
-                <SelectTrigger className="w-full bg-white">
-                  <SelectValue
-                    placeholder={
-                      !selectedGroup
-                        ? "Select a group first"
-                        : supportsLoading
-                          ? "Loading sales support..."
-                          : salesSupports.length
-                            ? "Choose sales support"
-                            : "No sales support in this group"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {salesSupports.map((support) => (
-                    <SelectItem key={support.employeeNo} value={support.employeeNo}>
-                      <span className="font-semibold">{support.employeeNo}</span>
-                      <span className="text-muted-foreground">{support.name}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="text-xs text-gray-600">
-                {supportsError ? (
-                  <span className="text-red-600">{supportsError}</span>
-                ) : selectedGroup ? (
-                  supportsLoading
-                    ? "Fetching sales support…"
-                    : `Loaded ${salesSupports.length} member${salesSupports.length === 1 ? "" : "s"} for ${selectedGroup}.`
+              <Label>Sales support (up to {MAX_BULK_SELECTION})</Label>
+              <div className="rounded-md border border-black/10 bg-white max-h-64 overflow-y-auto">
+                {!selectedGroup ? (
+                  <p className="px-3 py-4 text-sm text-gray-500">Select GTS or MTS to load sales support.</p>
+                ) : supportsLoading ? (
+                  <p className="px-3 py-4 text-sm text-gray-500">Fetching sales support…</p>
+                ) : supportsError ? (
+                  <p className="px-3 py-4 text-sm text-red-600">{supportsError}</p>
+                ) : salesSupports.length === 0 ? (
+                  <p className="px-3 py-4 text-sm text-gray-500">No sales support found for this group.</p>
                 ) : (
-                  "Pick GTS or MTS to load sales support."
+                  <div className="divide-y divide-black/5">
+                    {salesSupports.map((support) => {
+                      const checked = selectedEmployeeNos.includes(support.employeeNo);
+                      const disabled = !checked && selectionLimitReached;
+                      return (
+                        <label
+                          key={support.employeeNo}
+                          className={`flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-[#F4F1E4] ${
+                            disabled ? "opacity-60 cursor-not-allowed" : ""
+                          }`}
+                        >
+                          <div className="flex flex-col leading-tight">
+                            <span className="font-semibold text-gray-900">{support.employeeNo}</span>
+                            <span className="text-xs text-gray-600">{support.name}</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={checked}
+                            onChange={() => toggleSupportSelection(support.employeeNo)}
+                            disabled={disabled}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
                 )}
+              </div>
+              <div className="text-xs text-gray-600">
+                {selectedGroup
+                  ? selectionLimitReached
+                    ? `You reached the limit of ${MAX_BULK_SELECTION} selections. Deselect someone to add another.`
+                    : `Select up to ${MAX_BULK_SELECTION} members to apply the same action at once.`
+                  : "Pick a group to begin."}
               </div>
             </div>
           </CardContent>
@@ -296,9 +332,11 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             <div className="flex flex-col gap-1 mb-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 3 · Weekly day-off</p>
               <p className="text-sm text-gray-700">
-                {selectedSupport
-                  ? `Editing schedule for ${selectedSupport.name} (${selectedSupport.employeeNo}).`
-                  : "Select a sales support above to configure their weekly days off."}
+                {selectedSupports.length === 0
+                  ? "Select at least one sales support above."
+                  : canEditWeekly && primarySupport
+                    ? `Editing schedule for ${primarySupport.name} (${primarySupport.employeeNo}).`
+                    : "Multiple sales supports selected. Choose a single person to edit weekly days off."}
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
@@ -309,8 +347,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                     { k: "Mon", v: mon, s: setMon }, { k: "Tue", v: tue, s: setTue }, { k: "Wed", v: wed, s: setWed },
                     { k: "Thu", v: thu, s: setThu }, { k: "Fri", v: fri, s: setFri }, { k: "Sat", v: sat, s: setSat }, { k: "Sun", v: sun, s: setSun },
                   ].map((d) => (
-                    <label key={d.k} className={`inline-flex items-center gap-1 text-sm ${!selectedSupport ? "opacity-40" : ""}`}>
-                      <input type="checkbox" checked={d.v} onChange={(e) => d.s(e.target.checked)} disabled={!selectedSupport} /> {d.k}
+                    <label key={d.k} className={`inline-flex items-center gap-1 text-sm ${!canEditWeekly ? "opacity-40" : ""}`}>
+                      <input type="checkbox" checked={d.v} onChange={(e) => d.s(e.target.checked)} disabled={!canEditWeekly} /> {d.k}
                     </label>
                   ))}
                 </div>
@@ -318,7 +356,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
               <div className="md:col-span-3">
                 <Button
                   onClick={saveWeekly}
-                  disabled={!selectedSupport}
+                  disabled={!canEditWeekly}
                   className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
                 >
                   Save Weekly Calendar
@@ -362,18 +400,41 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         {/* Entry card: inputs stack on mobile, pair up on md+ */}
         <Card className="mt-4 border-none bg-[#BFD9C8]">
           <CardContent className="pt-6">
+            <p className="text-sm text-gray-700 mb-4">
+              {selectedSupports.length === 0
+                ? "Select sales support in Step 2 to add day-off entries."
+                : selectedSupports.length === 1
+                  ? `Applying for ${selectedSupports[0].name} (${selectedSupports[0].employeeNo}).`
+                  : `Applying for ${selectedSupports.length} sales supports at once.`}
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Sales support name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} className="bg-white" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="bg-white"
+                  disabled={!canEditWeekly}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Employee No</Label>
-                <Input value={employeeNo} onChange={(e) => setEmployeeNo(e.target.value)} className="bg-white" />
+                <Input
+                  value={employeeNo}
+                  onChange={(e) => setEmployeeNo(e.target.value)}
+                  className="bg-white"
+                  disabled={!canEditWeekly}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Username (optional)</Label>
-                <Input type="text" value={email} onChange={(e) => setEmail(e.target.value)} className="bg-white" />
+                <Input
+                  type="text"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-white"
+                  disabled={!canEditWeekly}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Date/time</Label>
@@ -402,15 +463,22 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
               <div className="md:col-span-2 pt-1">
                 <Button
-                  disabled={!selectedSupport}
+                  disabled={selectedSupports.length === 0}
                   onClick={async () => {
-                    const row = buildRow();
-                    if (!row) return;
+                    const rowsToSubmit = buildRows();
+                    if (!rowsToSubmit) return;
                     try {
-                      await submitDayOff(row);
-                      setRows((r) => [row, ...r]);
+                      for (const row of rowsToSubmit) {
+                        await submitDayOff(row);
+                      }
+                      setRows((r) => [...rowsToSubmit, ...r]);
                       setLeaveType("");
                       setRemark("");
+                      alert(
+                        rowsToSubmit.length === 1
+                          ? "Day-off added"
+                          : `Day-off added for ${rowsToSubmit.length} sales supports`
+                      );
                     } catch (e: any) {
                       alert(e?.message || "Failed");
                     }
