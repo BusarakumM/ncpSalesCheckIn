@@ -419,10 +419,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </h1>
         </div>
 
-        {/* Step 1: Group selection */}
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 1 · Choose calendar group</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Toggles / Controls */}
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setSelectedGroup((prev) => (prev === "GTS" ? "" : "GTS"))}
@@ -442,14 +440,12 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             className={`rounded-xl px-4 py-3 text-left border ${
               selectedGroup === "MTS" ? "bg-[#BFD9C8] border-black/20" : "bg-white border-black/10"
             }`}
-            >
-              <div className="flex items-center gap-3">
-                <input type="checkbox" checked={selectedGroup === "MTS"} readOnly />
-                <span className="font-medium">MTS Calendar</span>
-              </div>
-            </button>
-          </div>
-        </div>
+          >
+            <div className="flex items-center gap-3">
+              <input type="checkbox" checked={selectedGroup === "MTS"} readOnly />
+              <span className="font-medium">MTS Calendar</span>
+            </div>
+          </button>
         </div>
 
         <Card className="mt-4 border-none bg-[#E0D4B9]">
@@ -516,81 +512,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                     : `Select up to ${MAX_BULK_SELECTION} members to apply the same action at once.`
                   : "Pick a group to begin."}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="mt-4 border-none bg-[#E0D4B9]">
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 4 · Review & submit</p>
-                <p className="text-sm text-gray-700">Queued weekly plans are listed below. Review before submitting to the backend.</p>
-              </div>
-              <Button
-                onClick={submitWeeklyDrafts}
-                disabled={weeklyDrafts.length === 0 || submittingDrafts}
-                className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60"
-              >
-                {submittingDrafts ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting…
-                  </span>
-                ) : weeklyDrafts.length ? (
-                  `Submit ${weeklyDrafts.length} Plan${weeklyDrafts.length === 1 ? "" : "s"}`
-                ) : (
-                  "Submit Plans"
-                )}
-              </Button>
-            </div>
-            <div className="rounded-md border border-black/10 bg-white overflow-x-auto">
-              <Table className="min-w-[720px] text-sm">
-                <TableHeader>
-                  <TableRow className="[&>*]:bg-[#C6E0CF]">
-                    <TableHead>Created</TableHead>
-                    <TableHead>Employees</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead>Weekly day-off</TableHead>
-                    <TableHead>Rows to push</TableHead>
-                    <TableHead className="w-24 text-center">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {weeklyDrafts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500">
-                        No weekly plans saved yet.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    weeklyDrafts.map((draft) => {
-                      const created = new Date(draft.createdAt).toLocaleString();
-                      const scope = summarizeScope(draft);
-                      const daysSummary = formatDaySummary(draft.days);
-                      const monthsCount = draft.planMode === "year" ? 12 : Math.max(draft.months.length, 1);
-                      const totalRows = draft.employees.length * monthsCount;
-                      return (
-                        <TableRow key={draft.id}>
-                          <TableCell>{created}</TableCell>
-                          <TableCell>{describeEmployees(draft)}</TableCell>
-                          <TableCell>{scope}</TableCell>
-                          <TableCell>{daysSummary}</TableCell>
-                          <TableCell>{totalRows}</TableCell>
-                          <TableCell className="text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeWeeklyDraft(draft.id)}
-                              className="text-sm text-red-700 underline-offset-2 hover:underline"
-                            >
-                              Remove
-                            </button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
             </div>
           </CardContent>
         </Card>
@@ -741,6 +662,81 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                   )}
                 </Button>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4 border-none bg-[#E0D4B9]">
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 4 · Review & submit</p>
+                <p className="text-sm text-gray-700">Queued weekly plans are listed below. Review before submitting to the backend.</p>
+              </div>
+              <Button
+                onClick={submitWeeklyDrafts}
+                disabled={weeklyDrafts.length === 0 || submittingDrafts}
+                className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60"
+              >
+                {submittingDrafts ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting…
+                  </span>
+                ) : weeklyDrafts.length ? (
+                  `Submit ${weeklyDrafts.length} Plan${weeklyDrafts.length === 1 ? "" : "s"}`
+                ) : (
+                  "Submit Plans"
+                )}
+              </Button>
+            </div>
+            <div className="rounded-md border border-black/10 bg-white overflow-x-auto">
+              <Table className="min-w-[720px] text-sm">
+                <TableHeader>
+                  <TableRow className="[&>*]:bg-[#C6E0CF]">
+                    <TableHead>Created</TableHead>
+                    <TableHead>Employees</TableHead>
+                    <TableHead>Scope</TableHead>
+                    <TableHead>Weekly day-off</TableHead>
+                    <TableHead>Rows to push</TableHead>
+                    <TableHead className="w-24 text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {weeklyDrafts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-gray-500">
+                        No weekly plans saved yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    weeklyDrafts.map((draft) => {
+                      const created = new Date(draft.createdAt).toLocaleString();
+                      const scope = summarizeScope(draft);
+                      const daysSummary = formatDaySummary(draft.days);
+                      const monthsCount = draft.planMode === "year" ? 12 : Math.max(draft.months.length, 1);
+                      const totalRows = draft.employees.length * monthsCount;
+                      return (
+                        <TableRow key={draft.id}>
+                          <TableCell>{created}</TableCell>
+                          <TableCell>{describeEmployees(draft)}</TableCell>
+                          <TableCell>{scope}</TableCell>
+                          <TableCell>{daysSummary}</TableCell>
+                          <TableCell>{totalRows}</TableCell>
+                          <TableCell className="text-center">
+                            <button
+                              type="button"
+                              onClick={() => removeWeeklyDraft(draft.id)}
+                              className="text-sm text-red-700 underline-offset-2 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
