@@ -13,7 +13,31 @@ import {
 type Row = { dateTime: string; name: string; email: string; employeeNo?: string; leaveType: string; remark?: string };
 type Holiday = { date: string; name: string; type?: string };
 type SalesSupportUser = { employeeNo: string; name: string; identity: string; group?: string };
+type PlanMode = "year" | "multi" | "single";
+
 const MAX_BULK_SELECTION = 10;
+const MONTH_CHOICES = [
+  { value: "01", label: "Jan" },
+  { value: "02", label: "Feb" },
+  { value: "03", label: "Mar" },
+  { value: "04", label: "Apr" },
+  { value: "05", label: "May" },
+  { value: "06", label: "Jun" },
+  { value: "07", label: "Jul" },
+  { value: "08", label: "Aug" },
+  { value: "09", label: "Sep" },
+  { value: "10", label: "Oct" },
+  { value: "11", label: "Nov" },
+  { value: "12", label: "Dec" },
+];
+const NOW = new Date();
+const CURRENT_YEAR = NOW.getFullYear();
+const CURRENT_MONTH_VALUE = String(NOW.getMonth() + 1).padStart(2, "0");
+const PLAN_MODE_OPTIONS: Array<{ value: PlanMode; label: string; detail: string }> = [
+  { value: "year", label: "Yearly plan", detail: "Use the same weekly days across the selected year." },
+  { value: "multi", label: "Select months", detail: "Pick multiple months in the year that share this plan." },
+  { value: "single", label: "Specific month", detail: "Apply the plan to one month only." },
+];
 
 export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [selectedGroup, setSelectedGroup] = useState<"" | "GTS" | "MTS">("");
@@ -56,6 +80,60 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const primarySupport = selectedSupports[0] || null;
   const canEditWeekly = selectedSupports.length === 1 && !!primarySupport;
   const selectionLimitReached = selectedEmployeeNos.length >= MAX_BULK_SELECTION;
+  const hasSelection = selectedSupports.length > 0;
+  const [planMode, setPlanMode] = useState<PlanMode>("year");
+  const [planYear, setPlanYear] = useState(CURRENT_YEAR.toString());
+  const [planMonths, setPlanMonths] = useState<string[]>([CURRENT_MONTH_VALUE]);
+  const [savingWeekly, setSavingWeekly] = useState(false);
+
+  const yearOptions = useMemo(
+    () => Array.from({ length: 5 }, (_, idx) => (CURRENT_YEAR - 1 + idx).toString()),
+    []
+  );
+  const normalizedMonths = useMemo(() => {
+    if (planMode === "year") return [] as string[];
+    if (planMode === "single") {
+      const value = planMonths[0] || CURRENT_MONTH_VALUE;
+      return [value.padStart(2, "0")];
+    }
+    const filtered = planMonths.filter(Boolean).map((m) => m.padStart(2, "0"));
+    return Array.from(new Set(filtered));
+  }, [planMode, planMonths]);
+  const effectiveDates = useMemo(() => {
+    if (planMode === "year") return [`${planYear}-01-01`];
+    return normalizedMonths.map((m) => `${planYear}-${m}-01`);
+  }, [planMode, planYear, normalizedMonths]);
+  const planSummaryText = useMemo(() => {
+    if (planMode === "year") return `Applies to all 12 months of ${planYear}.`;
+    if (planMode === "single") {
+      const monthLabel = MONTH_CHOICES.find((m) => m.value === normalizedMonths[0])?.label || normalizedMonths[0];
+      return `Applies only to ${monthLabel} ${planYear}.`;
+    }
+    if (normalizedMonths.length === 0) return "Select one or more months to continue.";
+    if (normalizedMonths.length === 12) return `Applies to every month of ${planYear}.`;
+    if (normalizedMonths.length === 1) {
+      const monthLabel = MONTH_CHOICES.find((m) => m.value === normalizedMonths[0])?.label || normalizedMonths[0];
+      return `Applies starting ${monthLabel} ${planYear}.`;
+    }
+    return `Applies to ${normalizedMonths.length} months in ${planYear}.`;
+  }, [planMode, planYear, normalizedMonths]);
+  const canSaveWeekly = hasSelection && (planMode === "year" || normalizedMonths.length > 0);
+
+  function switchPlanMode(next: PlanMode) {
+    setPlanMode(next);
+    setPlanMonths((prev) => {
+      if (next === "single") return [prev[0] || CURRENT_MONTH_VALUE];
+      if (prev.length === 0) return [CURRENT_MONTH_VALUE];
+      return prev;
+    });
+  }
+
+  function togglePlanMonth(value: string) {
+    setPlanMonths((prev) => {
+      if (planMode === "single") return [value];
+      return prev.includes(value) ? prev.filter((m) => m !== value) : [...prev, value];
+    });
+  }
 
   function buildRows(): Row[] | null {
     if (selectedSupports.length === 0) {
@@ -132,15 +210,32 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   }
 
   async function saveWeekly() {
-    const targetEmployee = primarySupport?.employeeNo;
-    if (!targetEmployee) return alert("Select a single sales support to edit weekly days off.");
-    const r = await fetch(`/api/pa/calendar/weekly`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ employeeNo: targetEmployee, mon, tue, wed, thu, fri, sat, sun })
-    });
-    const data = await r.json();
-    if (!r.ok || !data?.ok) return alert(data?.error || "Save failed");
-    alert("Weekly calendar saved");
+    if (!hasSelection) return alert("Select at least one sales support first.");
+    if (effectiveDates.length === 0) return alert("Please choose at least one month or year.");
+    setSavingWeekly(true);
+    try {
+      for (const support of selectedSupports) {
+        for (const effectiveFrom of effectiveDates) {
+          const r = await fetch(`/api/pa/calendar/weekly`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employeeNo: support.employeeNo, mon, tue, wed, thu, fri, sat, sun, effectiveFrom }),
+          });
+          const data = await r.json();
+          if (!r.ok || !data?.ok) throw new Error(data?.error || "Save failed");
+        }
+      }
+      const memberText = `${selectedSupports.length} member${selectedSupports.length > 1 ? "s" : ""}`;
+      const scopeText =
+        planMode === "year"
+          ? `the entire ${planYear} calendar`
+          : `${effectiveDates.length} month${effectiveDates.length > 1 ? "s" : ""} of ${planYear}`;
+      alert(`Weekly calendar saved for ${memberText} across ${scopeText}.`);
+    } catch (e: any) {
+      alert(e?.message || "Save failed");
+    } finally {
+      setSavingWeekly(false);
+    }
   }
 
   async function submitDayOff(row: Row) {
@@ -328,27 +423,131 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
         {/* Weekly off config (supervisor sets by agent) */}
         <Card className="mt-4 border-none bg-[#E0D4B9]">
-          <CardContent className="pt-4">
-            <div className="flex flex-col gap-1 mb-3">
+          <CardContent className="pt-4 space-y-4">
+            <div className="flex flex-col gap-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 3 · Weekly day-off</p>
               <p className="text-sm text-gray-700">
                 {selectedSupports.length === 0
-                  ? "Select at least one sales support above."
-                  : canEditWeekly && primarySupport
+                  ? "Select at least one sales support above to configure their weekly day-off plan."
+                  : selectedSupports.length === 1 && primarySupport
                     ? `Editing schedule for ${primarySupport.name} (${primarySupport.employeeNo}).`
-                    : "Multiple sales supports selected. Choose a single person to edit weekly days off."}
+                    : `Updating ${selectedSupports.length} sales supports together.`}
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label>Planning scope</Label>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {PLAN_MODE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => switchPlanMode(opt.value)}
+                    className={`rounded-xl border px-3 py-2 text-left transition ${
+                      planMode === opt.value ? "border-black/40 bg-white shadow-sm" : "border-black/10 bg-white/60"
+                    }`}
+                  >
+                    <div className="font-semibold text-sm">{opt.label}</div>
+                    <p className="text-xs text-gray-600">{opt.detail}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Year</Label>
+                <select
+                  value={planYear}
+                  onChange={(e) => setPlanYear(e.target.value)}
+                  className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
+                >
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {planMode === "single" && (
+                <div className="space-y-1">
+                  <Label>Month</Label>
+                  <select
+                    value={planMonths[0] || CURRENT_MONTH_VALUE}
+                    onChange={(e) => setPlanMonths([e.target.value])}
+                    className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
+                  >
+                    {MONTH_CHOICES.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {planMode === "multi" && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Select the months that should share this weekly plan.</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="underline-offset-2 hover:underline"
+                      onClick={() => setPlanMonths(MONTH_CHOICES.map((m) => m.value))}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      className="underline-offset-2 hover:underline"
+                      onClick={() => setPlanMonths([])}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {MONTH_CHOICES.map((month) => {
+                    const active = planMonths.includes(month.value);
+                    return (
+                      <button
+                        key={month.value}
+                        type="button"
+                        onClick={() => togglePlanMonth(month.value)}
+                        className={`rounded-md border px-2 py-2 text-sm ${
+                          active ? "bg-[#D8CBAF] border-black/40 font-semibold" : "bg-white border-black/10"
+                        }`}
+                      >
+                        {month.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {planMode === "year" && (
+              <p className="text-xs text-gray-600">
+                Plan will cover every month in {planYear}. Adjust the weekly toggles below and save to apply.
+              </p>
+            )}
+            {planMode !== "year" && (
+              <p className="text-xs text-gray-600">{planSummaryText}</p>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
               <div className="space-y-1 md:col-span-2">
                 <Label>Weekly day-off</Label>
-                <div className="flex flex-wrap gap-3 bg-white rounded-md border border-black/10 p-2">
+                <div className={`flex flex-wrap gap-3 rounded-md border border-black/10 p-2 ${!hasSelection ? "bg-gray-100" : "bg-white"}`}>
                   {[
                     { k: "Mon", v: mon, s: setMon }, { k: "Tue", v: tue, s: setTue }, { k: "Wed", v: wed, s: setWed },
                     { k: "Thu", v: thu, s: setThu }, { k: "Fri", v: fri, s: setFri }, { k: "Sat", v: sat, s: setSat }, { k: "Sun", v: sun, s: setSun },
                   ].map((d) => (
-                    <label key={d.k} className={`inline-flex items-center gap-1 text-sm ${!canEditWeekly ? "opacity-40" : ""}`}>
-                      <input type="checkbox" checked={d.v} onChange={(e) => d.s(e.target.checked)} disabled={!canEditWeekly} /> {d.k}
+                    <label key={d.k} className={`inline-flex items-center gap-1 text-sm ${!hasSelection ? "opacity-40" : ""}`}>
+                      <input type="checkbox" checked={d.v} onChange={(e) => d.s(e.target.checked)} disabled={!hasSelection} /> {d.k}
                     </label>
                   ))}
                 </div>
@@ -356,10 +555,10 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
               <div className="md:col-span-3">
                 <Button
                   onClick={saveWeekly}
-                  disabled={!canEditWeekly}
+                  disabled={!canSaveWeekly || savingWeekly}
                   className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
                 >
-                  Save Weekly Calendar
+                  {savingWeekly ? "Saving..." : "Save Weekly Calendar"}
                 </Button>
               </div>
             </div>
