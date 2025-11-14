@@ -179,6 +179,11 @@ export default function SalesSupportCalendar({ employeeNo, email }: { employeeNo
     setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
   }
 
+  function goToCurrentMonth() {
+    const now = new Date();
+    setCalendarMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+  }
+
   function handleMonthInputChange(value: string) {
     if (!value) return;
     const [yearStr, monthStr] = value.split("-");
@@ -244,6 +249,13 @@ export default function SalesSupportCalendar({ employeeNo, email }: { employeeNo
               className="rounded-full border border-black/20 px-3 py-1 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6EC3A1]"
             />
           </label>
+          <button
+            type="button"
+            onClick={goToCurrentMonth}
+            className="ml-auto rounded-full border border-black/20 bg-white px-4 py-1 text-xs sm:text-sm font-medium text-gray-800 hover:bg-gray-100"
+          >
+            กลับไปเดือนปัจจุบัน
+          </button>
         </div>
         {calendarError ? <div className="mt-3 text-xs text-red-700">{calendarError}</div> : null}
         {calendarLoading ? (
