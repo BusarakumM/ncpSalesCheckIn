@@ -9,11 +9,22 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
 
 type Row = { dateTime: string; name: string; email: string; employeeNo?: string; leaveType: string; remark?: string };
 type Holiday = { date: string; name: string; type?: string };
 type SalesSupportUser = { employeeNo: string; name: string; identity: string; group?: string };
 type PlanMode = "year" | "multi" | "single";
+type WeekdayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+type WeeklyPlanDraft = {
+  id: string;
+  employees: Array<{ employeeNo: string; name: string }>;
+  planMode: PlanMode;
+  planYear: string;
+  months: string[]; // normalized "MM"
+  days: Record<WeekdayKey, boolean>;
+  createdAt: string;
+};
 
 const MAX_BULK_SELECTION = 10;
 const MONTH_CHOICES = [
@@ -38,6 +49,47 @@ const PLAN_MODE_OPTIONS: Array<{ value: PlanMode; label: string; detail: string 
   { value: "multi", label: "Select months", detail: "Pick multiple months in the year that share this plan." },
   { value: "single", label: "Specific month", detail: "Apply the plan to one month only." },
 ];
+const MONTH_LABEL_MAP = Object.fromEntries(MONTH_CHOICES.map((m) => [m.value, m.label]));
+const WEEKDAY_DEFS: Array<{ key: WeekdayKey; label: string }> = [
+  { key: "mon", label: "Mon" },
+  { key: "tue", label: "Tue" },
+  { key: "wed", label: "Wed" },
+  { key: "thu", label: "Thu" },
+  { key: "fri", label: "Fri" },
+  { key: "sat", label: "Sat" },
+  { key: "sun", label: "Sun" },
+];
+const DAY_LABEL_BY_KEY = Object.fromEntries(WEEKDAY_DEFS.map((d) => [d.key, d.label]));
+
+function formatDaySummary(days: Record<WeekdayKey, boolean>) {
+  const active = WEEKDAY_DEFS.filter((d) => days[d.key]);
+  if (active.length === 0) return "No days selected";
+  if (active.length === 7) return "Every day";
+  return active.map((d) => d.label).join(", ");
+}
+
+function summarizeScope(plan: WeeklyPlanDraft) {
+  if (plan.planMode === "year" || plan.months.length === 12) return `Year ${plan.planYear}`;
+  if (plan.months.length === 0) return `Pending months • ${plan.planYear}`;
+  if (plan.months.length === 1) return `${MONTH_LABEL_MAP[plan.months[0]] || plan.months[0]} ${plan.planYear}`;
+  const sample = plan.months.slice(0, 3).map((m) => MONTH_LABEL_MAP[m] || m).join(", ");
+  return `${plan.months.length} months (${sample}${plan.months.length > 3 ? ", …" : ""}) ${plan.planYear}`;
+}
+
+function generateDraftId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function describeEmployees(plan: WeeklyPlanDraft) {
+  if (plan.employees.length === 0) return "—";
+  if (plan.employees.length === 1) {
+    const e = plan.employees[0];
+    return `${e.name} (${e.employeeNo})`;
+  }
+  const [first, ...rest] = plan.employees;
+  return `${first.name} (${first.employeeNo}) +${rest.length}`;
+}
 
 export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [selectedGroup, setSelectedGroup] = useState<"" | "GTS" | "MTS">("");
@@ -85,6 +137,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [planYear, setPlanYear] = useState(CURRENT_YEAR.toString());
   const [planMonths, setPlanMonths] = useState<string[]>([CURRENT_MONTH_VALUE]);
   const [savingWeekly, setSavingWeekly] = useState(false);
+  const [weeklyDrafts, setWeeklyDrafts] = useState<WeeklyPlanDraft[]>([]);
+  const [submittingDrafts, setSubmittingDrafts] = useState(false);
 
   const yearOptions = useMemo(
     () => Array.from({ length: 5 }, (_, idx) => (CURRENT_YEAR - 1 + idx).toString()),
@@ -133,6 +187,10 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       if (planMode === "single") return [value];
       return prev.includes(value) ? prev.filter((m) => m !== value) : [...prev, value];
     });
+  }
+
+  function removeWeeklyDraft(id: string) {
+    setWeeklyDrafts((prev) => prev.filter((draft) => draft.id !== id));
   }
 
   function buildRows(): Row[] | null {
@@ -209,32 +267,69 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     }
   }
 
-  async function saveWeekly() {
-    if (!hasSelection) return alert("Select at least one sales support first.");
-    if (effectiveDates.length === 0) return alert("Please choose at least one month or year.");
+  function saveWeeklyDraft() {
+    if (!canSaveWeekly) {
+      alert("Select sales support and planning scope before saving.");
+      return;
+    }
     setSavingWeekly(true);
     try {
-      for (const support of selectedSupports) {
-        for (const effectiveFrom of effectiveDates) {
-          const r = await fetch(`/api/pa/calendar/weekly`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ employeeNo: support.employeeNo, mon, tue, wed, thu, fri, sat, sun, effectiveFrom }),
-          });
-          const data = await r.json();
-          if (!r.ok || !data?.ok) throw new Error(data?.error || "Save failed");
-        }
-      }
-      const memberText = `${selectedSupports.length} member${selectedSupports.length > 1 ? "s" : ""}`;
-      const scopeText =
-        planMode === "year"
-          ? `the entire ${planYear} calendar`
-          : `${effectiveDates.length} month${effectiveDates.length > 1 ? "s" : ""} of ${planYear}`;
-      alert(`Weekly calendar saved for ${memberText} across ${scopeText}.`);
-    } catch (e: any) {
-      alert(e?.message || "Save failed");
+      const monthsForPlan = planMode === "year" ? MONTH_CHOICES.map((m) => m.value) : normalizedMonths;
+      const draft: WeeklyPlanDraft = {
+        id: generateDraftId(),
+        employees: selectedSupports.map((s) => ({ employeeNo: s.employeeNo, name: s.name })),
+        planMode,
+        planYear,
+        months: monthsForPlan,
+        days: { mon, tue, wed, thu, fri, sat, sun },
+        createdAt: new Date().toISOString(),
+      };
+      setWeeklyDrafts((prev) => [draft, ...prev]);
     } finally {
       setSavingWeekly(false);
+    }
+  }
+
+  async function submitWeeklyDrafts() {
+    if (!weeklyDrafts.length) {
+      alert("No queued plans to submit.");
+      return;
+    }
+    setSubmittingDrafts(true);
+    try {
+      for (const draft of weeklyDrafts) {
+        const months = draft.planMode === "year" ? MONTH_CHOICES.map((m) => m.value) : (draft.months.length ? draft.months : [CURRENT_MONTH_VALUE]);
+        for (const employee of draft.employees) {
+          for (const month of months) {
+            const effectiveFrom = `${draft.planYear}-${month}-01`;
+            const payload = {
+              // Backend table expects one row per employee/month with boolean flags for weekly offs
+              employeeNo: employee.employeeNo,
+              effectiveFrom,
+              mon: draft.days.mon,
+              tue: draft.days.tue,
+              wed: draft.days.wed,
+              thu: draft.days.thu,
+              fri: draft.days.fri,
+              sat: draft.days.sat,
+              sun: draft.days.sun,
+            };
+            const r = await fetch(`/api/pa/calendar/weekly`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await r.json();
+            if (!r.ok || !data?.ok) throw new Error(data?.error || "Save failed");
+          }
+        }
+      }
+      setWeeklyDrafts([]);
+      alert("Weekly calendars submitted to backend.");
+    } catch (e: any) {
+      alert(e?.message || "Submit failed");
+    } finally {
+      setSubmittingDrafts(false);
     }
   }
 
@@ -421,6 +516,81 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </CardContent>
         </Card>
 
+        <Card className="mt-4 border-none bg-[#E0D4B9]">
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 4 · Review & submit</p>
+                <p className="text-sm text-gray-700">Queued weekly plans are listed below. Review before submitting to the backend.</p>
+              </div>
+              <Button
+                onClick={submitWeeklyDrafts}
+                disabled={weeklyDrafts.length === 0 || submittingDrafts}
+                className="rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60"
+              >
+                {submittingDrafts ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting…
+                  </span>
+                ) : weeklyDrafts.length ? (
+                  `Submit ${weeklyDrafts.length} Plan${weeklyDrafts.length === 1 ? "" : "s"}`
+                ) : (
+                  "Submit Plans"
+                )}
+              </Button>
+            </div>
+            <div className="rounded-md border border-black/10 bg-white overflow-x-auto">
+              <Table className="min-w-[720px] text-sm">
+                <TableHeader>
+                  <TableRow className="[&>*]:bg-[#C6E0CF]">
+                    <TableHead>Created</TableHead>
+                    <TableHead>Employees</TableHead>
+                    <TableHead>Scope</TableHead>
+                    <TableHead>Weekly day-off</TableHead>
+                    <TableHead>Rows to push</TableHead>
+                    <TableHead className="w-24 text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {weeklyDrafts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-gray-500">
+                        No weekly plans saved yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    weeklyDrafts.map((draft) => {
+                      const created = new Date(draft.createdAt).toLocaleString();
+                      const scope = summarizeScope(draft);
+                      const daysSummary = formatDaySummary(draft.days);
+                      const monthsCount = draft.planMode === "year" ? 12 : Math.max(draft.months.length, 1);
+                      const totalRows = draft.employees.length * monthsCount;
+                      return (
+                        <TableRow key={draft.id}>
+                          <TableCell>{created}</TableCell>
+                          <TableCell>{describeEmployees(draft)}</TableCell>
+                          <TableCell>{scope}</TableCell>
+                          <TableCell>{daysSummary}</TableCell>
+                          <TableCell>{totalRows}</TableCell>
+                          <TableCell className="text-center">
+                            <button
+                              type="button"
+                              onClick={() => removeWeeklyDraft(draft.id)}
+                              className="text-sm text-red-700 underline-offset-2 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Weekly off config (supervisor sets by agent) */}
         <Card className="mt-4 border-none bg-[#E0D4B9]">
           <CardContent className="pt-4 space-y-4">
@@ -554,11 +724,17 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
               </div>
               <div className="md:col-span-3">
                 <Button
-                  onClick={saveWeekly}
+                  onClick={saveWeeklyDraft}
                   disabled={!canSaveWeekly || savingWeekly}
                   className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
                 >
-                  {savingWeekly ? "Saving..." : "Save Weekly Calendar"}
+                  {savingWeekly ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                    </span>
+                  ) : (
+                    "Save Weekly Plan for Review"
+                  )}
                 </Button>
               </div>
             </div>
