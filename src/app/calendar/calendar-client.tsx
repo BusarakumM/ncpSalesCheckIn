@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
 
-type Row = { dateTime: string; name: string; email: string; employeeNo?: string; leaveType: string; remark?: string };
+type Row = { dateTime: string; name: string; email: string; employeeNo?: string; leaveType: string; remark?: string; group?: string };
 type SalesSupportUser = { employeeNo: string; name: string; identity: string; group?: string };
 type PlanMode = "year" | "multi" | "single";
 type WeekdayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
@@ -120,12 +120,6 @@ function describeEmployees(plan: WeeklyPlanDraft) {
 
 export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [selectedGroup, setSelectedGroup] = useState<"" | "GTS" | "MTS">("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [employeeNo, setEmployeeNo] = useState("");
-  const [dt, setDt] = useState("");
-  const [leaveType, setLeaveType] = useState("");
-  const [remark, setRemark] = useState("");
   const [supportDirectory, setSupportDirectory] = useState<Record<string, { name?: string; group?: string }>>({});
   const [dayoffSource, setDayoffSource] = useState<Row[]>([]);
   const [dayoffLoading, setDayoffLoading] = useState(false);
@@ -140,7 +134,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [fri, setFri] = useState(false);
   const [sat, setSat] = useState(false);
   const [sun, setSun] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [salesSupports, setSalesSupports] = useState<SalesSupportUser[]>([]);
   const [supportsLoading, setSupportsLoading] = useState(false);
   const [supportsError, setSupportsError] = useState<string | null>(null);
@@ -162,7 +155,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     });
   }
   const primarySupport = selectedSupports[0] || null;
-  const canEditWeekly = selectedSupports.length === 1 && !!primarySupport;
   const selectionLimitReached = selectedEmployeeNos.length >= MAX_BULK_SELECTION;
   const hasSelection = selectedSupports.length > 0;
   const [planMode, setPlanMode] = useState<PlanMode>("year");
@@ -278,6 +270,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           employeeNo: support.employeeNo,
           leaveType: holidayLeaveType || "Holiday",
           remark: `Company holiday: ${holidayName}`,
+          group: support.group || supportDirectory[support.employeeNo]?.group,
         };
         await submitDayOff(row);
         newRows.push(row);
@@ -312,6 +305,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           employeeNo: support.employeeNo,
           leaveType: exchangeLeaveType || "Exchange Day-off",
           remark: exchangeNote ? `Exchange day-off: ${exchangeNote}` : "Exchange day-off",
+          group: support.group || supportDirectory[support.employeeNo]?.group,
         };
         await submitDayOff(row);
         exchangeRows.push(row);
@@ -328,33 +322,40 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     }
   }
 
-  function buildRows(): Row[] | null {
-    if (selectedSupports.length === 0) {
-      alert("Please select at least one sales support first.");
-      return null;
+  const handleExport = useCallback(() => {
+    if (!filteredDayoffs.length) {
+      alert("No records to export.");
+      return;
     }
-    if (!dt || !leaveType) {
-      alert("Please fill Date/Time and Leave Type.");
-      return null;
-    }
-    const overrideName = name?.trim();
-    const overrideEmail = email?.trim();
-    const allowEmployeeOverride = selectedSupports.length === 1;
-    const overrideEmployeeNo = allowEmployeeOverride ? employeeNo?.trim() : "";
-    return selectedSupports.map((support) => ({
-      dateTime: dt,
-      name: overrideName || support.name,
-      email: overrideEmail || support.identity,
-      employeeNo: overrideEmployeeNo || support.employeeNo,
-      leaveType,
-      remark,
-    }));
-  }
-  function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setUploadedFileName(f.name);
-  }
+    const header = ["Date/Time", "Name", "Employee No", "Group", "Leave Type", "Remark"];
+    const rows = filteredDayoffs.map((item) => [
+      item.dateTime || "",
+      item.name || "",
+      item.employeeNo || "",
+      item.group || "",
+      item.leaveType || "",
+      item.remark || "",
+    ]);
+    const csv = [header, ...rows]
+      .map((cols) =>
+        cols
+          .map((val) => {
+            const safe = String(val ?? "").replace(/"/g, '""');
+            return `"${safe}"`;
+          })
+          .join(",")
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "sales-support-dayoff-summary.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filteredDayoffs]);
 
   const resetWeeklyDays = useCallback(() => {
     setMon(false);
@@ -555,14 +556,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   useEffect(() => {
     if (!primarySupport) {
       resetWeeklyDays();
-      setName("");
-      setEmployeeNo("");
-      setEmail("");
       return;
     }
-    setName(primarySupport.name);
-    setEmployeeNo(primarySupport.employeeNo);
-    setEmail(primarySupport.identity);
     (async () => {
       const id = primarySupport.employeeNo?.trim();
       if (!id) {
@@ -1065,10 +1060,10 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </CardContent>
         </Card>
 
-        <Card className="mt-4 border-none bg-[#E0D4B9]">
+        <Card className="mt-4 border-none bg-[#BFD9C8]">
           <CardContent className="pt-4 space-y-3">
             <div className="flex flex-col gap-1 mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 7 · Filter day-off summary</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Filter day-off summary</p>
               <p className="text-sm text-gray-700">Use these filters to narrow the table below by name, employee number, or group.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1105,111 +1100,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </CardContent>
         </Card>
 
-        {/* Entry card: inputs stack on mobile, pair up on md+ */}
-        <Card className="mt-4 border-none bg-[#BFD9C8]">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-1 mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 8 · Manual day-off entry</p>
-              <p className="text-sm text-gray-700">
-                {selectedSupports.length === 0
-                  ? "Select sales support in Step 2 to add day-off entries."
-                  : selectedSupports.length === 1
-                    ? `Applying for ${selectedSupports[0].name} (${selectedSupports[0].employeeNo}).`
-                    : `Applying for ${selectedSupports.length} sales supports at once.`}
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Sales support name</Label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-white"
-                  disabled={!canEditWeekly}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Employee No</Label>
-                <Input
-                  value={employeeNo}
-                  onChange={(e) => setEmployeeNo(e.target.value)}
-                  className="bg-white"
-                  disabled={!canEditWeekly}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Username (optional)</Label>
-                <Input
-                  type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white"
-                  disabled={!canEditWeekly}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Date/time</Label>
-                <Input type="datetime-local" value={dt} onChange={(e) => setDt(e.target.value)} className="bg-white" />
-              </div>
-              <div className="space-y-1">
-                <Label>Leave Type</Label>
-                <Input
-                  placeholder="ลากิจ / ลาป่วย / ลาพักร้อน …"
-                  value={leaveType}
-                  onChange={(e) => setLeaveType(e.target.value)}
-                  className="bg-white"
-                />
-              </div>
-
-              {/* Remark takes full width on md+ */}
-              <div className="md:col-span-2 space-y-1">
-                <Label>Remark</Label>
-                <Input
-                  placeholder="Optional"
-                  value={remark}
-                  onChange={(e) => setRemark(e.target.value)}
-                  className="bg-white"
-                />
-              </div>
-
-              <div className="md:col-span-2 pt-1">
-                <Button
-                  disabled={selectedSupports.length === 0}
-                  onClick={async () => {
-                    const rowsToSubmit = buildRows();
-                    if (!rowsToSubmit) return;
-                    try {
-                      for (const row of rowsToSubmit) {
-                        await submitDayOff(row);
-                      }
-                      setSupportDirectory((prev) => {
-                        const next = { ...prev };
-                        rowsToSubmit.forEach((row) => {
-                          if (!row.employeeNo || !row.name) return;
-                          next[row.employeeNo] = { ...(next[row.employeeNo] || {}), name: row.name };
-                        });
-                        return next;
-                      });
-                      setDayoffSource((r) => [...rowsToSubmit, ...r]);
-                      setLeaveType("");
-                      setRemark("");
-                      alert(
-                        rowsToSubmit.length === 1
-                          ? "Day-off added"
-                          : `Day-off added for ${rowsToSubmit.length} sales supports`
-                      );
-                    } catch (err: unknown) {
-                      alert(err instanceof Error ? err.message : "Failed");
-                    }
-                  }}
-                  className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
-                >
-                  Add
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* List area: full-width band with fluid inner container */}
@@ -1218,22 +1108,17 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           <div className="mb-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 justify-between">
             <h2 className="text-lg sm:text-xl font-extrabold">Sales support holiday list</h2>
 
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm hover:bg-gray-50 self-start sm:self-auto">
-              <input type="file" accept=".xlsx" className="hidden" onChange={onUpload} />
-              <span>Upload excel file</span>
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-white">↑</span>
-            </label>
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 self-start sm:self-auto"
+            >
+              <span>Export excel file</span>
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-white">↓</span>
+            </button>
           </div>
 
-          <div className="text-xs text-gray-700 mb-2">
-            {uploadedFileName ? (
-              <>
-                Selected: <b>{uploadedFileName}</b>
-              </>
-            ) : (
-              "No file selected"
-            )}
-          </div>
+          <div className="text-xs text-gray-700 mb-2">Download the current filtered results as a CSV.</div>
           {dayoffError && <div className="text-xs text-red-600 mb-2">{dayoffError}</div>}
           <div className="text-xs text-gray-600 mb-3">
             {dayoffLoading
@@ -1283,11 +1168,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             </Table>
           </div>
 
-          <div className="mt-4">
-            <Button className="w-full rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20">
-              Submit &amp; Done
-            </Button>
-          </div>
         </div>
       </div>
     </div>
