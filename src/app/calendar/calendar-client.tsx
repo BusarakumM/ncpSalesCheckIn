@@ -142,6 +142,12 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [holidayDay, setHolidayDay] = useState("01");
   const [holidayLeaveType, setHolidayLeaveType] = useState("Holiday");
   const [holidaySaving, setHolidaySaving] = useState(false);
+  const [exchangeYear, setExchangeYear] = useState(CURRENT_YEAR.toString());
+  const [exchangeMonth, setExchangeMonth] = useState(CURRENT_MONTH_VALUE);
+  const [exchangeDay, setExchangeDay] = useState("01");
+  const [exchangeLeaveType, setExchangeLeaveType] = useState("Exchange Day-off");
+  const [exchangeNote, setExchangeNote] = useState("");
+  const [exchangeSaving, setExchangeSaving] = useState(false);
 
   const yearOptions = useMemo(
     () => Array.from({ length: 5 }, (_, idx) => (CURRENT_YEAR - 1 + idx).toString()),
@@ -226,6 +232,40 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       alert(e?.message || "Failed to add holiday");
     } finally {
       setHolidaySaving(false);
+    }
+  }
+
+  async function addExchangeDayOff() {
+    if (!selectedSupports.length) {
+      alert("Select at least one sales support before adding an exchange day-off.");
+      return;
+    }
+    const day = exchangeDay || "01";
+    const iso = `${exchangeYear || CURRENT_YEAR}-${exchangeMonth}-${day}T00:00`;
+    setExchangeSaving(true);
+    try {
+      const exchangeRows: Row[] = [];
+      for (const support of selectedSupports) {
+        const row: Row = {
+          dateTime: iso,
+          name: support.name,
+          email: support.identity,
+          employeeNo: support.employeeNo,
+          leaveType: exchangeLeaveType || "Exchange Day-off",
+          remark: exchangeNote ? `Exchange day-off: ${exchangeNote}` : "Exchange day-off",
+        };
+        await submitDayOff(row);
+        exchangeRows.push(row);
+      }
+      setRows((prev) => [...exchangeRows, ...prev]);
+      setExchangeNote("");
+      setExchangeLeaveType("Exchange Day-off");
+      alert(`Exchange day-off scheduled for ${exchangeRows.length} sales supports.`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to add exchange day-off";
+      alert(msg);
+    } finally {
+      setExchangeSaving(false);
     }
   }
 
@@ -836,11 +876,82 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </CardContent>
         </Card>
 
+        <Card className="mt-4 border-none bg-[#E0D4B9]">
+          <CardContent className="pt-4 space-y-4">
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 6 · Schedule exchange day-off</p>
+              <p className="text-sm text-gray-700">
+                Use when a sales support swaps their weekly day-off to a specific date (make-up/exchange day). Everyone selected in Step 2 will receive this entry.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label>Year</Label>
+                <select value={exchangeYear} onChange={(e) => setExchangeYear(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  {yearOptions.map((year) => (
+                    <option key={`exchange-year-${year}`} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Month</Label>
+                <select value={exchangeMonth} onChange={(e) => setExchangeMonth(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  {MONTH_CHOICES.map((m) => (
+                    <option key={`exchange-month-${m.value}`} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Day</Label>
+                <select value={exchangeDay} onChange={(e) => setExchangeDay(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  {DAY_CHOICES.map((day) => (
+                    <option key={`exchange-day-${day}`} value={day}>
+                      {parseInt(day, 10)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Leave type</Label>
+                <Input value={exchangeLeaveType} onChange={(e) => setExchangeLeaveType(e.target.value)} className="bg-white" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Reason / note</Label>
+                <Input value={exchangeNote} onChange={(e) => setExchangeNote(e.target.value)} placeholder="e.g. Swap with Monday due to training" className="bg-white" />
+              </div>
+              <div className="space-y-1 flex flex-col justify-end">
+                <Button
+                  onClick={addExchangeDayOff}
+                  disabled={exchangeSaving || !selectedSupports.length}
+                  className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
+                >
+                  {exchangeSaving ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Applying…
+                    </span>
+                  ) : (
+                    "Add exchange day-off"
+                  )}
+                </Button>
+                <p className="text-xs text-gray-600 mt-1">
+                  One entry per selected sales support ({selectedSupports.length || 0} currently selected).
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Entry card: inputs stack on mobile, pair up on md+ */}
         <Card className="mt-4 border-none bg-[#BFD9C8]">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-1 mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 6 · Manual day-off entry</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 7 · Manual day-off entry</p>
               <p className="text-sm text-gray-700">
                 {selectedSupports.length === 0
                   ? "Select sales support in Step 2 to add day-off entries."
