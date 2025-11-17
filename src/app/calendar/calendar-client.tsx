@@ -124,10 +124,9 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [dayoffSource, setDayoffSource] = useState<Row[]>([]);
   const [dayoffLoading, setDayoffLoading] = useState(false);
   const [dayoffError, setDayoffError] = useState<string | null>(null);
-  const [filterName, setFilterName] = useState("");
-  const [filterEmployeeNo, setFilterEmployeeNo] = useState("");
-  const [filterGroup, setFilterGroup] = useState("");
-  const [appliedFilters, setAppliedFilters] = useState<{ nameEmployeeNo?: string; employeeNo?: string; group?: string }>({});
+  const [filterField, setFilterField] = useState<"name" | "employeeNo" | "group">("name");
+  const [filterValueInput, setFilterValueInput] = useState("");
+  const [appliedFilter, setAppliedFilter] = useState<{ field: "name" | "employeeNo" | "group"; value: string; label?: string } | null>(null);
   const [mon, setMon] = useState(false);
   const [tue, setTue] = useState(false);
   const [wed, setWed] = useState(false);
@@ -143,7 +142,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     () => salesSupports.filter((u) => selectedEmployeeNos.includes(u.employeeNo)),
     [salesSupports, selectedEmployeeNos]
   );
-}
   function toggleSupportSelection(employeeNo: string) {
     setSelectedEmployeeNos((prev) => {
       if (prev.includes(employeeNo)) {
@@ -230,35 +228,18 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     });
   }, [dayoffSource, supportDirectory]);
   const filteredDayoffs = useMemo(() => {
+    if (!appliedFilter || !appliedFilter.value.trim()) return enrichedDayoffs;
+    const term = appliedFilter.value.trim().toLowerCase();
     return enrichedDayoffs.filter((row) => {
-      if (appliedFilters.nameEmployeeNo && (row.employeeNo || "").toLowerCase() !== appliedFilters.nameEmployeeNo.toLowerCase()) {
-        return false;
+      if (appliedFilter.field === "name" || appliedFilter.field === "employeeNo") {
+        return (row.employeeNo || "").toLowerCase() === term;
       }
-      if (appliedFilters.employeeNo && (row.employeeNo || "").toLowerCase() !== appliedFilters.employeeNo.toLowerCase()) {
-        return false;
-      }
-      if (appliedFilters.group && (row.group || "").toLowerCase() !== appliedFilters.group.toLowerCase()) {
-        return false;
+      if (appliedFilter.field === "group") {
+        return (row.group || "").toLowerCase() === term;
       }
       return true;
     });
-  }, [enrichedDayoffs, appliedFilters]);
-
-  const activeFilterDescription = useMemo(() => {
-    const parts: string[] = [];
-    if (appliedFilters.group) parts.push(`Group = ${appliedFilters.group}`);
-    const toLabel = (employeeNo?: string, fallback?: string) => {
-      if (!employeeNo) return null;
-      const match = supportOptions.find((opt) => opt.employeeNo === employeeNo);
-      return match ? `${match.name} (${match.employeeNo})` : fallback || employeeNo;
-    };
-    const nameLabel = toLabel(appliedFilters.nameEmployeeNo, appliedFilters.nameEmployeeNo);
-    if (nameLabel) parts.push(`Name = ${nameLabel}`);
-    const empLabel = toLabel(appliedFilters.employeeNo, appliedFilters.employeeNo);
-    if (empLabel) parts.push(`Employee No = ${empLabel}`);
-    if (!parts.length) return "No filter applied.";
-    return `Filters: ${parts.join(", ")}`;
-  }, [appliedFilters, supportOptions]);
+  }, [enrichedDayoffs, appliedFilter]);
 
   function switchPlanMode(next: PlanMode) {
     setPlanMode(next);
@@ -388,29 +369,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }, [filteredDayoffs]);
-
-  const handleApplyFilter = useCallback(() => {
-    const next: { nameEmployeeNo?: string; employeeNo?: string; group?: string } = {};
-    if (filterName) next.nameEmployeeNo = filterName;
-    if (filterEmployeeNo) next.employeeNo = filterEmployeeNo;
-    if (filterGroup) next.group = filterGroup;
-    setAppliedFilters(next);
-    const primaryEmployee = filterEmployeeNo || filterName;
-    if (primaryEmployee) {
-      loadDayOffSummary({ employeeNo: primaryEmployee }).catch(() => {});
-    } else {
-      loadDayOffSummary().catch(() => {});
-    }
-  }, [filterName, filterEmployeeNo, filterGroup, loadDayOffSummary]);
-
-  const handleClearFilters = useCallback(() => {
-    setFilterName("");
-    setFilterEmployeeNo("");
-    setFilterGroup("");
-    setAppliedFilters({});
-    loadDayOffSummary().catch(() => {});
-  }, [loadDayOffSummary]);
-
 
   const resetWeeklyDays = useCallback(() => {
     setMon(false);
@@ -579,34 +537,34 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     };
   }, []);
 
-  const loadDayOffSummary = useCallback(
-    async (overrides?: { employeeNo?: string }) => {
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDayOffSummary() {
       setDayoffLoading(true);
       setDayoffError(null);
       try {
-        const params = new URLSearchParams();
-        params.set("from", `${CURRENT_YEAR}-01-01`);
-        params.set("to", `${CURRENT_YEAR}-12-31`);
-        if (overrides?.employeeNo) params.set("employeeNo", overrides.employeeNo.trim());
-        const res = await fetch(`/api/pa/calendar/dayoff?${params.toString()}`, { cache: "no-store" });
+        const from = `${CURRENT_YEAR}-01-01`;
+        const to = `${CURRENT_YEAR}-12-31`;
+        const res = await fetch(`/api/pa/calendar/dayoff?from=${from}&to=${to}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load day-offs");
+        if (cancelled) return;
         const base: Row[] = (Array.isArray(data.dayoffs) ? data.dayoffs : [])
           .map((item) => normalizeDayoffRecord(item))
           .filter((item): item is Row => Boolean(item));
         setDayoffSource(base.sort((a, b) => (a.dateTime > b.dateTime ? -1 : 1)));
       } catch (err: unknown) {
+        if (cancelled) return;
         setDayoffError(err instanceof Error ? err.message : "Failed to load day-offs");
       } finally {
-        setDayoffLoading(false);
+        if (!cancelled) setDayoffLoading(false);
       }
-    },
-    []
-  );
-
-  useEffect(() => {
+    }
     loadDayOffSummary().catch(() => {});
-  }, [loadDayOffSummary]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!primarySupport) {
@@ -1123,51 +1081,77 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label>Sales support name</Label>
-                <select
-                  value={filterName}
-                  onChange={(e) => setFilterName(e.target.value)}
-                  className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
-                  disabled={supportOptions.length === 0}
-                >
-                  <option value="">{supportOptions.length ? "Select a sales support" : "No sales support"}</option>
-                  {supportOptions.map((option) => (
-                    <option key={`name-${option.employeeNo}`} value={option.employeeNo}>
-                      {option.name} ({option.employeeNo})
-                    </option>
-                  ))}
+                <Label>Filter by</Label>
+                <select value={filterField} onChange={(e) => setFilterField(e.target.value as "name" | "employeeNo" | "group")} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  <option value="name">Sales support name</option>
+                  <option value="employeeNo">Employee No</option>
+                  <option value="group">Group</option>
                 </select>
               </div>
-              <div className="space-y-1">
-                <Label>Employee No</Label>
-                <select
-                  value={filterEmployeeNo}
-                  onChange={(e) => setFilterEmployeeNo(e.target.value)}
-                  className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
-                  disabled={supportOptions.length === 0}
-                >
-                  <option value="">{supportOptions.length ? "Select employee no" : "No sales support"}</option>
-                  {supportOptions.map((option) => (
-                    <option key={`emp-${option.employeeNo}`} value={option.employeeNo}>
-                      {option.employeeNo} — {option.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>Group</Label>
-                <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
-                  <option value="">All groups</option>
-                  <option value="GTS">GTS</option>
-                  <option value="MTS">MTS</option>
-                </select>
+              <div className="space-y-1 md:col-span-2">
+                <Label>{filterField === "group" ? "Select group" : "Select sales support"}</Label>
+                {filterField === "group" ? (
+                  <select value={filterValueInput} onChange={(e) => setFilterValueInput(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                    <option value="">Select a group</option>
+                    <option value="GTS">GTS</option>
+                    <option value="MTS">MTS</option>
+                  </select>
+                ) : (
+                  <select
+                    value={filterValueInput}
+                    onChange={(e) => setFilterValueInput(e.target.value)}
+                    className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
+                    disabled={supportOptions.length === 0}
+                  >
+                    <option value="">{supportOptions.length ? "Select a sales support" : "No sales support available"}</option>
+                    {supportOptions.map((option) => (
+                      <option key={`${filterField}-${option.employeeNo}`} value={option.employeeNo}>
+                        {filterField === "employeeNo"
+                          ? `${option.employeeNo} — ${option.name}`
+                          : `${option.name} (${option.employeeNo})`}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 justify-end">
-              <Button onClick={handleApplyFilter} className="rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20">
+              <Button
+                type="button"
+                onClick={() => {
+                  const value = filterValueInput.trim();
+                  if (!value) {
+                    setAppliedFilter(null);
+                    loadDayOffSummary().catch(() => {});
+                    return;
+                  }
+                  const label =
+                    filterField === "group"
+                      ? `Group = ${value}`
+                      : (() => {
+                          const found = supportOptions.find((opt) => opt.employeeNo === value);
+                          return found ? `${found.name} (${found.employeeNo})` : value;
+                        })();
+                  setAppliedFilter({ field: filterField, value, label });
+                  if (filterField === "employeeNo" || filterField === "name") {
+                    loadDayOffSummary({ employeeNo: value }).catch(() => {});
+                  } else {
+                    loadDayOffSummary().catch(() => {});
+                  }
+                }}
+                className="rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20"
+              >
                 Apply filter
               </Button>
-              <Button onClick={handleClearFilters} className="rounded-full bg-white border border-black/20 text-gray-800 hover:bg-gray-50">
+              <Button
+                type="button"
+                onClick={() => {
+                  setFilterValueInput("");
+                  setAppliedFilter(null);
+                  loadDayOffSummary().catch(() => {});
+                }}
+                className="rounded-full bg-white border border-black/20 text-gray-800 hover:bg-gray-50"
+              >
                 Clear filters
               </Button>
             </div>
@@ -1246,3 +1230,4 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       </div>
     </div>
   );
+}
