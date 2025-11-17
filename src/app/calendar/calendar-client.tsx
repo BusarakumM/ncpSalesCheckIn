@@ -127,7 +127,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [filterName, setFilterName] = useState("");
   const [filterEmployeeNo, setFilterEmployeeNo] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
-  const [appliedFilter, setAppliedFilter] = useState<{ field: "name" | "employeeNo" | "group"; value: string; label?: string } | null>(null);
+  const [appliedFilters, setAppliedFilters] = useState<{ nameEmployeeNo?: string; employeeNo?: string; group?: string }>({});
   const [mon, setMon] = useState(false);
   const [tue, setTue] = useState(false);
   const [wed, setWed] = useState(false);
@@ -230,23 +230,35 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     });
   }, [dayoffSource, supportDirectory]);
   const filteredDayoffs = useMemo(() => {
-    if (!appliedFilter || !appliedFilter.value.trim()) return enrichedDayoffs;
-    const term = appliedFilter.value.trim().toLowerCase();
     return enrichedDayoffs.filter((row) => {
-      if (appliedFilter.field === "name" || appliedFilter.field === "employeeNo") {
-        return (row.employeeNo || "").toLowerCase() === term;
+      if (appliedFilters.nameEmployeeNo && (row.employeeNo || "").toLowerCase() !== appliedFilters.nameEmployeeNo.toLowerCase()) {
+        return false;
       }
-      if (appliedFilter.field === "group") {
-        return (row.group || "").toLowerCase() === term;
+      if (appliedFilters.employeeNo && (row.employeeNo || "").toLowerCase() !== appliedFilters.employeeNo.toLowerCase()) {
+        return false;
+      }
+      if (appliedFilters.group && (row.group || "").toLowerCase() !== appliedFilters.group.toLowerCase()) {
+        return false;
       }
       return true;
     });
-  }, [enrichedDayoffs, appliedFilter]);
+  }, [enrichedDayoffs, appliedFilters]);
 
   const activeFilterDescription = useMemo(() => {
-    if (!appliedFilter || !appliedFilter.value.trim()) return "No filter applied.";
-    return `Filter: ${appliedFilter.label || `${appliedFilter.field} = ${appliedFilter.value}`}`;
-  }, [appliedFilter]);
+    const parts: string[] = [];
+    if (appliedFilters.group) parts.push(`Group = ${appliedFilters.group}`);
+    const toLabel = (employeeNo?: string, fallback?: string) => {
+      if (!employeeNo) return null;
+      const match = supportOptions.find((opt) => opt.employeeNo === employeeNo);
+      return match ? `${match.name} (${match.employeeNo})` : fallback || employeeNo;
+    };
+    const nameLabel = toLabel(appliedFilters.nameEmployeeNo, appliedFilters.nameEmployeeNo);
+    if (nameLabel) parts.push(`Name = ${nameLabel}`);
+    const empLabel = toLabel(appliedFilters.employeeNo, appliedFilters.employeeNo);
+    if (empLabel) parts.push(`Employee No = ${empLabel}`);
+    if (!parts.length) return "No filter applied.";
+    return `Filters: ${parts.join(", ")}`;
+  }, [appliedFilters, supportOptions]);
 
   function switchPlanMode(next: PlanMode) {
     setPlanMode(next);
@@ -378,34 +390,24 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   }, [filteredDayoffs]);
 
   const handleApplyFilter = useCallback(() => {
-    if (filterName) {
-      const selected = supportOptions.find((opt) => opt.employeeNo === filterName);
-      const label = selected ? `${selected.name} (${selected.employeeNo})` : filterName;
-      setAppliedFilter({ field: "employeeNo", value: filterName, label });
-      loadDayOffSummary({ employeeNo: filterName }).catch(() => {});
-      return;
-    }
-    if (filterEmployeeNo) {
-      const selected = supportOptions.find((opt) => opt.employeeNo === filterEmployeeNo);
-      const label = selected ? `${selected.employeeNo} — ${selected.name}` : filterEmployeeNo;
-      setAppliedFilter({ field: "employeeNo", value: filterEmployeeNo, label });
-      loadDayOffSummary({ employeeNo: filterEmployeeNo }).catch(() => {});
-      return;
-    }
-    if (filterGroup) {
-      setAppliedFilter({ field: "group", value: filterGroup, label: `Group = ${filterGroup}` });
+    const next: { nameEmployeeNo?: string; employeeNo?: string; group?: string } = {};
+    if (filterName) next.nameEmployeeNo = filterName;
+    if (filterEmployeeNo) next.employeeNo = filterEmployeeNo;
+    if (filterGroup) next.group = filterGroup;
+    setAppliedFilters(next);
+    const primaryEmployee = filterEmployeeNo || filterName;
+    if (primaryEmployee) {
+      loadDayOffSummary({ employeeNo: primaryEmployee }).catch(() => {});
+    } else {
       loadDayOffSummary().catch(() => {});
-      return;
     }
-    setAppliedFilter(null);
-    loadDayOffSummary().catch(() => {});
-  }, [filterName, filterEmployeeNo, filterGroup, loadDayOffSummary, supportOptions]);
+  }, [filterName, filterEmployeeNo, filterGroup, loadDayOffSummary]);
 
   const handleClearFilters = useCallback(() => {
     setFilterName("");
     setFilterEmployeeNo("");
     setFilterGroup("");
-    setAppliedFilter(null);
+    setAppliedFilters({});
     loadDayOffSummary().catch(() => {});
   }, [loadDayOffSummary]);
 
