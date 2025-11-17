@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -59,6 +59,35 @@ const WEEKDAY_DEFS: Array<{ key: WeekdayKey; label: string }> = [
   { key: "sat", label: "Sat" },
   { key: "sun", label: "Sun" },
 ];
+function normalizeUserRecord(raw: unknown): SalesSupportUser | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const employeeNo = typeof obj.employeeNo === "string" ? obj.employeeNo.trim() : "";
+  const username = typeof obj.username === "string" ? obj.username.trim() : "";
+  const email = typeof obj.email === "string" ? obj.email.trim() : "";
+  const name = typeof obj.name === "string" ? obj.name.trim() : "";
+  const group = typeof obj.group === "string" ? obj.group.trim() : undefined;
+  const identity = username || email || employeeNo;
+  if (!employeeNo || !identity) return null;
+  return { employeeNo, name: name || identity, identity, group };
+}
+
+function normalizeDayoffRecord(raw: unknown): Row | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const date = typeof obj.date === "string" ? obj.date : "";
+  const leaveType = typeof obj.leaveType === "string" ? obj.leaveType : "";
+  if (!date || !leaveType) return null;
+  return {
+    dateTime: date,
+    name: typeof obj.name === "string" ? obj.name : "",
+    email: typeof obj.email === "string" ? obj.email : "",
+    employeeNo: typeof obj.employeeNo === "string" ? obj.employeeNo : "",
+    leaveType,
+    remark: typeof obj.remark === "string" ? obj.remark : "",
+  };
+}
+
 function formatDaySummary(days: Record<WeekdayKey, boolean>) {
   const active = WEEKDAY_DEFS.filter((d) => days[d.key]);
   if (active.length === 0) return "No days selected";
@@ -97,7 +126,13 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [dt, setDt] = useState("");
   const [leaveType, setLeaveType] = useState("");
   const [remark, setRemark] = useState("");
-  const [rows, setRows] = useState<Row[]>([]);
+  const [supportDirectory, setSupportDirectory] = useState<Record<string, { name?: string; group?: string }>>({});
+  const [dayoffSource, setDayoffSource] = useState<Row[]>([]);
+  const [dayoffLoading, setDayoffLoading] = useState(false);
+  const [dayoffError, setDayoffError] = useState<string | null>(null);
+  const [filterName, setFilterName] = useState("");
+  const [filterEmployeeNo, setFilterEmployeeNo] = useState("");
+  const [filterGroup, setFilterGroup] = useState("");
   const [mon, setMon] = useState(false);
   const [tue, setTue] = useState(false);
   const [wed, setWed] = useState(false);
@@ -177,6 +212,29 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     return `Applies to ${normalizedMonths.length} months in ${planYear}.`;
   }, [planMode, planYear, normalizedMonths]);
   const canSaveWeekly = hasSelection && (planMode === "year" || normalizedMonths.length > 0);
+  const enrichedDayoffs = useMemo(() => {
+    return dayoffSource.map((item) => {
+      const empNo = item.employeeNo || "";
+      const directoryInfo = empNo ? supportDirectory[empNo] : undefined;
+      return {
+        ...item,
+        employeeNo: empNo,
+        name: item.name || directoryInfo?.name || empNo || item.email || "",
+        group: directoryInfo?.group || "",
+      };
+    });
+  }, [dayoffSource, supportDirectory]);
+  const filteredDayoffs = useMemo(() => {
+    const nameQuery = filterName.trim().toLowerCase();
+    const empQuery = filterEmployeeNo.trim().toLowerCase();
+    const groupQuery = filterGroup.trim().toLowerCase();
+    return enrichedDayoffs.filter((row) => {
+      const nameMatches = nameQuery ? (row.name || "").toLowerCase().includes(nameQuery) : true;
+      const empMatches = empQuery ? (row.employeeNo || "").toLowerCase().includes(empQuery) : true;
+      const groupMatches = groupQuery ? (row.group || "").toLowerCase().includes(groupQuery) : true;
+      return nameMatches && empMatches && groupMatches;
+    });
+  }, [enrichedDayoffs, filterName, filterEmployeeNo, filterGroup]);
 
   function switchPlanMode(next: PlanMode) {
     setPlanMode(next);
@@ -224,12 +282,13 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         await submitDayOff(row);
         newRows.push(row);
       }
-      setRows((prev) => [...newRows, ...prev]);
+      setDayoffSource((prev) => [...newRows, ...prev]);
       setHolidayName("");
       setHolidayLeaveType("Holiday");
       alert(`Added ${newRows.length} holiday day-off entries.`);
-    } catch (e: any) {
-      alert(e?.message || "Failed to add holiday");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to add holiday";
+      alert(message);
     } finally {
       setHolidaySaving(false);
     }
@@ -257,7 +316,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         await submitDayOff(row);
         exchangeRows.push(row);
       }
-      setRows((prev) => [...exchangeRows, ...prev]);
+      setDayoffSource((prev) => [...exchangeRows, ...prev]);
       setExchangeNote("");
       setExchangeLeaveType("Exchange Day-off");
       alert(`Exchange day-off scheduled for ${exchangeRows.length} sales supports.`);
@@ -297,7 +356,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     setUploadedFileName(f.name);
   }
 
-  function resetWeeklyDays() {
+  const resetWeeklyDays = useCallback(() => {
     setMon(false);
     setTue(false);
     setWed(false);
@@ -305,9 +364,9 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     setFri(false);
     setSat(false);
     setSun(false);
-  }
+  }, []);
 
-  function applyWeeklyDays(cfg?: { mon?: boolean; tue?: boolean; wed?: boolean; thu?: boolean; fri?: boolean; sat?: boolean; sun?: boolean }) {
+  const applyWeeklyDays = useCallback((cfg?: { mon?: boolean; tue?: boolean; wed?: boolean; thu?: boolean; fri?: boolean; sat?: boolean; sun?: boolean }) => {
     if (!cfg) {
       resetWeeklyDays();
       return;
@@ -319,19 +378,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     setFri(!!cfg.fri);
     setSat(!!cfg.sat);
     setSun(!!cfg.sun);
-  }
-
-  async function loadWeekly(target?: string) {
-    const id = target?.trim();
-    if (!id) return;
-    const r = await fetch(`/api/pa/calendar/weekly?employeeNo=${encodeURIComponent(id)}`, { cache: "no-store" });
-    const data = await r.json();
-    if (r.ok && data?.ok && data?.config) {
-      applyWeeklyDays(data.config);
-    } else {
-      applyWeeklyDays();
-    }
-  }
+  }, [resetWeeklyDays]);
 
   function saveWeeklyDraft() {
     if (!canSaveWeekly) {
@@ -392,8 +439,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       }
       setWeeklyDrafts([]);
       alert("Weekly calendars submitted to backend.");
-    } catch (e: any) {
-      alert(e?.message || "Submit failed");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Submit failed");
     } finally {
       setSubmittingDrafts(false);
     }
@@ -425,21 +472,23 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load sales support");
         if (cancelled) return;
-        const mapped: SalesSupportUser[] = Array.isArray(data.users)
-          ? data.users
-              .map((u: any) => ({
-                employeeNo: String(u.employeeNo || "").trim(),
-                name: String(u.name || "").trim(),
-                identity: String(u.username || u.email || "").trim(),
-                group: u.group ? String(u.group).trim() : undefined,
-              }))
-              .filter((u: SalesSupportUser) => u.employeeNo && u.identity)
-          : [];
+        const mapped: SalesSupportUser[] = (Array.isArray(data.users) ? data.users : [])
+          .map((u) => normalizeUserRecord(u))
+          .filter((u): u is SalesSupportUser => Boolean(u));
         setSalesSupports(mapped);
+        setSupportDirectory((prev) => {
+          const next = { ...prev };
+          mapped.forEach((support) => {
+            if (!support.employeeNo) return;
+            next[support.employeeNo] = { name: support.name, group: support.group || selectedGroup || "" };
+          });
+          return next;
+        });
         setSelectedEmployeeNos((prev) => prev.filter((id) => mapped.some((u) => u.employeeNo === id)));
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (cancelled) return;
-        setSupportsError(err?.message || "Failed to load sales support");
+        const message = err instanceof Error ? err.message : "Failed to load sales support";
+        setSupportsError(message);
         setSalesSupports([]);
         setSelectedEmployeeNos([]);
       } finally {
@@ -452,6 +501,58 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   }, [selectedGroup]);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/pa/users`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok || cancelled) return;
+        const next: Record<string, { name?: string; group?: string }> = {};
+        (Array.isArray(data.users) ? data.users : []).forEach((u) => {
+          const parsed = normalizeUserRecord(u);
+          if (!parsed) return;
+          next[parsed.employeeNo] = { name: parsed.name, group: parsed.group };
+        });
+        setSupportDirectory((prev) => ({ ...next, ...prev }));
+      } catch {
+        // ignore preload errors
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDayOffSummary() {
+      setDayoffLoading(true);
+      setDayoffError(null);
+      try {
+        const from = `${CURRENT_YEAR}-01-01`;
+        const to = `${CURRENT_YEAR}-12-31`;
+        const res = await fetch(`/api/pa/calendar/dayoff?from=${from}&to=${to}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load day-offs");
+        if (cancelled) return;
+        const base: Row[] = (Array.isArray(data.dayoffs) ? data.dayoffs : [])
+          .map((item) => normalizeDayoffRecord(item))
+          .filter((item): item is Row => Boolean(item));
+        setDayoffSource(base.sort((a, b) => (a.dateTime > b.dateTime ? -1 : 1)));
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setDayoffError(err instanceof Error ? err.message : "Failed to load day-offs");
+      } finally {
+        if (!cancelled) setDayoffLoading(false);
+      }
+    }
+    loadDayOffSummary().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!primarySupport) {
       resetWeeklyDays();
       setName("");
@@ -462,8 +563,25 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     setName(primarySupport.name);
     setEmployeeNo(primarySupport.employeeNo);
     setEmail(primarySupport.identity);
-    loadWeekly(primarySupport.employeeNo).catch(() => {});
-  }, [primarySupport]);
+    (async () => {
+      const id = primarySupport.employeeNo?.trim();
+      if (!id) {
+        applyWeeklyDays();
+        return;
+      }
+      try {
+        const res = await fetch(`/api/pa/calendar/weekly?employeeNo=${encodeURIComponent(id)}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.ok && data?.config) {
+          applyWeeklyDays(data.config);
+        } else {
+          applyWeeklyDays();
+        }
+      } catch {
+        applyWeeklyDays();
+      }
+    })();
+  }, [primarySupport, applyWeeklyDays, resetWeeklyDays]);
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
@@ -947,11 +1065,51 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </CardContent>
         </Card>
 
+        <Card className="mt-4 border-none bg-[#E0D4B9]">
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex flex-col gap-1 mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 7 · Filter day-off summary</p>
+              <p className="text-sm text-gray-700">Use these filters to narrow the table below by name, employee number, or group.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label>Sales support name</Label>
+                <Input value={filterName} onChange={(e) => setFilterName(e.target.value)} placeholder="Search by name" className="bg-white" />
+              </div>
+              <div className="space-y-1">
+                <Label>Employee No</Label>
+                <Input value={filterEmployeeNo} onChange={(e) => setFilterEmployeeNo(e.target.value)} placeholder="Search by employee no." className="bg-white" />
+              </div>
+              <div className="space-y-1">
+                <Label>Group</Label>
+                <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  <option value="">All groups</option>
+                  <option value="GTS">GTS</option>
+                  <option value="MTS">MTS</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                onClick={() => {
+                  setFilterName("");
+                  setFilterEmployeeNo("");
+                  setFilterGroup("");
+                }}
+                className="rounded-full bg-white border border-black/20 text-gray-800 hover:bg-gray-50"
+              >
+                Clear filters
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Entry card: inputs stack on mobile, pair up on md+ */}
         <Card className="mt-4 border-none bg-[#BFD9C8]">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-1 mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 7 · Manual day-off entry</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 8 · Manual day-off entry</p>
               <p className="text-sm text-gray-700">
                 {selectedSupports.length === 0
                   ? "Select sales support in Step 2 to add day-off entries."
@@ -1024,7 +1182,15 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                       for (const row of rowsToSubmit) {
                         await submitDayOff(row);
                       }
-                      setRows((r) => [...rowsToSubmit, ...r]);
+                      setSupportDirectory((prev) => {
+                        const next = { ...prev };
+                        rowsToSubmit.forEach((row) => {
+                          if (!row.employeeNo || !row.name) return;
+                          next[row.employeeNo] = { ...(next[row.employeeNo] || {}), name: row.name };
+                        });
+                        return next;
+                      });
+                      setDayoffSource((r) => [...rowsToSubmit, ...r]);
                       setLeaveType("");
                       setRemark("");
                       alert(
@@ -1032,8 +1198,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                           ? "Day-off added"
                           : `Day-off added for ${rowsToSubmit.length} sales supports`
                       );
-                    } catch (e: any) {
-                      alert(e?.message || "Failed");
+                    } catch (err: unknown) {
+                      alert(err instanceof Error ? err.message : "Failed");
                     }
                   }}
                   className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
@@ -1060,7 +1226,19 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </div>
 
           <div className="text-xs text-gray-700 mb-2">
-            {uploadedFileName ? <>Selected: <b>{uploadedFileName}</b></> : "No file selected"}
+            {uploadedFileName ? (
+              <>
+                Selected: <b>{uploadedFileName}</b>
+              </>
+            ) : (
+              "No file selected"
+            )}
+          </div>
+          {dayoffError && <div className="text-xs text-red-600 mb-2">{dayoffError}</div>}
+          <div className="text-xs text-gray-600 mb-3">
+            {dayoffLoading
+              ? "Loading day-off summary..."
+              : `Showing ${filteredDayoffs.length} record${filteredDayoffs.length === 1 ? "" : "s"}.`}
           </div>
 
           {/* Table wrapper: horizontal scroll on small screens */}
@@ -1071,23 +1249,31 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                   <TableHead className="min-w-[160px]">Date/Time</TableHead>
                   <TableHead className="min-w-[180px]">Sales Support name</TableHead>
                   <TableHead className="min-w-[120px]">Emp No</TableHead>
+                  <TableHead className="min-w-[100px]">Group</TableHead>
                   <TableHead className="min-w-[140px]">Leave type</TableHead>
                   <TableHead className="min-w-[200px]">Remark</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.length === 0 ? (
+                {dayoffLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-gray-500">
+                    <TableCell colSpan={6} className="text-center text-gray-500">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredDayoffs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-gray-500">
                       No items yet. Add above or upload an excel file.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((r, i) => (
+                  filteredDayoffs.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell>{r.dateTime.replace("T", " ")}</TableCell>
+                      <TableCell>{r.dateTime ? r.dateTime.replace("T", " ") : ""}</TableCell>
                       <TableCell>{r.name}</TableCell>
                       <TableCell>{r.employeeNo || ""}</TableCell>
+                      <TableCell>{r.group || ""}</TableCell>
                       <TableCell>{r.leaveType}</TableCell>
                       <TableCell>{r.remark ?? ""}</TableCell>
                     </TableRow>
