@@ -124,9 +124,9 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [dayoffSource, setDayoffSource] = useState<Row[]>([]);
   const [dayoffLoading, setDayoffLoading] = useState(false);
   const [dayoffError, setDayoffError] = useState<string | null>(null);
-  const [filterField, setFilterField] = useState<"name" | "employeeNo" | "group">("name");
-  const [filterValueInput, setFilterValueInput] = useState("");
-  const [appliedFilter, setAppliedFilter] = useState<{ field: "name" | "employeeNo" | "group"; value: string; label?: string } | null>(null);
+  const [filterName, setFilterName] = useState("");
+  const [filterEmployeeNo, setFilterEmployeeNo] = useState("");
+  const [filterGroup, setFilterGroup] = useState("");
   const [mon, setMon] = useState(false);
   const [tue, setTue] = useState(false);
   const [wed, setWed] = useState(false);
@@ -204,17 +204,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     return `Applies to ${normalizedMonths.length} months in ${planYear}.`;
   }, [planMode, planYear, normalizedMonths]);
   const canSaveWeekly = hasSelection && (planMode === "year" || normalizedMonths.length > 0);
-  const supportOptions = useMemo(
-    () =>
-      Object.entries(supportDirectory)
-        .map(([employeeNo, meta]) => ({
-          employeeNo,
-          name: meta.name || employeeNo,
-          group: meta.group || "",
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name || "", undefined, { sensitivity: "base" })),
-    [supportDirectory]
-  );
   const enrichedDayoffs = useMemo(() => {
     return dayoffSource.map((item) => {
       const empNo = item.employeeNo || "";
@@ -228,18 +217,16 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     });
   }, [dayoffSource, supportDirectory]);
   const filteredDayoffs = useMemo(() => {
-    if (!appliedFilter || !appliedFilter.value.trim()) return enrichedDayoffs;
-    const term = appliedFilter.value.trim().toLowerCase();
+    const nameQuery = filterName.trim().toLowerCase();
+    const empQuery = filterEmployeeNo.trim().toLowerCase();
+    const groupQuery = filterGroup.trim().toLowerCase();
     return enrichedDayoffs.filter((row) => {
-      if (appliedFilter.field === "name" || appliedFilter.field === "employeeNo") {
-        return (row.employeeNo || "").toLowerCase() === term;
-      }
-      if (appliedFilter.field === "group") {
-        return (row.group || "").toLowerCase() === term;
-      }
-      return true;
+      const nameMatches = nameQuery ? (row.name || "").toLowerCase().includes(nameQuery) : true;
+      const empMatches = empQuery ? (row.employeeNo || "").toLowerCase().includes(empQuery) : true;
+      const groupMatches = groupQuery ? (row.group || "").toLowerCase().includes(groupQuery) : true;
+      return nameMatches && empMatches && groupMatches;
     });
-  }, [enrichedDayoffs, appliedFilter]);
+  }, [enrichedDayoffs, filterName, filterEmployeeNo, filterGroup]);
 
   function switchPlanMode(next: PlanMode) {
     setPlanMode(next);
@@ -1081,74 +1068,29 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label>Filter by</Label>
-                <select value={filterField} onChange={(e) => setFilterField(e.target.value as "name" | "employeeNo" | "group")} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
-                  <option value="name">Sales support name</option>
-                  <option value="employeeNo">Employee No</option>
-                  <option value="group">Group</option>
+                <Label>Sales support name</Label>
+                <Input value={filterName} onChange={(e) => setFilterName(e.target.value)} placeholder="Search by name" className="bg-white" />
+              </div>
+              <div className="space-y-1">
+                <Label>Employee No</Label>
+                <Input value={filterEmployeeNo} onChange={(e) => setFilterEmployeeNo(e.target.value)} placeholder="Search by employee no." className="bg-white" />
+              </div>
+              <div className="space-y-1">
+                <Label>Group</Label>
+                <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  <option value="">All groups</option>
+                  <option value="GTS">GTS</option>
+                  <option value="MTS">MTS</option>
                 </select>
               </div>
-              <div className="space-y-1 md:col-span-2">
-                <Label>{filterField === "group" ? "Select group" : "Select sales support"}</Label>
-                {filterField === "group" ? (
-                  <select value={filterValueInput} onChange={(e) => setFilterValueInput(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
-                    <option value="">Select a group</option>
-                    <option value="GTS">GTS</option>
-                    <option value="MTS">MTS</option>
-                  </select>
-                ) : (
-                  <select
-                    value={filterValueInput}
-                    onChange={(e) => setFilterValueInput(e.target.value)}
-                    className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
-                    disabled={supportOptions.length === 0}
-                  >
-                    <option value="">{supportOptions.length ? "Select a sales support" : "No sales support available"}</option>
-                    {supportOptions.map((option) => (
-                      <option key={`${filterField}-${option.employeeNo}`} value={option.employeeNo}>
-                        {filterField === "employeeNo"
-                          ? `${option.employeeNo} — ${option.name}`
-                          : `${option.name} (${option.employeeNo})`}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 justify-end">
+            <div className="flex gap-2 justify-end">
               <Button
                 type="button"
                 onClick={() => {
-                  const value = filterValueInput.trim();
-                  if (!value) {
-                    setAppliedFilter(null);
-                    loadDayOffSummary().catch(() => {});
-                    return;
-                  }
-                  const label =
-                    filterField === "group"
-                      ? `Group = ${value}`
-                      : (() => {
-                          const found = supportOptions.find((opt) => opt.employeeNo === value);
-                          return found ? `${found.name} (${found.employeeNo})` : value;
-                        })();
-                  setAppliedFilter({ field: filterField, value, label });
-                  if (filterField === "employeeNo" || filterField === "name") {
-                    loadDayOffSummary({ employeeNo: value }).catch(() => {});
-                  } else {
-                    loadDayOffSummary().catch(() => {});
-                  }
-                }}
-                className="rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20"
-              >
-                Apply filter
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  setFilterValueInput("");
-                  setAppliedFilter(null);
-                  loadDayOffSummary().catch(() => {});
+                  setFilterName("");
+                  setFilterEmployeeNo("");
+                  setFilterGroup("");
                 }}
                 className="rounded-full bg-white border border-black/20 text-gray-800 hover:bg-gray-50"
               >
