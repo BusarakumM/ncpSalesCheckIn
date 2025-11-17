@@ -126,7 +126,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [dayoffError, setDayoffError] = useState<string | null>(null);
   const [filterField, setFilterField] = useState<"name" | "employeeNo" | "group">("name");
   const [filterValueInput, setFilterValueInput] = useState("");
-  const [appliedFilter, setAppliedFilter] = useState<{ field: "name" | "employeeNo" | "group"; value: string } | null>(null);
+  const [appliedFilter, setAppliedFilter] = useState<{ field: "name" | "employeeNo" | "group"; value: string; label?: string } | null>(null);
   const [mon, setMon] = useState(false);
   const [tue, setTue] = useState(false);
   const [wed, setWed] = useState(false);
@@ -204,6 +204,17 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     return `Applies to ${normalizedMonths.length} months in ${planYear}.`;
   }, [planMode, planYear, normalizedMonths]);
   const canSaveWeekly = hasSelection && (planMode === "year" || normalizedMonths.length > 0);
+  const supportOptions = useMemo(
+    () =>
+      Object.entries(supportDirectory)
+        .map(([employeeNo, meta]) => ({
+          employeeNo,
+          name: meta.name || employeeNo,
+          group: meta.group || "",
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name || "", undefined, { sensitivity: "base" })),
+    [supportDirectory]
+  );
   const enrichedDayoffs = useMemo(() => {
     return dayoffSource.map((item) => {
       const empNo = item.employeeNo || "";
@@ -216,26 +227,19 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       };
     });
   }, [dayoffSource, supportDirectory]);
-const filteredDayoffs = useMemo(() => {
+  const filteredDayoffs = useMemo(() => {
     if (!appliedFilter || !appliedFilter.value.trim()) return enrichedDayoffs;
     const term = appliedFilter.value.trim().toLowerCase();
     return enrichedDayoffs.filter((row) => {
-      if (appliedFilter.field === "name") return (row.name || "").toLowerCase().includes(term);
-      if (appliedFilter.field === "employeeNo") return (row.employeeNo || "").toLowerCase().includes(term);
-      if (appliedFilter.field === "group") return (row.group || "").toLowerCase() === term;
+      if (appliedFilter.field === "name" || appliedFilter.field === "employeeNo") {
+        return (row.employeeNo || "").toLowerCase() === term;
+      }
+      if (appliedFilter.field === "group") {
+        return (row.group || "").toLowerCase() === term;
+      }
       return true;
     });
   }, [enrichedDayoffs, appliedFilter]);
-  const activeFilterDescription = useMemo(() => {
-    if (!appliedFilter || !appliedFilter.value.trim()) return "No filter applied.";
-    const label =
-      appliedFilter.field === "employeeNo"
-        ? `Employee No = ${appliedFilter.value}`
-        : appliedFilter.field === "group"
-          ? `Group = ${appliedFilter.value}`
-          : `Name contains "${appliedFilter.value}"`;
-    return `Filter: ${label}`;
-  }, [appliedFilter]);
 
   function switchPlanMode(next: PlanMode) {
     setPlanMode(next);
@@ -533,34 +537,34 @@ const filteredDayoffs = useMemo(() => {
     };
   }, []);
 
-  const loadDayOffSummary = useCallback(
-    async (overrides?: { employeeNo?: string }) => {
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDayOffSummary() {
       setDayoffLoading(true);
       setDayoffError(null);
       try {
-        const params = new URLSearchParams();
-        params.set("from", `${CURRENT_YEAR}-01-01`);
-        params.set("to", `${CURRENT_YEAR}-12-31`);
-        if (overrides?.employeeNo) params.set("employeeNo", overrides.employeeNo.trim());
-        const res = await fetch(`/api/pa/calendar/dayoff?${params.toString()}`, { cache: "no-store" });
+        const from = `${CURRENT_YEAR}-01-01`;
+        const to = `${CURRENT_YEAR}-12-31`;
+        const res = await fetch(`/api/pa/calendar/dayoff?from=${from}&to=${to}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load day-offs");
+        if (cancelled) return;
         const base: Row[] = (Array.isArray(data.dayoffs) ? data.dayoffs : [])
           .map((item) => normalizeDayoffRecord(item))
           .filter((item): item is Row => Boolean(item));
         setDayoffSource(base.sort((a, b) => (a.dateTime > b.dateTime ? -1 : 1)));
       } catch (err: unknown) {
+        if (cancelled) return;
         setDayoffError(err instanceof Error ? err.message : "Failed to load day-offs");
       } finally {
-        setDayoffLoading(false);
+        if (!cancelled) setDayoffLoading(false);
       }
-    },
-    []
-  );
-
-  useEffect(() => {
+    }
     loadDayOffSummary().catch(() => {});
-  }, [loadDayOffSummary]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!primarySupport) {
@@ -1085,7 +1089,7 @@ const filteredDayoffs = useMemo(() => {
                 </select>
               </div>
               <div className="space-y-1 md:col-span-2">
-                <Label>{filterField === "group" ? "Group" : "Search value"}</Label>
+                <Label>{filterField === "group" ? "Select group" : "Select sales support"}</Label>
                 {filterField === "group" ? (
                   <select value={filterValueInput} onChange={(e) => setFilterValueInput(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
                     <option value="">Select a group</option>
@@ -1093,7 +1097,21 @@ const filteredDayoffs = useMemo(() => {
                     <option value="MTS">MTS</option>
                   </select>
                 ) : (
-                  <Input value={filterValueInput} onChange={(e) => setFilterValueInput(e.target.value)} placeholder={filterField === "employeeNo" ? "Enter employee no" : "Enter sales support name"} className="bg-white" />
+                  <select
+                    value={filterValueInput}
+                    onChange={(e) => setFilterValueInput(e.target.value)}
+                    className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
+                    disabled={supportOptions.length === 0}
+                  >
+                    <option value="">{supportOptions.length ? "Select a sales support" : "No sales support available"}</option>
+                    {supportOptions.map((option) => (
+                      <option key={`${filterField}-${option.employeeNo}`} value={option.employeeNo}>
+                        {filterField === "employeeNo"
+                          ? `${option.employeeNo} — ${option.name}`
+                          : `${option.name} (${option.employeeNo})`}
+                      </option>
+                    ))}
+                  </select>
                 )}
               </div>
             </div>
@@ -1107,8 +1125,15 @@ const filteredDayoffs = useMemo(() => {
                     loadDayOffSummary().catch(() => {});
                     return;
                   }
-                  setAppliedFilter({ field: filterField, value });
-                  if (filterField === "employeeNo") {
+                  const label =
+                    filterField === "group"
+                      ? `Group = ${value}`
+                      : (() => {
+                          const found = supportOptions.find((opt) => opt.employeeNo === value);
+                          return found ? `${found.name} (${found.employeeNo})` : value;
+                        })();
+                  setAppliedFilter({ field: filterField, value, label });
+                  if (filterField === "employeeNo" || filterField === "name") {
                     loadDayOffSummary({ employeeNo: value }).catch(() => {});
                   } else {
                     loadDayOffSummary().catch(() => {});
@@ -1153,13 +1178,10 @@ const filteredDayoffs = useMemo(() => {
 
           <div className="text-xs text-gray-700 mb-2">Download the current filtered results as a CSV.</div>
           {dayoffError && <div className="text-xs text-red-600 mb-2">{dayoffError}</div>}
-          <div className="text-xs text-gray-600 mb-3 space-y-1">
-            <div>
-              {dayoffLoading
-                ? "Loading day-off summary..."
-                : `Showing ${filteredDayoffs.length} record${filteredDayoffs.length === 1 ? "" : "s"}.`}
-            </div>
-            <div>{activeFilterDescription}</div>
+          <div className="text-xs text-gray-600 mb-3">
+            {dayoffLoading
+              ? "Loading day-off summary..."
+              : `Showing ${filteredDayoffs.length} record${filteredDayoffs.length === 1 ? "" : "s"}.`}
           </div>
 
           {/* Table wrapper: horizontal scroll on small screens */}
