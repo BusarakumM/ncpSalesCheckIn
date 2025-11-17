@@ -12,7 +12,6 @@ import {
 import { Loader2 } from "lucide-react";
 
 type Row = { dateTime: string; name: string; email: string; employeeNo?: string; leaveType: string; remark?: string };
-type Holiday = { date: string; name: string; type?: string };
 type SalesSupportUser = { employeeNo: string; name: string; identity: string; group?: string };
 type PlanMode = "year" | "multi" | "single";
 type WeekdayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
@@ -44,6 +43,7 @@ const MONTH_CHOICES = [
 const NOW = new Date();
 const CURRENT_YEAR = NOW.getFullYear();
 const CURRENT_MONTH_VALUE = String(NOW.getMonth() + 1).padStart(2, "0");
+const DAY_CHOICES = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
 const PLAN_MODE_OPTIONS: Array<{ value: PlanMode; label: string; detail: string }> = [
   { value: "year", label: "Yearly plan", detail: "Use the same weekly days across the selected year." },
   { value: "multi", label: "Select months", detail: "Pick multiple months in the year that share this plan." },
@@ -59,8 +59,6 @@ const WEEKDAY_DEFS: Array<{ key: WeekdayKey; label: string }> = [
   { key: "sat", label: "Sat" },
   { key: "sun", label: "Sun" },
 ];
-const DAY_LABEL_BY_KEY = Object.fromEntries(WEEKDAY_DEFS.map((d) => [d.key, d.label]));
-
 function formatDaySummary(days: Record<WeekdayKey, boolean>) {
   const active = WEEKDAY_DEFS.filter((d) => days[d.key]);
   if (active.length === 0) return "No days selected";
@@ -100,7 +98,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [leaveType, setLeaveType] = useState("");
   const [remark, setRemark] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
-  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [mon, setMon] = useState(false);
   const [tue, setTue] = useState(false);
   const [wed, setWed] = useState(false);
@@ -139,6 +136,12 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [savingWeekly, setSavingWeekly] = useState(false);
   const [weeklyDrafts, setWeeklyDrafts] = useState<WeeklyPlanDraft[]>([]);
   const [submittingDrafts, setSubmittingDrafts] = useState(false);
+  const [holidayName, setHolidayName] = useState("");
+  const [holidayYear, setHolidayYear] = useState(CURRENT_YEAR.toString());
+  const [holidayMonth, setHolidayMonth] = useState(CURRENT_MONTH_VALUE);
+  const [holidayDay, setHolidayDay] = useState("01");
+  const [holidayLeaveType, setHolidayLeaveType] = useState("Holiday");
+  const [holidaySaving, setHolidaySaving] = useState(false);
 
   const yearOptions = useMemo(
     () => Array.from({ length: 5 }, (_, idx) => (CURRENT_YEAR - 1 + idx).toString()),
@@ -153,10 +156,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     const filtered = planMonths.filter(Boolean).map((m) => m.padStart(2, "0"));
     return Array.from(new Set(filtered));
   }, [planMode, planMonths]);
-  const effectiveDates = useMemo(() => {
-    if (planMode === "year") return [`${planYear}-01-01`];
-    return normalizedMonths.map((m) => `${planYear}-${m}-01`);
-  }, [planMode, planYear, normalizedMonths]);
   const planSummaryText = useMemo(() => {
     if (planMode === "year") return `Applies to all 12 months of ${planYear}.`;
     if (planMode === "single") {
@@ -191,6 +190,43 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
   function removeWeeklyDraft(id: string) {
     setWeeklyDrafts((prev) => prev.filter((draft) => draft.id !== id));
+  }
+
+  async function addCompanyHoliday() {
+    if (!selectedSupports.length) {
+      alert("Select at least one sales support before adding a company holiday.");
+      return;
+    }
+    if (!holidayName.trim()) {
+      alert("Please provide a holiday name.");
+      return;
+    }
+    const day = holidayDay || "01";
+    const iso = `${holidayYear || CURRENT_YEAR}-${holidayMonth}-${day}T00:00`;
+    setHolidaySaving(true);
+    try {
+      const newRows: Row[] = [];
+      for (const support of selectedSupports) {
+        const row: Row = {
+          dateTime: iso,
+          name: support.name,
+          email: support.identity,
+          employeeNo: support.employeeNo,
+          leaveType: holidayLeaveType || "Holiday",
+          remark: `Company holiday: ${holidayName}`,
+        };
+        await submitDayOff(row);
+        newRows.push(row);
+      }
+      setRows((prev) => [...newRows, ...prev]);
+      setHolidayName("");
+      setHolidayLeaveType("Holiday");
+      alert(`Added ${newRows.length} holiday day-off entries.`);
+    } catch (e: any) {
+      alert(e?.message || "Failed to add holiday");
+    } finally {
+      setHolidaySaving(false);
+    }
   }
 
   function buildRows(): Row[] | null {
@@ -243,16 +279,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     setFri(!!cfg.fri);
     setSat(!!cfg.sat);
     setSun(!!cfg.sun);
-  }
-
-  async function fetchHolidays() {
-    const today = new Date();
-    const y = today.getFullYear();
-    const from = `${y}-01-01`;
-    const to = `${y}-12-31`;
-    const r = await fetch(`/api/pa/calendar/holidays?from=${from}&to=${to}`, { cache: "no-store" });
-    const data = await r.json();
-    if (r.ok && data?.ok) setHolidays(data.holidays as Holiday[]);
   }
 
   async function loadWeekly(target?: string) {
@@ -341,8 +367,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     const data = await r.json();
     if (!r.ok || !data?.ok) throw new Error(data?.error || "Add day-off failed");
   }
-
-  useEffect(() => { fetchHolidays().catch(() => {}); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -741,33 +765,73 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </CardContent>
         </Card>
 
-        {/* Company holidays list */}
         <Card className="mt-4 border-none bg-[#E0D4B9]">
-          <CardContent className="pt-4">
-            <h2 className="text-lg font-bold mb-3">Company Holidays</h2>
-            <div className="overflow-x-auto overflow-y-auto max-h-[240px] rounded-md border border-black/10 bg-white">
-              <Table className="min-w-[480px] text-sm">
-                <TableHeader>
-                  <TableRow className="[&>*]:bg-[#C6E0CF]">
-                    <TableHead className="min-w-[140px]">Date</TableHead>
-                    <TableHead className="min-w-[240px]">Name</TableHead>
-                    <TableHead className="min-w-[140px]">Type</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {holidays.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center text-gray-500">No holidays</TableCell>
-                    </TableRow>
-                  ) : holidays.map((h, i) => (
-                    <TableRow key={i}>
-                      <TableCell>{new Date(h.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
-                      <TableCell>{h.name}</TableCell>
-                      <TableCell>{h.type || ""}</TableCell>
-                    </TableRow>
+          <CardContent className="pt-4 space-y-4">
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 5 · Add company holiday</p>
+              <p className="text-sm text-gray-700">
+                Select month and day for a company holiday and apply it to the sales supports chosen in Step 2.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label>Holiday name</Label>
+                <Input value={holidayName} onChange={(e) => setHolidayName(e.target.value)} placeholder="Songkran, Year end, …" className="bg-white" />
+              </div>
+              <div className="space-y-1">
+                <Label>Year</Label>
+                <select value={holidayYear} onChange={(e) => setHolidayYear(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  {yearOptions.map((year) => (
+                    <option key={`${year}-holiday`} value={year}>
+                      {year}
+                    </option>
                   ))}
-                </TableBody>
-              </Table>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Month</Label>
+                <select value={holidayMonth} onChange={(e) => setHolidayMonth(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  {MONTH_CHOICES.map((m) => (
+                    <option key={`holiday-month-${m.value}`} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Day</Label>
+                <select value={holidayDay} onChange={(e) => setHolidayDay(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                  {DAY_CHOICES.map((day) => (
+                    <option key={`holiday-day-${day}`} value={day}>
+                      {parseInt(day, 10)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1 md:col-span-2">
+                <Label>Leave type</Label>
+                <Input value={holidayLeaveType} onChange={(e) => setHolidayLeaveType(e.target.value)} className="bg-white" />
+              </div>
+              <div className="space-y-1 flex flex-col justify-end">
+                <Button
+                  onClick={addCompanyHoliday}
+                  disabled={holidaySaving || !selectedSupports.length}
+                  className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
+                >
+                  {holidaySaving ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Adding…
+                    </span>
+                  ) : (
+                    "Add to day-off list"
+                  )}
+                </Button>
+                <p className="text-xs text-gray-600 mt-1">
+                  Creates one day-off entry per selected sales support ({selectedSupports.length || 0} currently selected).
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -775,13 +839,16 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         {/* Entry card: inputs stack on mobile, pair up on md+ */}
         <Card className="mt-4 border-none bg-[#BFD9C8]">
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-700 mb-4">
-              {selectedSupports.length === 0
-                ? "Select sales support in Step 2 to add day-off entries."
-                : selectedSupports.length === 1
-                  ? `Applying for ${selectedSupports[0].name} (${selectedSupports[0].employeeNo}).`
-                  : `Applying for ${selectedSupports.length} sales supports at once.`}
-            </p>
+            <div className="flex flex-col gap-1 mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 6 · Manual day-off entry</p>
+              <p className="text-sm text-gray-700">
+                {selectedSupports.length === 0
+                  ? "Select sales support in Step 2 to add day-off entries."
+                  : selectedSupports.length === 1
+                    ? `Applying for ${selectedSupports[0].name} (${selectedSupports[0].employeeNo}).`
+                    : `Applying for ${selectedSupports.length} sales supports at once.`}
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Sales support name</Label>
