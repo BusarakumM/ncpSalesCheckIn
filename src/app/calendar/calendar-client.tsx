@@ -95,6 +95,23 @@ function normalizeDayoffRecord(raw: unknown): Row | null {
   };
 }
 
+function normalizeLeaveRecord(raw: unknown): Row | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const date = typeof obj.date === "string" ? obj.date : "";
+  const leaveType = typeof obj.leaveType === "string" ? obj.leaveType : "";
+  if (!date || !leaveType) return null;
+  return {
+    dateTime: date,
+    name: typeof obj.name === "string" ? obj.name : "",
+    email: typeof obj.email === "string" ? obj.email : "",
+    employeeNo: typeof obj.employeeNo === "string" ? obj.employeeNo : "",
+    leaveType,
+    remark: typeof obj.reason === "string" && obj.reason ? obj.reason : typeof obj.remark === "string" ? obj.remark : "",
+    group: typeof obj.group === "string" ? obj.group : undefined,
+  };
+}
+
 function formatDaySummary(days: Record<WeekdayKey, boolean>) {
   const active = WEEKDAY_DEFS.filter((d) => days[d.key]);
   if (active.length === 0) return "No days selected";
@@ -131,6 +148,9 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [dayoffSource, setDayoffSource] = useState<Row[]>([]);
   const [dayoffLoading, setDayoffLoading] = useState(false);
   const [dayoffError, setDayoffError] = useState<string | null>(null);
+  const [leaveSource, setLeaveSource] = useState<Row[]>([]);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
   const [filterInputs, setFilterInputs] = useState<FilterValues>(() => createEmptyFilters());
   const [activeFilters, setActiveFilters] = useState<FilterValues>(() => createEmptyFilters());
   const [mon, setMon] = useState(false);
@@ -210,8 +230,16 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     return `Applies to ${normalizedMonths.length} months in ${planYear}.`;
   }, [planMode, planYear, normalizedMonths]);
   const canSaveWeekly = hasSelection && (planMode === "year" || normalizedMonths.length > 0);
-  const enrichedDayoffs = useMemo(() => {
-    return dayoffSource.map((item) => {
+  const combinedHolidayRows = useMemo(() => {
+    return [...dayoffSource, ...leaveSource].sort((a, b) => {
+      const aKey = a.dateTime || "";
+      const bKey = b.dateTime || "";
+      if (aKey === bKey) return 0;
+      return aKey > bKey ? -1 : 1;
+    });
+  }, [dayoffSource, leaveSource]);
+  const enrichedHolidays = useMemo(() => {
+    return combinedHolidayRows.map((item) => {
       const empNo = item.employeeNo || "";
       const directoryInfo = empNo ? supportDirectory[empNo] : undefined;
       return {
@@ -221,18 +249,18 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         group: directoryInfo?.group || "",
       };
     });
-  }, [dayoffSource, supportDirectory]);
-  const filteredDayoffs = useMemo(() => {
+  }, [combinedHolidayRows, supportDirectory]);
+  const filteredHolidays = useMemo(() => {
     const nameQuery = activeFilters.name.trim().toLowerCase();
     const empQuery = activeFilters.employeeNo.trim().toLowerCase();
     const groupQuery = activeFilters.group.trim().toLowerCase();
-    return enrichedDayoffs.filter((row) => {
+    return enrichedHolidays.filter((row) => {
       const nameMatches = nameQuery ? (row.name || "").toLowerCase().includes(nameQuery) : true;
       const empMatches = empQuery ? (row.employeeNo || "").toLowerCase().includes(empQuery) : true;
       const groupMatches = groupQuery ? (row.group || "").toLowerCase().includes(groupQuery) : true;
       return nameMatches && empMatches && groupMatches;
     });
-  }, [enrichedDayoffs, activeFilters.name, activeFilters.employeeNo, activeFilters.group]);
+  }, [enrichedHolidays, activeFilters.name, activeFilters.employeeNo, activeFilters.group]);
   const filtersDirty =
     filterInputs.name !== activeFilters.name ||
     filterInputs.employeeNo !== activeFilters.employeeNo ||
@@ -245,6 +273,11 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     setFilterInputs(reset);
     setActiveFilters(reset);
   }, []);
+  const holidayLoading = dayoffLoading || leaveLoading;
+  const holidayError = useMemo(() => {
+    if (dayoffError && leaveError) return `${dayoffError}; ${leaveError}`;
+    return dayoffError || leaveError;
+  }, [dayoffError, leaveError]);
 
   function switchPlanMode(next: PlanMode) {
     setPlanMode(next);
@@ -341,12 +374,12 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   }
 
   const handleExport = useCallback(() => {
-    if (!filteredDayoffs.length) {
+    if (!filteredHolidays.length) {
       alert("No records to export.");
       return;
     }
     const header = ["Date/Time", "Name", "Employee No", "Group", "Leave Type", "Remark"];
-    const rows = filteredDayoffs.map((item) => [
+    const rows = filteredHolidays.map((item) => [
       item.dateTime || "",
       item.name || "",
       item.employeeNo || "",
@@ -373,7 +406,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [filteredDayoffs]);
+  }, [filteredHolidays]);
 
   const resetWeeklyDays = useCallback(() => {
     setMon(false);
@@ -566,6 +599,36 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       }
     }
     loadDayOffSummary().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLeaveSummary() {
+      setLeaveLoading(true);
+      setLeaveError(null);
+      try {
+        const from = `${CURRENT_YEAR}-01-01`;
+        const to = `${CURRENT_YEAR}-12-31`;
+        const params = new URLSearchParams({ from, to });
+        const res = await fetch(`/api/pa/leave?${params.toString()}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load leaves");
+        if (cancelled) return;
+        const base: Row[] = (Array.isArray(data.rows) ? data.rows : [])
+          .map((item) => normalizeLeaveRecord(item))
+          .filter((item): item is Row => Boolean(item));
+        setLeaveSource(base.sort((a, b) => (a.dateTime > b.dateTime ? -1 : 1)));
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setLeaveError(err instanceof Error ? err.message : "Failed to load leaves");
+      } finally {
+        if (!cancelled) setLeaveLoading(false);
+      }
+    }
+    loadLeaveSummary().catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -1155,11 +1218,11 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </div>
 
           <div className="text-xs text-gray-700 mb-2">Download the current filtered results as a CSV.</div>
-          {dayoffError && <div className="text-xs text-red-600 mb-2">{dayoffError}</div>}
+          {holidayError && <div className="text-xs text-red-600 mb-2">{holidayError}</div>}
           <div className="text-xs text-gray-600 mb-3">
-            {dayoffLoading
-              ? "Loading day-off summary..."
-              : `Showing ${filteredDayoffs.length} record${filteredDayoffs.length === 1 ? "" : "s"}.`}
+            {holidayLoading
+              ? "Loading holiday summary..."
+              : `Showing ${filteredHolidays.length} record${filteredHolidays.length === 1 ? "" : "s"}.`}
           </div>
 
           {/* Table wrapper: horizontal scroll on small screens */}
@@ -1176,20 +1239,20 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dayoffLoading ? (
+                {holidayLoading ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-gray-500">
                       Loading...
                     </TableCell>
                   </TableRow>
-                ) : filteredDayoffs.length === 0 ? (
+                ) : filteredHolidays.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-gray-500">
                       No items yet. Add above or upload an excel file.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredDayoffs.map((r, i) => (
+                  filteredHolidays.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell>{r.dateTime ? r.dateTime.replace("T", " ") : ""}</TableCell>
                       <TableCell>{r.name}</TableCell>
