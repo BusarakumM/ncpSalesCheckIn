@@ -30,14 +30,14 @@ export default function SignInPage() {
     setError(null);
 
     if (!email.trim()) {
-      setError(mode === "SUPERVISOR" ? "Please enter your company email" : "Please enter your username");
+      setError(mode === "SUPERVISOR" ? "โปรดกรอกอีเมลบริษัทของคุณ" : "โปรดกรอกชื่อผู้ใช้");
       return;
     }
     // Supervisor path requires @ncp.co.th email domain
     if (mode === "SUPERVISOR") {
       const lower = email.toLowerCase();
       if (!lower.endsWith("@ncp.co.th")) {
-        setError("Please use your @ncp.co.th email");
+        setError("โปรดใช้อีเมล @ncp.co.th");
         return;
       }
     }
@@ -55,12 +55,12 @@ export default function SignInPage() {
       });
 
       if (!res.ok) {
-        const message = await res.text().catch(() => "Login failed");
-        throw new Error(message || "Login failed");
+        const message = await res.text().catch(() => "เข้าสู่ระบบไม่สำเร็จ");
+        throw new Error(message || "เข้าสู่ระบบไม่สำเร็จ");
       }
 
       const data = (await res.json()) as LoginResponse;
-      if (!data?.ok) throw new Error("Login failed");
+      if (!data?.ok) throw new Error("เข้าสู่ระบบไม่สำเร็จ");
 
       if (data.role === "SUPERVISOR") {
         router.replace("/supervisor");
@@ -68,7 +68,7 @@ export default function SignInPage() {
         router.replace("/home");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "เข้าสู่ระบบไม่สำเร็จ");
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +88,7 @@ export default function SignInPage() {
           />
         </div>
 
-        <ResponsiveTitle>Sign In</ResponsiveTitle>
+        <ResponsiveTitle>เข้าสู่ระบบ</ResponsiveTitle>
 
         <Card className="bg-[#BFD9C8] border-none shadow-md">
           <CardContent className="p-5 sm:p-6 md:p-8">
@@ -100,21 +100,21 @@ export default function SignInPage() {
                   onClick={() => setMode("AGENT")}
                   className={`px-3 py-1.5 rounded-full border text-sm ${mode === 'AGENT' ? 'bg-white border-black/30' : 'bg-transparent border-black/20 hover:bg-white/50'}`}
                 >
-                  Sales Support
+                  เซลส์ซัพพอร์ต
                 </button>
                 <button
                   type="button"
                   onClick={() => setMode("SUPERVISOR")}
                   className={`px-3 py-1.5 rounded-full border text-sm ${mode === 'SUPERVISOR' ? 'bg-white border-black/30' : 'bg-transparent border-black/20 hover:bg-white/50'}`}
                 >
-                  Supervisor
+                  หัวหน้างาน
                 </button>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-gray-800">{mode === 'SUPERVISOR' ? 'Email' : 'Username'}</Label>
+                <Label className="text-gray-800">{mode === 'SUPERVISOR' ? 'อีเมล' : 'ชื่อผู้ใช้'}</Label>
                 <Input
-                  placeholder={mode === 'SUPERVISOR' ? 'name@ncp.co.th' : 'username'}
+                  placeholder={mode === 'SUPERVISOR' ? 'name@ncp.co.th' : 'ชื่อผู้ใช้'}
                   type={mode === 'SUPERVISOR' ? 'email' : 'text'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -124,7 +124,7 @@ export default function SignInPage() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-gray-800">Password</Label>
+                <Label className="text-gray-800">รหัสผ่าน</Label>
                 <Input
                   type="password"
                   value={password}
@@ -146,7 +146,7 @@ export default function SignInPage() {
                   className="w-full rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 text-base sm:text-lg"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Signing in..." : "Login"}
+                  {isLoading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
                 </Button>
               </div>
             </div>
