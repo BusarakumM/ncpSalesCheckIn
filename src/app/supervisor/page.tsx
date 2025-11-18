@@ -12,7 +12,7 @@ export default async function SupervisorPage() {
     redirect("/home");
   }
   const name = c.get("name")?.value || "หัวหน้างาน";
-  const email = c.get("username")?.value || c.get("email")?.value || "supervisor";
+  const email = c.get("username")?.value || c.get("email")?.value || "ยังไม่มีข้อมูล";
 
   const tiles = [
     { href: "/calendar",        title: "ปฏิทิน",                        bg: "bg-[#CFE4DD]", icon: CalendarDays, span2: false },

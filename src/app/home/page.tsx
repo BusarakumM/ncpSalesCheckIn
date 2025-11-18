@@ -7,8 +7,9 @@ import SalesSupportCalendar from "@/components/SalesSupportCalendar";
 
 export default async function SalesSupportHome() {
   const cookieStore = cookies();
-  const name = (await cookieStore).get("name")?.value || "Sales Support";
-  const email = (await cookieStore).get("username")?.value || (await cookieStore).get("email")?.value || "salesupport";
+  const name = (await cookieStore).get("name")?.value || "เจ้าหน้าที่เซลส์ซัพพอร์ต";
+  const email =
+    (await cookieStore).get("username")?.value || (await cookieStore).get("email")?.value || "ยังไม่มีข้อมูล";
   const employeeNo = (await cookieStore).get("employeeNo")?.value || "";
 
   const tiles = [
