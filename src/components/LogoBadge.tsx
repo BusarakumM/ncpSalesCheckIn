@@ -10,7 +10,7 @@ export default function LogoBadge({
   const h = Math.round(size * 1.52);
   const shadowWidth = Math.round(size * 0.7);
   const shadowHeight = Math.max(6, Math.round(size * 0.14));
-  const labelFontSize = Math.max(9, Math.round(size * 0.12));
+  const labelFontSize = Math.max(8, Math.round(size * 0.1));
   return (
     <div className={`inline-flex items-center gap-3 ${walking ? "logo-walking" : ""} ${className}`}>
       <div className="relative inline-block overflow-visible" style={{ width: size, height: h }}>
@@ -32,8 +32,8 @@ export default function LogoBadge({
           className="absolute font-semibold uppercase text-gray-800 logo-text-label"
           style={{
             fontSize: labelFontSize,
-            top: -Math.round(size * 0.02),
-            left: Math.round(size * 0.1),
+            top: Math.round(size * 0.04),
+            left: Math.round(size * 0.05),
             transform: "rotate(-24deg)",
             transformOrigin: "left center",
           }}
@@ -44,8 +44,8 @@ export default function LogoBadge({
           className="absolute font-semibold uppercase text-gray-800 logo-text-label"
           style={{
             fontSize: labelFontSize,
-            top: -Math.round(size * 0.03),
-            right: Math.round(size * 0.08),
+            top: Math.round(size * 0.03),
+            right: Math.round(size * 0.05),
             transform: "rotate(24deg)",
             transformOrigin: "right center",
           }}
