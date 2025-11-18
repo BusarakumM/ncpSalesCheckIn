@@ -82,7 +82,7 @@ export default async function SupervisorPage() {
 
           {/* Logo: aligns right; scales a touch on small screens */}
           <div className="sm:col-span-2 flex justify-end mt-1">
-            <LogoBadge size={80} className="scale-[0.95] sm:scale-100" />
+            <LogoBadge size={100} className="scale-[0.95] sm:scale-100" />
           </div>
         </div>
       </div>

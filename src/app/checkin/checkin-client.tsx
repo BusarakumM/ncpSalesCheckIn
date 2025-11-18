@@ -186,7 +186,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
 
         {/* Bottom-right logo */}
         <div className="mt-10 flex justify-end">
-          <LogoBadge size={80} className="scale-[0.95] sm:scale-100" />
+          <LogoBadge size={100} className="scale-[0.95] sm:scale-100" />
         </div>
       </div>
     </div>

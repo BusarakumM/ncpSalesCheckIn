@@ -142,10 +142,24 @@
 }
 
 .logo-walking .logo-shadow {
-  background: rgba(0,0,0,0.25);
-  filter: blur(2px);
-  animation: shadow-pulse 1s ease-in-out infinite;
-}
+    background: rgba(0,0,0,0.25);
+    filter: blur(2px);
+    animation: shadow-pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes logoTextPulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.12);
+    }
+  }
+
+  .logo-text-pulse {
+    animation: logoTextPulse 1.6s ease-in-out infinite;
+    display: inline-block;
+  }
 
 /* Splash scene: person walking across the earth */
 @keyframes earth-rock {
