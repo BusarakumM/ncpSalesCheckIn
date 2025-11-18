@@ -14,7 +14,7 @@ export default function LogoBadge({
     <div className={`inline-flex items-center gap-3 ${walking ? "logo-walking" : ""} ${className}`}>
       <div className="relative inline-block" style={{ width: size, height: h }}>
         <Image
-          src="/brand/NCP.png"
+          src="/brand/NCP.svg"
           alt="NCP Sales Support Check-In"
           width={size}
           height={h}
