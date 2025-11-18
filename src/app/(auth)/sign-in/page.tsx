@@ -154,7 +154,7 @@ export default function SignInPage() {
         </Card>
 
         <div className="mt-3 sm:mt-4 flex justify-end">
-          <LogoBadge size={64} className="sm:scale-100 scale-[0.95]" />
+          <LogoBadge size={80} className="sm:scale-100 scale-[0.95]" />
         </div>
       </PageContainer>
     </div>
