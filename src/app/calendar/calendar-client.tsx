@@ -34,37 +34,37 @@ const createEmptyFilters = (): FilterValues => ({
 
 const MAX_BULK_SELECTION = 10;
 const MONTH_CHOICES = [
-  { value: "01", label: "Jan" },
-  { value: "02", label: "Feb" },
-  { value: "03", label: "Mar" },
-  { value: "04", label: "Apr" },
-  { value: "05", label: "May" },
-  { value: "06", label: "Jun" },
-  { value: "07", label: "Jul" },
-  { value: "08", label: "Aug" },
-  { value: "09", label: "Sep" },
-  { value: "10", label: "Oct" },
-  { value: "11", label: "Nov" },
-  { value: "12", label: "Dec" },
+  { value: "01", label: "ม.ค." },
+  { value: "02", label: "ก.พ." },
+  { value: "03", label: "มี.ค." },
+  { value: "04", label: "เม.ย." },
+  { value: "05", label: "พ.ค." },
+  { value: "06", label: "มิ.ย." },
+  { value: "07", label: "ก.ค." },
+  { value: "08", label: "ส.ค." },
+  { value: "09", label: "ก.ย." },
+  { value: "10", label: "ต.ค." },
+  { value: "11", label: "พ.ย." },
+  { value: "12", label: "ธ.ค." },
 ];
 const NOW = new Date();
 const CURRENT_YEAR = NOW.getFullYear();
 const CURRENT_MONTH_VALUE = String(NOW.getMonth() + 1).padStart(2, "0");
 const DAY_CHOICES = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
 const PLAN_MODE_OPTIONS: Array<{ value: PlanMode; label: string; detail: string }> = [
-  { value: "year", label: "Yearly plan", detail: "Use the same weekly days across the selected year." },
-  { value: "multi", label: "Select months", detail: "Pick multiple months in the year that share this plan." },
-  { value: "single", label: "Specific month", detail: "Apply the plan to one month only." },
+  { value: "year", label: "แผนครบทั้งปี", detail: "ใช้วันหยุดประจำสัปดาห์เดียวกันตลอดทั้งปีที่เลือก" },
+  { value: "multi", label: "เลือกหลายเดือน", detail: "เลือกหลายเดือนในปีเดียวกันที่ใช้ชุดวันหยุดนี้" },
+  { value: "single", label: "เลือกเดือนเดียว", detail: "ใช้ชุดวันหยุดกับเดือนที่เลือกเท่านั้น" },
 ];
 const MONTH_LABEL_MAP = Object.fromEntries(MONTH_CHOICES.map((m) => [m.value, m.label]));
 const WEEKDAY_DEFS: Array<{ key: WeekdayKey; label: string }> = [
-  { key: "mon", label: "Mon" },
-  { key: "tue", label: "Tue" },
-  { key: "wed", label: "Wed" },
-  { key: "thu", label: "Thu" },
-  { key: "fri", label: "Fri" },
-  { key: "sat", label: "Sat" },
-  { key: "sun", label: "Sun" },
+  { key: "mon", label: "จ." },
+  { key: "tue", label: "อ." },
+  { key: "wed", label: "พ." },
+  { key: "thu", label: "พฤ." },
+  { key: "fri", label: "ศ." },
+  { key: "sat", label: "ส." },
+  { key: "sun", label: "อา." },
 ];
 function normalizeUserRecord(raw: unknown): SalesSupportUser | null {
   if (!raw || typeof raw !== "object") return null;
@@ -114,17 +114,17 @@ function normalizeLeaveRecord(raw: unknown): Row | null {
 
 function formatDaySummary(days: Record<WeekdayKey, boolean>) {
   const active = WEEKDAY_DEFS.filter((d) => days[d.key]);
-  if (active.length === 0) return "No days selected";
-  if (active.length === 7) return "Every day";
+  if (active.length === 0) return "ยังไม่ได้เลือกวัน";
+  if (active.length === 7) return "หยุดทุกวัน";
   return active.map((d) => d.label).join(", ");
 }
 
 function summarizeScope(plan: WeeklyPlanDraft) {
-  if (plan.planMode === "year" || plan.months.length === 12) return `Year ${plan.planYear}`;
-  if (plan.months.length === 0) return `Pending months • ${plan.planYear}`;
+  if (plan.planMode === "year" || plan.months.length === 12) return `ทั้งปี ${plan.planYear}`;
+  if (plan.months.length === 0) return `รอเลือกเดือน • ${plan.planYear}`;
   if (plan.months.length === 1) return `${MONTH_LABEL_MAP[plan.months[0]] || plan.months[0]} ${plan.planYear}`;
   const sample = plan.months.slice(0, 3).map((m) => MONTH_LABEL_MAP[m] || m).join(", ");
-  return `${plan.months.length} months (${sample}${plan.months.length > 3 ? ", …" : ""}) ${plan.planYear}`;
+  return `${plan.months.length} เดือน (${sample}${plan.months.length > 3 ? ", …" : ""}) ${plan.planYear}`;
 }
 
 function generateDraftId() {
@@ -174,7 +174,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         return prev.filter((id) => id !== employeeNo);
       }
       if (prev.length >= MAX_BULK_SELECTION) {
-        alert(`You can select up to ${MAX_BULK_SELECTION} sales supports at a time.`);
+        alert(`เลือกได้ไม่เกิน ${MAX_BULK_SELECTION} คนต่อครั้ง`);
         return prev;
       }
       return [...prev, employeeNo];
@@ -193,12 +193,12 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [holidayYear, setHolidayYear] = useState(CURRENT_YEAR.toString());
   const [holidayMonth, setHolidayMonth] = useState(CURRENT_MONTH_VALUE);
   const [holidayDay, setHolidayDay] = useState("01");
-  const [holidayLeaveType, setHolidayLeaveType] = useState("Holiday");
+  const [holidayLeaveType, setHolidayLeaveType] = useState("วันหยุดบริษัท");
   const [holidaySaving, setHolidaySaving] = useState(false);
   const [exchangeYear, setExchangeYear] = useState(CURRENT_YEAR.toString());
   const [exchangeMonth, setExchangeMonth] = useState(CURRENT_MONTH_VALUE);
   const [exchangeDay, setExchangeDay] = useState("01");
-  const [exchangeLeaveType, setExchangeLeaveType] = useState("Exchange Day-off");
+  const [exchangeLeaveType, setExchangeLeaveType] = useState("วันหยุดชดเชย");
   const [exchangeNote, setExchangeNote] = useState("");
   const [exchangeSaving, setExchangeSaving] = useState(false);
 
@@ -216,18 +216,18 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     return Array.from(new Set(filtered));
   }, [planMode, planMonths]);
   const planSummaryText = useMemo(() => {
-    if (planMode === "year") return `Applies to all 12 months of ${planYear}.`;
+    if (planMode === "year") return `ใช้กับทั้ง 12 เดือนของปี ${planYear}.`;
     if (planMode === "single") {
       const monthLabel = MONTH_CHOICES.find((m) => m.value === normalizedMonths[0])?.label || normalizedMonths[0];
-      return `Applies only to ${monthLabel} ${planYear}.`;
+      return `ใช้กับเฉพาะเดือน ${monthLabel} ${planYear}`;
     }
-    if (normalizedMonths.length === 0) return "Select one or more months to continue.";
-    if (normalizedMonths.length === 12) return `Applies to every month of ${planYear}.`;
+    if (normalizedMonths.length === 0) return "โปรดเลือกอย่างน้อย 1 เดือน";
+    if (normalizedMonths.length === 12) return `ใช้กับทุกเดือนในปี ${planYear}`;
     if (normalizedMonths.length === 1) {
       const monthLabel = MONTH_CHOICES.find((m) => m.value === normalizedMonths[0])?.label || normalizedMonths[0];
-      return `Applies starting ${monthLabel} ${planYear}.`;
+      return `เริ่มใช้ตั้งแต่เดือน ${monthLabel} ${planYear}`;
     }
-    return `Applies to ${normalizedMonths.length} months in ${planYear}.`;
+    return `ใช้กับ ${normalizedMonths.length} เดือนในปี ${planYear}`;
   }, [planMode, planYear, normalizedMonths]);
   const canSaveWeekly = hasSelection && (planMode === "year" || normalizedMonths.length > 0);
   const combinedHolidayRows = useMemo(() => {
@@ -301,11 +301,11 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
   async function addCompanyHoliday() {
     if (!selectedSupports.length) {
-      alert("Select at least one sales support before adding a company holiday.");
+      alert("กรุณาเลือกพนักงานอย่างน้อย 1 คนก่อนเพิ่มวันหยุดบริษัท");
       return;
     }
     if (!holidayName.trim()) {
-      alert("Please provide a holiday name.");
+      alert("กรุณากรอกชื่อวันหยุด");
       return;
     }
     const day = holidayDay || "01";
@@ -319,7 +319,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           name: support.name,
           email: support.identity,
           employeeNo: support.employeeNo,
-          leaveType: holidayLeaveType || "Holiday",
+          leaveType: holidayLeaveType || "วันหยุดบริษัท",
           remark: `Company holiday: ${holidayName}`,
           group: support.group || supportDirectory[support.employeeNo]?.group,
         };
@@ -328,10 +328,10 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       }
       setDayoffSource((prev) => [...newRows, ...prev]);
       setHolidayName("");
-      setHolidayLeaveType("Holiday");
-      alert(`Added ${newRows.length} holiday day-off entries.`);
+      setHolidayLeaveType("วันหยุดบริษัท");
+      alert(`เพิ่มรายการวันหยุด ${newRows.length} รายการแล้ว`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to add holiday";
+      const message = err instanceof Error ? err.message : "ไม่สามารถเพิ่มวันหยุดได้";
       alert(message);
     } finally {
       setHolidaySaving(false);
@@ -340,7 +340,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
   async function addExchangeDayOff() {
     if (!selectedSupports.length) {
-      alert("Select at least one sales support before adding an exchange day-off.");
+      alert("กรุณาเลือกพนักงานอย่างน้อย 1 คนก่อนเพิ่มวันหยุดชดเชย");
       return;
     }
     const day = exchangeDay || "01";
@@ -354,7 +354,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           name: support.name,
           email: support.identity,
           employeeNo: support.employeeNo,
-          leaveType: exchangeLeaveType || "Exchange Day-off",
+          leaveType: exchangeLeaveType || "วันหยุดชดเชย",
           remark: exchangeNote ? `Exchange day-off: ${exchangeNote}` : "Exchange day-off",
           group: support.group || supportDirectory[support.employeeNo]?.group,
         };
@@ -363,10 +363,10 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       }
       setDayoffSource((prev) => [...exchangeRows, ...prev]);
       setExchangeNote("");
-      setExchangeLeaveType("Exchange Day-off");
-      alert(`Exchange day-off scheduled for ${exchangeRows.length} sales supports.`);
+      setExchangeLeaveType("วันหยุดชดเชย");
+      alert(`บันทึกวันหยุดชดเชยให้ ${exchangeRows.length} คนแล้ว`);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to add exchange day-off";
+      const msg = e instanceof Error ? e.message : "ไม่สามารถเพิ่มวันหยุดชดเชยได้";
       alert(msg);
     } finally {
       setExchangeSaving(false);
@@ -375,10 +375,10 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
   const handleExport = useCallback(() => {
     if (!filteredHolidays.length) {
-      alert("No records to export.");
+      alert("ไม่มีข้อมูลให้ส่งออก");
       return;
     }
-    const header = ["Date/Time", "Name", "Employee No", "Group", "Leave Type", "Remark"];
+    const header = ["วัน-เวลา", "ชื่อ", "รหัสพนักงาน", "กลุ่ม", "ประเภทวันลา/วันหยุด", "หมายเหตุ"];
     const rows = filteredHolidays.map((item) => [
       item.dateTime || "",
       item.name || "",
@@ -434,7 +434,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
   function saveWeeklyDraft() {
     if (!canSaveWeekly) {
-      alert("Select sales support and planning scope before saving.");
+      alert("กรุณาเลือกพนักงานและช่วงเวลาที่ต้องการก่อนบันทึก");
       return;
     }
     setSavingWeekly(true);
@@ -457,7 +457,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
   async function submitWeeklyDrafts() {
     if (!weeklyDrafts.length) {
-      alert("No queued plans to submit.");
+      alert("ยังไม่มีแผนที่รอส่ง");
       return;
     }
     setSubmittingDrafts(true);
@@ -485,14 +485,14 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
               body: JSON.stringify(payload),
             });
             const data = await r.json();
-            if (!r.ok || !data?.ok) throw new Error(data?.error || "Save failed");
+            if (!r.ok || !data?.ok) throw new Error(data?.error || "บันทึกไม่สำเร็จ");
           }
         }
       }
       setWeeklyDrafts([]);
-      alert("Weekly calendars submitted to backend.");
+      alert("ส่งแผนวันหยุดรายสัปดาห์เรียบร้อยแล้ว");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Submit failed");
+      alert(err instanceof Error ? err.message : "ส่งไม่สำเร็จ");
     } finally {
       setSubmittingDrafts(false);
     }
@@ -504,7 +504,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       body: JSON.stringify({ employeeNo: row.employeeNo, email: row.email, dateISO: row.dateTime, leaveType: row.leaveType, remark: row.remark })
     });
     const data = await r.json();
-    if (!r.ok || !data?.ok) throw new Error(data?.error || "Add day-off failed");
+    if (!r.ok || !data?.ok) throw new Error(data?.error || "เพิ่มวันหยุดไม่สำเร็จ");
   }
 
   useEffect(() => {
@@ -522,7 +522,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       try {
         const res = await fetch(`/api/pa/users?group=${encodeURIComponent(selectedGroup)}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load sales support");
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "โหลดข้อมูลพนักงานไม่สำเร็จ");
         if (cancelled) return;
         const mapped: SalesSupportUser[] = (Array.isArray(data.users) ? data.users : [])
           .map((u) => normalizeUserRecord(u))
@@ -539,7 +539,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         setSelectedEmployeeNos((prev) => prev.filter((id) => mapped.some((u) => u.employeeNo === id)));
       } catch (err: unknown) {
         if (cancelled) return;
-        const message = err instanceof Error ? err.message : "Failed to load sales support";
+        const message = err instanceof Error ? err.message : "โหลดข้อมูลพนักงานไม่สำเร็จ";
         setSupportsError(message);
         setSalesSupports([]);
         setSelectedEmployeeNos([]);
@@ -585,7 +585,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         const to = `${CURRENT_YEAR}-12-31`;
         const res = await fetch(`/api/pa/calendar/dayoff?from=${from}&to=${to}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load day-offs");
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "โหลดรายการวันหยุดไม่ได้");
         if (cancelled) return;
         const base: Row[] = (Array.isArray(data.dayoffs) ? data.dayoffs : [])
           .map((item) => normalizeDayoffRecord(item))
@@ -593,7 +593,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         setDayoffSource(base.sort((a, b) => (a.dateTime > b.dateTime ? -1 : 1)));
       } catch (err: unknown) {
         if (cancelled) return;
-        setDayoffError(err instanceof Error ? err.message : "Failed to load day-offs");
+        setDayoffError(err instanceof Error ? err.message : "โหลดรายการวันหยุดไม่ได้");
       } finally {
         if (!cancelled) setDayoffLoading(false);
       }
@@ -615,7 +615,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         const params = new URLSearchParams({ from, to });
         const res = await fetch(`/api/pa/leave?${params.toString()}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load leaves");
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "โหลดข้อมูลการลาไม่ได้");
         if (cancelled) return;
         const base: Row[] = (Array.isArray(data.rows) ? data.rows : [])
           .map((item) => normalizeLeaveRecord(item))
@@ -623,7 +623,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         setLeaveSource(base.sort((a, b) => (a.dateTime > b.dateTime ? -1 : 1)));
       } catch (err: unknown) {
         if (cancelled) return;
-        setLeaveError(err instanceof Error ? err.message : "Failed to load leaves");
+        setLeaveError(err instanceof Error ? err.message : "โหลดข้อมูลการลาไม่ได้");
       } finally {
         if (!cancelled) setLeaveLoading(false);
       }
@@ -668,12 +668,12 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           <Link
             href={homeHref}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/20 bg-white hover:bg-gray-50"
-            title="Home"
+            title="กลับหน้าหลัก"
           >
             <span className="text-xl">🏠</span>
           </Link>
           <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold">
-            Calendar
+            ปฏิทินการทำงาน
           </h1>
         </div>
 
@@ -688,7 +688,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           >
             <div className="flex items-center gap-3">
               <input type="checkbox" checked={selectedGroup === "GTS"} readOnly />
-              <span className="font-medium">GTS Calendar</span>
+              <span className="font-medium">ปฏิทิน GTS</span>
             </div>
           </button>
 
@@ -701,17 +701,17 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           >
             <div className="flex items-center gap-3">
               <input type="checkbox" checked={selectedGroup === "MTS"} readOnly />
-              <span className="font-medium">MTS Calendar</span>
+              <span className="font-medium">ปฏิทิน MTS</span>
             </div>
           </button>
         </div>
 
         <Card className="mt-4 border-none bg-[#E0D4B9]">
           <CardContent className="pt-4 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 2 · Select sales support</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">ขั้นตอน 2 · เลือก Sales Support</p>
             <div className="flex items-center justify-between text-sm text-gray-700">
               <span>
-                Selected {selectedEmployeeNos.length}/{MAX_BULK_SELECTION}
+                เลือกแล้ว {selectedEmployeeNos.length}/{MAX_BULK_SELECTION} คน
               </span>
               {selectedEmployeeNos.length > 0 && (
                 <button
@@ -719,21 +719,21 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                   onClick={() => setSelectedEmployeeNos([])}
                   className="text-xs text-blue-800 underline-offset-2 hover:underline"
                 >
-                  Clear all
+                  ล้างการเลือกทั้งหมด
                 </button>
               )}
             </div>
             <div className="space-y-1">
-              <Label>Sales support (up to {MAX_BULK_SELECTION})</Label>
+              <Label>รายชื่อ Sales Support (เลือกได้ไม่เกิน {MAX_BULK_SELECTION} คน)</Label>
               <div className="rounded-md border border-black/10 bg-white max-h-64 overflow-y-auto">
                 {!selectedGroup ? (
-                  <p className="px-3 py-4 text-sm text-gray-500">Select GTS or MTS to load sales support.</p>
+                  <p className="px-3 py-4 text-sm text-gray-500">เลือก GTS หรือ MTS เพื่อดึงรายชื่อ</p>
                 ) : supportsLoading ? (
-                  <p className="px-3 py-4 text-sm text-gray-500">Fetching sales support…</p>
+                  <p className="px-3 py-4 text-sm text-gray-500">กำลังโหลดรายชื่อ…</p>
                 ) : supportsError ? (
                   <p className="px-3 py-4 text-sm text-red-600">{supportsError}</p>
                 ) : salesSupports.length === 0 ? (
-                  <p className="px-3 py-4 text-sm text-gray-500">No sales support found for this group.</p>
+                  <p className="px-3 py-4 text-sm text-gray-500">ไม่พบรายชื่อในกลุ่มนี้</p>
                 ) : (
                   <div className="divide-y divide-black/5">
                     {salesSupports.map((support) => {
@@ -766,9 +766,9 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
               <div className="text-xs text-gray-600">
                 {selectedGroup
                   ? selectionLimitReached
-                    ? `You reached the limit of ${MAX_BULK_SELECTION} selections. Deselect someone to add another.`
-                    : `Select up to ${MAX_BULK_SELECTION} members to apply the same action at once.`
-                  : "Pick a group to begin."}
+                    ? `เลือกครบ ${MAX_BULK_SELECTION} คนแล้ว กรุณายกเลิกใครสักคนก่อน`
+                    : `เลือกได้สูงสุด ${MAX_BULK_SELECTION} คนต่อครั้ง`
+                  : "โปรดเลือกกลุ่มก่อน"}
               </div>
             </div>
           </CardContent>
@@ -778,18 +778,18 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         <Card className="mt-4 border-none bg-[#E0D4B9]">
           <CardContent className="pt-4 space-y-4">
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 3 · Weekly day-off</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">ขั้นตอน 3 · ตั้งวันหยุดประจำสัปดาห์</p>
               <p className="text-sm text-gray-700">
                 {selectedSupports.length === 0
-                  ? "Select at least one sales support above to configure their weekly day-off plan."
+                  ? "เลือกพนักงานด้านบนอย่างน้อย 1 คนเพื่อกำหนดวันหยุดประจำสัปดาห์"
                   : selectedSupports.length === 1 && primarySupport
-                    ? `Editing schedule for ${primarySupport.name} (${primarySupport.employeeNo}).`
-                    : `Updating ${selectedSupports.length} sales supports together.`}
+                    ? `กำลังแก้ไขตารางของ ${primarySupport.name} (${primarySupport.employeeNo})`
+                    : `กำลังอัปเดต ${selectedSupports.length} คนพร้อมกัน`}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>Planning scope</Label>
+              <Label>ช่วงเวลาที่ต้องการตั้งค่า</Label>
               <div className="grid gap-2 sm:grid-cols-3">
                 {PLAN_MODE_OPTIONS.map((opt) => (
                   <button
@@ -809,7 +809,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Year</Label>
+                <Label>ปี</Label>
                 <select
                   value={planYear}
                   onChange={(e) => setPlanYear(e.target.value)}
@@ -825,7 +825,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
               {planMode === "single" && (
                 <div className="space-y-1">
-                  <Label>Month</Label>
+                  <Label>เดือน</Label>
                   <select
                     value={planMonths[0] || CURRENT_MONTH_VALUE}
                     onChange={(e) => setPlanMonths([e.target.value])}
@@ -844,21 +844,21 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             {planMode === "multi" && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-gray-600">
-                  <span>Select the months that should share this weekly plan.</span>
+                  <span>เลือกเดือนที่ต้องการให้ใช้ชุดวันหยุดเดียวกัน</span>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       className="underline-offset-2 hover:underline"
                       onClick={() => setPlanMonths(MONTH_CHOICES.map((m) => m.value))}
                     >
-                      Select all
+                      เลือกทั้งหมด
                     </button>
                     <button
                       type="button"
                       className="underline-offset-2 hover:underline"
                       onClick={() => setPlanMonths([])}
                     >
-                      Clear
+                      ล้าง
                     </button>
                   </div>
                 </div>
@@ -884,7 +884,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
             {planMode === "year" && (
               <p className="text-xs text-gray-600">
-                Plan will cover every month in {planYear}. Adjust the weekly toggles below and save to apply.
+                แผนนี้จะครอบคลุมทุกเดือนของปี {planYear} ปรับวันหยุดด้านล่างแล้วบันทึกเพื่อใช้งาน
               </p>
             )}
             {planMode !== "year" && (
@@ -893,11 +893,11 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
               <div className="space-y-1 md:col-span-2">
-                <Label>Weekly day-off</Label>
+                <Label>วันหยุดประจำสัปดาห์</Label>
                 <div className={`flex flex-wrap gap-3 rounded-md border border-black/10 p-2 ${!hasSelection ? "bg-gray-100" : "bg-white"}`}>
                   {[
-                    { k: "Mon", v: mon, s: setMon }, { k: "Tue", v: tue, s: setTue }, { k: "Wed", v: wed, s: setWed },
-                    { k: "Thu", v: thu, s: setThu }, { k: "Fri", v: fri, s: setFri }, { k: "Sat", v: sat, s: setSat }, { k: "Sun", v: sun, s: setSun },
+                    { k: "จ.", v: mon, s: setMon }, { k: "อ.", v: tue, s: setTue }, { k: "พ.", v: wed, s: setWed },
+                    { k: "พฤ.", v: thu, s: setThu }, { k: "ศ.", v: fri, s: setFri }, { k: "ส.", v: sat, s: setSat }, { k: "อา.", v: sun, s: setSun },
                   ].map((d) => (
                     <label key={d.k} className={`inline-flex items-center gap-1 text-sm ${!hasSelection ? "opacity-40" : ""}`}>
                       <input type="checkbox" checked={d.v} onChange={(e) => d.s(e.target.checked)} disabled={!hasSelection} /> {d.k}
@@ -913,10 +913,10 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 >
                   {savingWeekly ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                      <Loader2 className="h-4 w-4 animate-spin" /> กำลังบันทึก…
                     </span>
                   ) : (
-                    "Save Weekly Plan for Review"
+                    "บันทึกแผนเพื่อนำไปส่ง"
                   )}
                 </Button>
               </div>
@@ -928,8 +928,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           <CardContent className="pt-4 space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 4 · Review & submit</p>
-                <p className="text-sm text-gray-700">Queued weekly plans are listed below. Review before submitting to the backend.</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">ขั้นตอน 4 · ตรวจสอบและส่ง</p>
+                <p className="text-sm text-gray-700">ตรวจสอบแผนที่บันทึกไว้ด้านล่างก่อนกดส่งเข้าระบบ</p>
               </div>
               <Button
                 onClick={submitWeeklyDrafts}
@@ -938,12 +938,12 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
               >
                 {submittingDrafts ? (
                   <span className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting…
+                    <Loader2 className="h-4 w-4 animate-spin" /> กำลังส่ง…
                   </span>
                 ) : weeklyDrafts.length ? (
-                  `Submit ${weeklyDrafts.length} Plan${weeklyDrafts.length === 1 ? "" : "s"}`
+                  `ส่ง ${weeklyDrafts.length} แผน`
                 ) : (
-                  "Submit Plans"
+                  "ส่งแผน"
                 )}
               </Button>
             </div>
@@ -951,19 +951,19 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
               <Table className="min-w-[720px] text-sm">
                 <TableHeader>
                   <TableRow className="[&>*]:bg-[#C6E0CF]">
-                    <TableHead>Created</TableHead>
-                    <TableHead>Employees</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead>Weekly day-off</TableHead>
-                    <TableHead>Rows to push</TableHead>
-                    <TableHead className="w-24 text-center">Actions</TableHead>
+                    <TableHead>วันที่บันทึก</TableHead>
+                    <TableHead>รายชื่อ</TableHead>
+                    <TableHead>ช่วงเวลา</TableHead>
+                    <TableHead>วันหยุดประจำสัปดาห์</TableHead>
+                    <TableHead>จำนวนแถวที่จะส่ง</TableHead>
+                    <TableHead className="w-24 text-center">จัดการ</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {weeklyDrafts.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-gray-500">
-                        No weekly plans saved yet.
+                        ยังไม่มีแผนที่บันทึกไว้
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -981,13 +981,13 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                           <TableCell>{daysSummary}</TableCell>
                           <TableCell>{totalRows}</TableCell>
                           <TableCell className="text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeWeeklyDraft(draft.id)}
-                              className="text-sm text-red-700 underline-offset-2 hover:underline"
-                            >
-                              Remove
-                            </button>
+                          <button
+                            type="button"
+                            onClick={() => removeWeeklyDraft(draft.id)}
+                            className="text-sm text-red-700 underline-offset-2 hover:underline"
+                          >
+                            ลบ
+                          </button>
                           </TableCell>
                         </TableRow>
                       );
@@ -1002,18 +1002,18 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         <Card className="mt-4 border-none bg-[#E0D4B9]">
           <CardContent className="pt-4 space-y-4">
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 5 · Add company holiday</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">ขั้นตอน 5 · เพิ่มวันหยุดบริษัท</p>
               <p className="text-sm text-gray-700">
-                Select month and day for a company holiday and apply it to the sales supports chosen in Step 2.
+                เลือกเดือนและวันที่ต้องการ สร้างวันหยุดให้พนักงานที่เลือกไว้ในขั้นตอนที่ 2
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="space-y-1">
-                <Label>Holiday name</Label>
-                <Input value={holidayName} onChange={(e) => setHolidayName(e.target.value)} placeholder="Songkran, Year end, …" className="bg-white" />
+                <Label>ชื่อวันหยุด</Label>
+                <Input value={holidayName} onChange={(e) => setHolidayName(e.target.value)} placeholder="เช่น สงกรานต์, ปีใหม่" className="bg-white" />
               </div>
               <div className="space-y-1">
-                <Label>Year</Label>
+                <Label>ปี</Label>
                 <select value={holidayYear} onChange={(e) => setHolidayYear(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
                   {yearOptions.map((year) => (
                     <option key={`${year}-holiday`} value={year}>
@@ -1023,7 +1023,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Month</Label>
+                <Label>เดือน</Label>
                 <select value={holidayMonth} onChange={(e) => setHolidayMonth(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
                   {MONTH_CHOICES.map((m) => (
                     <option key={`holiday-month-${m.value}`} value={m.value}>
@@ -1033,7 +1033,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Day</Label>
+                <Label>วัน</Label>
                 <select value={holidayDay} onChange={(e) => setHolidayDay(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
                   {DAY_CHOICES.map((day) => (
                     <option key={`holiday-day-${day}`} value={day}>
@@ -1045,7 +1045,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1 md:col-span-2">
-                <Label>Leave type</Label>
+                <Label>ประเภทวันลา/วันหยุด</Label>
                 <Input value={holidayLeaveType} onChange={(e) => setHolidayLeaveType(e.target.value)} className="bg-white" />
               </div>
               <div className="space-y-1 flex flex-col justify-end">
@@ -1056,14 +1056,14 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 >
                   {holidaySaving ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Adding…
+                      <Loader2 className="h-4 w-4 animate-spin" /> กำลังเพิ่ม…
                     </span>
                   ) : (
-                    "Add to day-off list"
+                    "เพิ่มลงในรายการวันหยุด"
                   )}
                 </Button>
                 <p className="text-xs text-gray-600 mt-1">
-                  Creates one day-off entry per selected sales support ({selectedSupports.length || 0} currently selected).
+                  ระบบจะสร้างรายการให้ตามจำนวนพนักงานที่เลือก ({selectedSupports.length || 0} คน)
                 </p>
               </div>
             </div>
@@ -1073,14 +1073,14 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         <Card className="mt-4 border-none bg-[#E0D4B9]">
           <CardContent className="pt-4 space-y-4">
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Step 6 · Schedule exchange day-off</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">ขั้นตอน 6 · บันทึกวันหยุดชดเชย</p>
               <p className="text-sm text-gray-700">
-                Use when a sales support swaps their weekly day-off to a specific date (make-up/exchange day). Everyone selected in Step 2 will receive this entry.
+                ใช้เมื่อพนักงานต้องการสลับวันหยุดประจำสัปดาห์ไปยังวันที่ระบุ ทุกคนที่เลือกไว้ในขั้นตอนที่ 2 จะได้รับรายการนี้
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="space-y-1">
-                <Label>Year</Label>
+                <Label>ปี</Label>
                 <select value={exchangeYear} onChange={(e) => setExchangeYear(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
                   {yearOptions.map((year) => (
                     <option key={`exchange-year-${year}`} value={year}>
@@ -1090,7 +1090,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Month</Label>
+                <Label>เดือน</Label>
                 <select value={exchangeMonth} onChange={(e) => setExchangeMonth(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
                   {MONTH_CHOICES.map((m) => (
                     <option key={`exchange-month-${m.value}`} value={m.value}>
@@ -1100,7 +1100,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Day</Label>
+                <Label>วัน</Label>
                 <select value={exchangeDay} onChange={(e) => setExchangeDay(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
                   {DAY_CHOICES.map((day) => (
                     <option key={`exchange-day-${day}`} value={day}>
@@ -1110,14 +1110,14 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Leave type</Label>
+                <Label>ประเภทวันลา/วันหยุด</Label>
                 <Input value={exchangeLeaveType} onChange={(e) => setExchangeLeaveType(e.target.value)} className="bg-white" />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Reason / note</Label>
-                <Input value={exchangeNote} onChange={(e) => setExchangeNote(e.target.value)} placeholder="e.g. Swap with Monday due to training" className="bg-white" />
+                <Label>เหตุผล / บันทึกเพิ่มเติม</Label>
+                <Input value={exchangeNote} onChange={(e) => setExchangeNote(e.target.value)} placeholder="เช่น แลกกับวันจันทร์เพราะมีอบรม" className="bg-white" />
               </div>
               <div className="space-y-1 flex flex-col justify-end">
                 <Button
@@ -1127,14 +1127,14 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 >
                   {exchangeSaving ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Applying…
+                      <Loader2 className="h-4 w-4 animate-spin" /> กำลังเพิ่ม…
                     </span>
                   ) : (
-                    "Add exchange day-off"
+                    "เพิ่มวันหยุดชดเชย"
                   )}
                 </Button>
                 <p className="text-xs text-gray-600 mt-1">
-                  One entry per selected sales support ({selectedSupports.length || 0} currently selected).
+                  สร้างรายการตามจำนวนพนักงานที่เลือก ({selectedSupports.length || 0} คน)
                 </p>
               </div>
             </div>
@@ -1144,36 +1144,36 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         <Card className="mt-4 border-none bg-[#BFD9C8]">
           <CardContent className="pt-4 space-y-3">
             <div className="flex flex-col gap-1 mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Filter day-off summary</p>
-              <p className="text-sm text-gray-700">Adjust the filters below and click Apply filters to narrow the Sales support holiday list by name, employee number, or group.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">ตัวกรองรายการวันหยุด</p>
+              <p className="text-sm text-gray-700">ปรับตัวกรองแล้วกด “ใช้ตัวกรอง” เพื่อค้นหาจากชื่อ รหัสพนักงาน หรือกลุ่ม</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label>Sales support name</Label>
+                <Label>ชื่อ Sales Support</Label>
                 <Input
                   value={filterInputs.name}
                   onChange={(e) => setFilterInputs((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="Search by name"
+                  placeholder="ค้นหาจากชื่อ"
                   className="bg-white"
                 />
               </div>
               <div className="space-y-1">
-                <Label>Employee No</Label>
+                <Label>รหัสพนักงาน</Label>
                 <Input
                   value={filterInputs.employeeNo}
                   onChange={(e) => setFilterInputs((prev) => ({ ...prev, employeeNo: e.target.value }))}
-                  placeholder="Search by employee no."
+                  placeholder="ค้นหาจากรหัส"
                   className="bg-white"
                 />
               </div>
               <div className="space-y-1">
-                <Label>Group</Label>
+                <Label>กลุ่ม</Label>
                 <select
                   value={filterInputs.group}
                   onChange={(e) => setFilterInputs((prev) => ({ ...prev, group: e.target.value }))}
                   className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
                 >
-                  <option value="">All groups</option>
+                  <option value="">ทุกกลุ่ม</option>
                   <option value="GTS">GTS</option>
                   <option value="MTS">MTS</option>
                 </select>
@@ -1186,14 +1186,14 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 disabled={!filtersDirty}
                 className="rounded-full bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Apply filters
+                ใช้ตัวกรอง
               </Button>
               <Button
                 type="button"
                 onClick={handleClearFilters}
                 className="rounded-full bg-white border border-black/20 text-gray-800 hover:bg-gray-50"
               >
-                Clear filters
+                ล้างตัวกรอง
               </Button>
             </div>
           </CardContent>
@@ -1205,24 +1205,24 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       <div className="mt-6 bg-[#BFD9C8]">
         <div className="mx-auto w-full px-4 sm:px-6 md:px-8 py-4 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
           <div className="mb-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 justify-between">
-            <h2 className="text-lg sm:text-xl font-extrabold">Sales support holiday list</h2>
+            <h2 className="text-lg sm:text-xl font-extrabold">รายการวันหยุดของ Sales Support</h2>
 
             <button
               type="button"
               onClick={handleExport}
               className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 self-start sm:self-auto"
             >
-              <span>Export excel file</span>
+              <span>ส่งออกไฟล์ Excel</span>
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-white">↓</span>
             </button>
           </div>
 
-          <div className="text-xs text-gray-700 mb-2">Download the current filtered results as a CSV.</div>
+          <div className="text-xs text-gray-700 mb-2">ดาวน์โหลดข้อมูลที่กรองไว้เป็นไฟล์ CSV</div>
           {holidayError && <div className="text-xs text-red-600 mb-2">{holidayError}</div>}
           <div className="text-xs text-gray-600 mb-3">
             {holidayLoading
-              ? "Loading holiday summary..."
-              : `Showing ${filteredHolidays.length} record${filteredHolidays.length === 1 ? "" : "s"}.`}
+              ? "กำลังโหลดข้อมูล..."
+              : `แสดง ${filteredHolidays.length} รายการ`}
           </div>
 
           {/* Table wrapper: horizontal scroll on small screens */}
@@ -1230,25 +1230,25 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
             <Table className="min-w-[600px] text-sm">
               <TableHeader>
                 <TableRow className="[&>*]:bg-[#C6E0CF]">
-                  <TableHead className="min-w-[160px]">Date/Time</TableHead>
-                  <TableHead className="min-w-[180px]">Sales Support name</TableHead>
-                  <TableHead className="min-w-[120px]">Emp No</TableHead>
-                  <TableHead className="min-w-[100px]">Group</TableHead>
-                  <TableHead className="min-w-[140px]">Leave type</TableHead>
-                  <TableHead className="min-w-[200px]">Remark</TableHead>
+                  <TableHead className="min-w-[160px]">วัน-เวลา</TableHead>
+                  <TableHead className="min-w-[180px]">ชื่อ Sales Support</TableHead>
+                  <TableHead className="min-w-[120px]">รหัสพนักงาน</TableHead>
+                  <TableHead className="min-w-[100px]">กลุ่ม</TableHead>
+                  <TableHead className="min-w-[140px]">ประเภทวันลา/วันหยุด</TableHead>
+                  <TableHead className="min-w-[200px]">หมายเหตุ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {holidayLoading ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-gray-500">
-                      Loading...
+                      กำลังโหลด...
                     </TableCell>
                   </TableRow>
                 ) : filteredHolidays.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-gray-500">
-                      No items yet. Add above or upload an excel file.
+                      ยังไม่มีข้อมูล กรุณาเพิ่มรายการด้านบนหรืออัปโหลดไฟล์
                     </TableCell>
                   </TableRow>
                 ) : (
