@@ -10,6 +10,7 @@ export default function LogoBadge({
   const h = Math.round(size * 1.52);
   const shadowWidth = Math.round(size * 0.7);
   const shadowHeight = Math.max(6, Math.round(size * 0.14));
+  const labelFontSize = Math.max(10, Math.round(size * 0.16));
   return (
     <div className={`inline-flex items-center gap-3 ${walking ? "logo-walking" : ""} ${className}`}>
       <div className="relative inline-block overflow-visible" style={{ width: size, height: h }}>
@@ -28,10 +29,11 @@ export default function LogoBadge({
           />
         )}
         <span
-          className="absolute text-[0.65rem] sm:text-xs font-semibold uppercase tracking-[0.25em] text-gray-800"
+          className="absolute font-semibold uppercase text-gray-800 logo-text-label"
           style={{
-            top: -Math.round(size * 0.08),
-            left: Math.round(size * 0.02),
+            fontSize: labelFontSize,
+            top: -Math.round(size * 0.02),
+            left: Math.round(size * 0.1),
             transform: "rotate(-24deg)",
             transformOrigin: "left center",
           }}
@@ -39,10 +41,11 @@ export default function LogoBadge({
           <span className="logo-text-pulse">HOTTA!</span>
         </span>
         <span
-          className="absolute text-[0.65rem] sm:text-xs font-semibold uppercase tracking-[0.25em] text-gray-800"
+          className="absolute font-semibold uppercase text-gray-800 logo-text-label"
           style={{
-            top: -Math.round(size * 0.1),
-            right: Math.round(size * 0.02),
+            fontSize: labelFontSize,
+            top: -Math.round(size * 0.03),
+            right: Math.round(size * 0.08),
             transform: "rotate(24deg)",
             transformOrigin: "right center",
           }}
