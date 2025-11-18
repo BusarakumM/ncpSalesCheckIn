@@ -10,7 +10,7 @@ export default function LogoBadge({
   const h = Math.round(size * 1.52);
   const shadowWidth = Math.round(size * 0.7);
   const shadowHeight = Math.max(6, Math.round(size * 0.14));
-  const labelFontSize = Math.max(10, Math.round(size * 0.16));
+  const labelFontSize = Math.max(9, Math.round(size * 0.12));
   return (
     <div className={`inline-flex items-center gap-3 ${walking ? "logo-walking" : ""} ${className}`}>
       <div className="relative inline-block overflow-visible" style={{ width: size, height: h }}>
