@@ -91,14 +91,14 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
             <span className="text-xl">🏠</span>
           </Link>
           <h1 className="mx-auto text-xl sm:text-2xl md:text-3xl font-extrabold text-center">
-            เข้างาน ออกงาน
+            Check-in Check-out
           </h1>
         </div>
 
         {/* Date + New */}
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <span className="text-sm">วันที่</span>
+            <span className="text-sm">Date</span>
             <Input
               type="date"
               value={qDate}
@@ -110,9 +110,9 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
             <Link
               href="/checkin/new"
               className={`ml-auto text-base sm:text-lg font-semibold text-[#6EBF8B] hover:opacity-90`}
-              title="สร้างงานใหม่"
+              title="Create new task"
             >
-              + สร้างงาน
+              + New
             </Link>
           </div>
         </div>
@@ -120,11 +120,11 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
         {/* List */}
         <div className="mt-4 space-y-3">
           {loading ? (
-            <div className="text-sm text-gray-700">กำลังโหลด...</div>
+            <div className="text-sm text-gray-700">Loading...</div>
           ) : error ? (
-            <div className="text-sm text-red-700">{error || 'โหลดข้อมูลไม่สำเร็จ'}</div>
+            <div className="text-sm text-red-700">{error}</div>
           ) : filtered.length === 0 ? (
-            <div className="text-sm text-gray-700">ไม่มีงานในวันที่เลือก</div>
+            <div className="text-sm text-gray-700">No tasks for this date</div>
           ) : filtered.map((t) => (
             <div
               key={t.id}
@@ -142,17 +142,17 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
                 ) : t.time ? (
                   <div className="text-xs text-gray-600 mt-0.5">{t.time}</div>
                 ) : null}
-                <div className={`mt-1 ${statusStyles(t.status)}`}>{t.status === 'Completed' ? 'เสร็จสิ้น' : (t.status === 'In Progress' ? 'กำลังทำ' : 'ยังไม่เริ่ม')}</div>
+                <div className={`mt-1 ${statusStyles(t.status)}`}>{t.status}</div>
                 {t.status === 'In Progress' ? (
-                  <div className="mt-0.5 text-xs text-red-700">ตำแหน่งนี้ยังไม่ออกงาน กรุณาทำให้เสร็จก่อน</div>
+                  <div className="mt-0.5 text-xs text-red-700">ตำแหน่งนี้ยังไม่ check-out กรุณาทำให้เสร็จก่อน</div>
                 ) : null}
               </div>
                 <Link
                   href={`/checkin/${t.id}`}
                   className={`self-center inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-3 py-2 hover:bg-gray-50 text-xs font-bold ${t.status === 'Completed' ? 'text-[#2e7d32]' : ''}`}
-                  title="เปิดรายการ"
+                  title="Open task"
                 >
-                  เปิด
+                  CHECK
                 </Link>
               </div>
               {/* Tablet+ layout (grid) */}
@@ -166,18 +166,18 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
                     ) : t.time ? (
                       <div className="text-xs text-gray-600 mt-0.5">{t.time}</div>
                     ) : null}
-                    <div className={`${statusStyles(t.status)}`}>{t.status === 'Completed' ? 'เสร็จสิ้น' : (t.status === 'In Progress' ? 'กำลังทำ' : 'ยังไม่เริ่ม')}</div>
+                    <div className={`${statusStyles(t.status)}`}>{t.status}</div>
                     {t.status === 'In Progress' ? (
-                      <div className="mt-0.5 text-xs text-red-700">ตำแหน่งนี้ยังไม่ออกงาน กรุณาทำให้เสร็จก่อน</div>
+                      <div className="mt-0.5 text-xs text-red-700">ตำแหน่งนี้ยังไม่ check-out กรุณาทำให้เสร็จก่อน</div>
                     ) : null}
                   </div>
                 </div>
                 <Link
                   href={`/checkin/${t.id}`}
                   className="inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-3 py-2 hover:bg-gray-50"
-                  title="เปิดรายการ"
+                  title="Open task"
                 >
-                  <span className={`text-xs font-bold ${t.status === 'Completed' ? 'text-[#2e7d32]' : ''}`}>เปิด</span>
+                  <span className={`text-xs font-bold ${t.status === 'Completed' ? 'text-[#2e7d32]' : ''}`}>CHECK</span>
                 </Link>
               </div>
             </div>
@@ -186,7 +186,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
 
         {/* Bottom-right logo */}
         <div className="mt-10 flex justify-end">
-          <LogoBadge size={110} className="scale-[0.95] sm:scale-100" />
+          <LogoBadge size={56} className="scale-[0.95] sm:scale-100" />
         </div>
       </div>
     </div>

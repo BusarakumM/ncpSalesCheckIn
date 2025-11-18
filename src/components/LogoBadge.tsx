@@ -38,7 +38,7 @@ export default function LogoBadge({
             transformOrigin: "left center",
           }}
         >
-          <span className="logo-text-pulse">HOTTA!</span>
+          <span className="logo-text-pulse">HOTTA</span>
         </span>
         <span
           className="absolute font-semibold uppercase text-gray-800 logo-text-label"
@@ -50,7 +50,7 @@ export default function LogoBadge({
             transformOrigin: "right center",
           }}
         >
-          <span className="logo-text-pulse" style={{ animationDelay: "0.25s" }}>FITNE!</span>
+          <span className="logo-text-pulse" style={{ animationDelay: "0.25s" }}>FITNE</span>
         </span>
       </div>
       {withText && (
