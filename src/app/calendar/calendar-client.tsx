@@ -24,6 +24,13 @@ type WeeklyPlanDraft = {
   days: Record<WeekdayKey, boolean>;
   createdAt: string;
 };
+type FilterValues = { name: string; employeeNo: string; group: string };
+
+const createEmptyFilters = (): FilterValues => ({
+  name: "",
+  employeeNo: "",
+  group: "",
+});
 
 const MAX_BULK_SELECTION = 10;
 const MONTH_CHOICES = [
@@ -124,9 +131,8 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [dayoffSource, setDayoffSource] = useState<Row[]>([]);
   const [dayoffLoading, setDayoffLoading] = useState(false);
   const [dayoffError, setDayoffError] = useState<string | null>(null);
-  const [filterName, setFilterName] = useState("");
-  const [filterEmployeeNo, setFilterEmployeeNo] = useState("");
-  const [filterGroup, setFilterGroup] = useState("");
+  const [filterInputs, setFilterInputs] = useState<FilterValues>(() => createEmptyFilters());
+  const [activeFilters, setActiveFilters] = useState<FilterValues>(() => createEmptyFilters());
   const [mon, setMon] = useState(false);
   const [tue, setTue] = useState(false);
   const [wed, setWed] = useState(false);
@@ -217,16 +223,28 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     });
   }, [dayoffSource, supportDirectory]);
   const filteredDayoffs = useMemo(() => {
-    const nameQuery = filterName.trim().toLowerCase();
-    const empQuery = filterEmployeeNo.trim().toLowerCase();
-    const groupQuery = filterGroup.trim().toLowerCase();
+    const nameQuery = activeFilters.name.trim().toLowerCase();
+    const empQuery = activeFilters.employeeNo.trim().toLowerCase();
+    const groupQuery = activeFilters.group.trim().toLowerCase();
     return enrichedDayoffs.filter((row) => {
       const nameMatches = nameQuery ? (row.name || "").toLowerCase().includes(nameQuery) : true;
       const empMatches = empQuery ? (row.employeeNo || "").toLowerCase().includes(empQuery) : true;
       const groupMatches = groupQuery ? (row.group || "").toLowerCase().includes(groupQuery) : true;
       return nameMatches && empMatches && groupMatches;
     });
-  }, [enrichedDayoffs, filterName, filterEmployeeNo, filterGroup]);
+  }, [enrichedDayoffs, activeFilters.name, activeFilters.employeeNo, activeFilters.group]);
+  const filtersDirty =
+    filterInputs.name !== activeFilters.name ||
+    filterInputs.employeeNo !== activeFilters.employeeNo ||
+    filterInputs.group !== activeFilters.group;
+  const handleApplyFilters = useCallback(() => {
+    setActiveFilters({ ...filterInputs });
+  }, [filterInputs]);
+  const handleClearFilters = useCallback(() => {
+    const reset = createEmptyFilters();
+    setFilterInputs(reset);
+    setActiveFilters(reset);
+  }, []);
 
   function switchPlanMode(next: PlanMode) {
     setPlanMode(next);
@@ -1064,34 +1082,52 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           <CardContent className="pt-4 space-y-3">
             <div className="flex flex-col gap-1 mb-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Filter day-off summary</p>
-              <p className="text-sm text-gray-700">Use these filters to narrow the table below by name, employee number, or group.</p>
+              <p className="text-sm text-gray-700">Adjust the filters below and click Apply filters to narrow the Sales support holiday list by name, employee number, or group.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label>Sales support name</Label>
-                <Input value={filterName} onChange={(e) => setFilterName(e.target.value)} placeholder="Search by name" className="bg-white" />
+                <Input
+                  value={filterInputs.name}
+                  onChange={(e) => setFilterInputs((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Search by name"
+                  className="bg-white"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Employee No</Label>
-                <Input value={filterEmployeeNo} onChange={(e) => setFilterEmployeeNo(e.target.value)} placeholder="Search by employee no." className="bg-white" />
+                <Input
+                  value={filterInputs.employeeNo}
+                  onChange={(e) => setFilterInputs((prev) => ({ ...prev, employeeNo: e.target.value }))}
+                  placeholder="Search by employee no."
+                  className="bg-white"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Group</Label>
-                <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)} className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm">
+                <select
+                  value={filterInputs.group}
+                  onChange={(e) => setFilterInputs((prev) => ({ ...prev, group: e.target.value }))}
+                  className="w-full rounded-md border border-black/20 bg-white px-3 py-2 text-sm"
+                >
                   <option value="">All groups</option>
                   <option value="GTS">GTS</option>
                   <option value="MTS">MTS</option>
                 </select>
               </div>
             </div>
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end flex-wrap sm:flex-nowrap">
               <Button
                 type="button"
-                onClick={() => {
-                  setFilterName("");
-                  setFilterEmployeeNo("");
-                  setFilterGroup("");
-                }}
+                onClick={handleApplyFilters}
+                disabled={!filtersDirty}
+                className="rounded-full bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Apply filters
+              </Button>
+              <Button
+                type="button"
+                onClick={handleClearFilters}
                 className="rounded-full bg-white border border-black/20 text-gray-800 hover:bg-gray-50"
               >
                 Clear filters
