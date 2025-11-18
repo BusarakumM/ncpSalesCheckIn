@@ -32,8 +32,8 @@ export default function LogoBadge({
           className="absolute font-semibold uppercase text-gray-800 logo-text-label"
           style={{
             fontSize: labelFontSize,
-            top: Math.round(size * 0.04),
-            left: Math.round(size * 0.05),
+            top: Math.round(size * 0.1),
+            left: Math.round(size * 0.02),
             transform: "rotate(-24deg)",
             transformOrigin: "left center",
           }}
@@ -44,8 +44,8 @@ export default function LogoBadge({
           className="absolute font-semibold uppercase text-gray-800 logo-text-label"
           style={{
             fontSize: labelFontSize,
-            top: Math.round(size * 0.03),
-            right: Math.round(size * 0.05),
+            top: Math.round(size * 0.08),
+            right: Math.round(size * 0.02),
             transform: "rotate(24deg)",
             transformOrigin: "right center",
           }}
