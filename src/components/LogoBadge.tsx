@@ -30,8 +30,8 @@ export default function LogoBadge({
         <span
           className="absolute text-[0.65rem] sm:text-xs font-semibold uppercase tracking-[0.25em] text-gray-800"
           style={{
-            top: -Math.round(size * 0.18),
-            left: -Math.round(size * 0.03),
+            top: -Math.round(size * 0.08),
+            left: Math.round(size * 0.02),
             transform: "rotate(-24deg)",
             transformOrigin: "left center",
           }}
@@ -41,8 +41,8 @@ export default function LogoBadge({
         <span
           className="absolute text-[0.65rem] sm:text-xs font-semibold uppercase tracking-[0.25em] text-gray-800"
           style={{
-            top: -Math.round(size * 0.2),
-            right: -Math.round(size * 0.08),
+            top: -Math.round(size * 0.1),
+            right: Math.round(size * 0.02),
             transform: "rotate(24deg)",
             transformOrigin: "right center",
           }}
