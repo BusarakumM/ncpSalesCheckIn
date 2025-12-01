@@ -929,7 +929,7 @@ async function onSubmitCheckin() {
             {/* Problem and Remark inputs */}
             <div className="mt-4 grid grid-cols-1 gap-3">
               <div>
-                <div className="text-sm sm:text-base font-semibold">ปัญหาที่พบเจอ</div>
+                <div className="text-sm sm:text-base font-semibold">ปัญหาที่พบเจอ/OS</div>
                 <Input
                   placeholder="รายละเอียดปัญหาในการทำงาน (ถ้ามี)"
                   value={problemDetail}
