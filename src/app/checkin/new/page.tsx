@@ -935,6 +935,30 @@ export default function NewTaskPage() {
               </div>
             </div>
 
+            {/* Problem and Remark inputs */}
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <div>
+                <div className="text-sm sm:text-base font-semibold">ปัญหาที่พบเจอ</div>
+                <Input
+                  placeholder="รายละเอียดปัญหาในการทำงาน (ถ้ามี)"
+                  value={problemDetail}
+                  onChange={(e) => setProblemDetail(e.target.value)}
+                  className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+                  disabled={isSubmitting || submittedCheckout}
+                />
+              </div>
+              <div>
+                <div className="text-sm sm:text-base font-semibold">หมายเหตุ</div>
+                <Input
+                  placeholder="เหตุผลเช็คเอาท์ช้า/เร็วกว่าปกติ (ถ้ามี)"
+                  value={jobRemark}
+                  onChange={(e) => setJobRemark(e.target.value)}
+                  className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+                  disabled={isSubmitting || submittedCheckout}
+                />
+              </div>
+            </div>
+
             {/* Checkout picture */}
             <div className="mt-3 rounded-md border border-black/10 bg-[#D8CBAF]/70 px-4 py-2 text-center font-semibold">
               <span className="text-sm sm:text-base">ถ่ายรูปออกงาน</span>
@@ -978,30 +1002,6 @@ export default function NewTaskPage() {
             {!checkoutPhotoFile && !isSubmitting && !submittedCheckout ? (
               <div className="mt-1 text-xs text-red-700">Checkout photo is required</div>
             ) : null}
-
-            {/* Problem and Remark inputs */}
-            <div className="mt-4 grid grid-cols-1 gap-3">
-              <div>
-                <div className="text-sm sm:text-base font-semibold">ปัญหาที่พบเจอ</div>
-                <Input
-                  placeholder="รายละเอียดปัญหาในการทำงาน (ถ้ามี)"
-                  value={problemDetail}
-                  onChange={(e) => setProblemDetail(e.target.value)}
-                  className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-                  disabled={isSubmitting || submittedCheckout}
-                />
-              </div>
-              <div>
-                <div className="text-sm sm:text-base font-semibold">หมายเหตุ</div>
-                <Input
-                  placeholder="เหตุผลเช็คเอาท์ช้า/เร็วกว่าปกติ (ถ้ามี)"
-                  value={jobRemark}
-                  onChange={(e) => setJobRemark(e.target.value)}
-                  className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-                  disabled={isSubmitting || submittedCheckout}
-                />
-              </div>
-            </div>
 
             {/* Submit Checkout */}
             <div className="mt-4">
