@@ -1109,9 +1109,9 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
                 ล้างตัวกรอง
               </Button>
             </div>
-          </CardContent>
+        </CardContent>
         </Card>
-
+      </div>
       {/* List area: full-width band with fluid inner container */}
       <div className="mt-6 bg-[#BFD9C8]">
         <div className="mx-auto w-full px-4 sm:px-6 md:px-8 py-4 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
