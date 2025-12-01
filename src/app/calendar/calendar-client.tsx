@@ -371,7 +371,9 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
       row.leaveType || "",
       row.remark || "",
     ]);
-    const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const escapeCell = (value: string) => `"${
+      value.replace(/"/g, '""')
+    }"`;
     const csv = [header, ...rows].map((cols) => cols.map((col) => escapeCell(col || "")).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
