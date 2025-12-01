@@ -120,12 +120,6 @@ function describeEmployees(plan: WeeklyPlanDraft) {
 
 export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [selectedGroup, setSelectedGroup] = useState<"" | "GTS" | "MTS">("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [employeeNo, setEmployeeNo] = useState("");
-  const [dt, setDt] = useState("");
-  const [leaveType, setLeaveType] = useState("");
-  const [remark, setRemark] = useState("");
   const [supportDirectory, setSupportDirectory] = useState<Record<string, { name?: string; group?: string }>>({});
   const [dayoffSource, setDayoffSource] = useState<Row[]>([]);
   const [dayoffLoading, setDayoffLoading] = useState(false);
@@ -140,11 +134,11 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
   const [fri, setFri] = useState(false);
   const [sat, setSat] = useState(false);
   const [sun, setSun] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [salesSupports, setSalesSupports] = useState<SalesSupportUser[]>([]);
   const [supportsLoading, setSupportsLoading] = useState(false);
   const [supportsError, setSupportsError] = useState<string | null>(null);
   const [selectedEmployeeNos, setSelectedEmployeeNos] = useState<string[]>([]);
+  const [refreshingSummary, setRefreshingSummary] = useState(false);
   const selectedSupports = useMemo(
     () => salesSupports.filter((u) => selectedEmployeeNos.includes(u.employeeNo)),
     [salesSupports, selectedEmployeeNos]
@@ -162,7 +156,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     });
   }
   const primarySupport = selectedSupports[0] || null;
-  const canEditWeekly = selectedSupports.length === 1 && !!primarySupport;
   const selectionLimitReached = selectedEmployeeNos.length >= MAX_BULK_SELECTION;
   const hasSelection = selectedSupports.length > 0;
   const [planMode, setPlanMode] = useState<PlanMode>("year");
@@ -328,34 +321,6 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     }
   }
 
-  function buildRows(): Row[] | null {
-    if (selectedSupports.length === 0) {
-      alert("กรุณาเลือกพนักงานซัพพอร์ตอย่างน้อย 1 คน");
-      return null;
-    }
-    if (!dt || !leaveType) {
-      alert("กรุณากรอกวันเวลาและประเภทวันลาให้ครบ");
-      return null;
-    }
-    const overrideName = name?.trim();
-    const overrideEmail = email?.trim();
-    const allowEmployeeOverride = selectedSupports.length === 1;
-    const overrideEmployeeNo = allowEmployeeOverride ? employeeNo?.trim() : "";
-    return selectedSupports.map((support) => ({
-      dateTime: dt,
-      name: overrideName || support.name,
-      email: overrideEmail || support.identity,
-      employeeNo: overrideEmployeeNo || support.employeeNo,
-      leaveType,
-      remark,
-    }));
-  }
-  function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setUploadedFileName(f.name);
-  }
-
   const resetWeeklyDays = useCallback(() => {
     setMon(false);
     setTue(false);
@@ -379,6 +344,63 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
     setSat(!!cfg.sat);
     setSun(!!cfg.sun);
   }, [resetWeeklyDays]);
+
+  const fetchDayoffRows = useCallback(async () => {
+    const from = `${CURRENT_YEAR}-01-01`;
+    const to = `${CURRENT_YEAR}-12-31`;
+    const res = await fetch(`/api/pa/calendar/dayoff?from=${from}&to=${to}`, { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.ok) throw new Error(data?.error || "ไม่สามารถโหลดรายการวันลาได้");
+    const base: Row[] = (Array.isArray(data.dayoffs) ? data.dayoffs : [])
+      .map((item) => normalizeDayoffRecord(item))
+      .filter((item): item is Row => Boolean(item));
+    return base.sort((a, b) => (a.dateTime > b.dateTime ? -1 : 1));
+  }, []);
+
+  const exportDayoffSummary = useCallback(() => {
+    if (!filteredDayoffs.length) {
+      alert("ยังไม่มีข้อมูลให้ส่งออก");
+      return;
+    }
+    const header = ["วัน/เวลา", "ชื่อพนักงานซัพพอร์ต", "รหัสพนักงาน", "กลุ่ม", "ประเภทวันลา", "หมายเหตุ"];
+    const rows = filteredDayoffs.map((row) => [
+      row.dateTime ? row.dateTime.replace("T", " ") : "",
+      row.name || "",
+      row.employeeNo || "",
+      row.group || "",
+      row.leaveType || "",
+      row.remark || "",
+    ]);
+    const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const csv = [header, ...rows].map((cols) => cols.map((col) => escapeCell(col || "")).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "dayoff-summary.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filteredDayoffs]);
+
+  const refreshDayoffSummary = useCallback(async () => {
+    setRefreshingSummary(true);
+    setFilterName("");
+    setFilterEmployeeNo("");
+    setFilterGroup("");
+    setDayoffError(null);
+    setDayoffLoading(true);
+    try {
+      const rows = await fetchDayoffRows();
+      setDayoffSource(rows);
+    } catch (err: unknown) {
+      setDayoffError(err instanceof Error ? err.message : "ไม่สามารถโหลดรายการวันลาได้");
+    } finally {
+      setDayoffLoading(false);
+      setRefreshingSummary(false);
+    }
+  }, [fetchDayoffRows]);
 
   function saveWeeklyDraft() {
     if (!canSaveWeekly) {
@@ -525,44 +547,29 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    async function loadDayOffSummary() {
-      setDayoffLoading(true);
-      setDayoffError(null);
-      try {
-        const from = `${CURRENT_YEAR}-01-01`;
-        const to = `${CURRENT_YEAR}-12-31`;
-        const res = await fetch(`/api/pa/calendar/dayoff?from=${from}&to=${to}`, { cache: "no-store" });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.ok) throw new Error(data?.error || "ไม่สามารถโหลดรายการวันลาได้");
-        if (cancelled) return;
-        const base: Row[] = (Array.isArray(data.dayoffs) ? data.dayoffs : [])
-          .map((item) => normalizeDayoffRecord(item))
-          .filter((item): item is Row => Boolean(item));
-        setDayoffSource(base.sort((a, b) => (a.dateTime > b.dateTime ? -1 : 1)));
-      } catch (err: unknown) {
+    setDayoffLoading(true);
+    setDayoffError(null);
+    fetchDayoffRows()
+      .then((rows) => {
+        if (!cancelled) setDayoffSource(rows);
+      })
+      .catch((err: unknown) => {
         if (cancelled) return;
         setDayoffError(err instanceof Error ? err.message : "ไม่สามารถโหลดรายการวันลาได้");
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setDayoffLoading(false);
-      }
-    }
-    loadDayOffSummary().catch(() => {});
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchDayoffRows]);
 
   useEffect(() => {
     if (!primarySupport) {
       resetWeeklyDays();
-      setName("");
-      setEmployeeNo("");
-      setEmail("");
       return;
     }
-    setName(primarySupport.name);
-    setEmployeeNo(primarySupport.employeeNo);
-    setEmail(primarySupport.identity);
     (async () => {
       const id = primarySupport.employeeNo?.trim();
       if (!id) {
@@ -581,7 +588,7 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
         applyWeeklyDays();
       }
     })();
-  }, [primarySupport]);
+  }, [primarySupport, applyWeeklyDays, resetWeeklyDays]);
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
@@ -1105,134 +1112,27 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </CardContent>
         </Card>
 
-        {/* Entry card: inputs stack on mobile, pair up on md+ */}
-        <Card className="mt-4 border-none bg-[#BFD9C8]">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-1 mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">ขั้นตอน 8 · เพิ่มวันลามือ</p>
-              <p className="text-sm text-gray-700">
-                {selectedSupports.length === 0
-                  ? "กรุณาเลือกพนักงานในขั้นตอน 2 เพื่อเพิ่มรายการ"
-                  : selectedSupports.length === 1
-                    ? `เพิ่มให้ ${selectedSupports[0].name} (${selectedSupports[0].employeeNo})`
-                    : `เพิ่มให้ ${selectedSupports.length} คนพร้อมกัน`}
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>ชื่อพนักงานซัพพอร์ต</Label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-white"
-                  disabled={!canEditWeekly}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>รหัสพนักงาน</Label>
-                <Input
-                  value={employeeNo}
-                  onChange={(e) => setEmployeeNo(e.target.value)}
-                  className="bg-white"
-                  disabled={!canEditWeekly}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>ชื่อผู้ใช้ (ถ้ามี)</Label>
-                <Input
-                  type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white"
-                  disabled={!canEditWeekly}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>วันและเวลา</Label>
-                <Input type="datetime-local" value={dt} onChange={(e) => setDt(e.target.value)} className="bg-white" />
-              </div>
-              <div className="space-y-1">
-                <Label>ประเภทวันลา</Label>
-                <Input
-                  placeholder="ลากิจ / ลาป่วย / ลาพักร้อน …"
-                  value={leaveType}
-                  onChange={(e) => setLeaveType(e.target.value)}
-                  className="bg-white"
-                />
-              </div>
-
-              {/* Remark takes full width on md+ */}
-              <div className="md:col-span-2 space-y-1">
-                <Label>หมายเหตุ</Label>
-                <Input
-                  placeholder="ใส่เพิ่มเติม (ถ้ามี)"
-                  value={remark}
-                  onChange={(e) => setRemark(e.target.value)}
-                  className="bg-white"
-                />
-              </div>
-
-              <div className="md:col-span-2 pt-1">
-                <Button
-                  disabled={selectedSupports.length === 0}
-                  onClick={async () => {
-                    const rowsToSubmit = buildRows();
-                    if (!rowsToSubmit) return;
-                    try {
-                      for (const row of rowsToSubmit) {
-                        await submitDayOff(row);
-                      }
-                      setSupportDirectory((prev) => {
-                        const next = { ...prev };
-                        rowsToSubmit.forEach((row) => {
-                          if (!row.employeeNo || !row.name) return;
-                          next[row.employeeNo] = { ...(next[row.employeeNo] || {}), name: row.name };
-                        });
-                        return next;
-                      });
-                      setDayoffSource((r) => [...rowsToSubmit, ...r]);
-                      setLeaveType("");
-                      setRemark("");
-                      alert(
-                        rowsToSubmit.length === 1
-                          ? "เพิ่มวันลาแล้ว"
-                          : `เพิ่มวันลาให้ ${rowsToSubmit.length} คนเรียบร้อย`
-                      );
-                    } catch (err: unknown) {
-                      alert(err instanceof Error ? err.message : "ไม่สำเร็จ");
-                    }
-                  }}
-                  className="w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#d2c19e] border border-black/20 disabled:opacity-60"
-                >
-                  เพิ่มรายการ
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* List area: full-width band with fluid inner container */}
       <div className="mt-6 bg-[#BFD9C8]">
         <div className="mx-auto w-full px-4 sm:px-6 md:px-8 py-4 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
           <div className="mb-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 justify-between">
             <h2 className="text-lg sm:text-xl font-extrabold">รายการวันหยุดของทีมซัพพอร์ต</h2>
 
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm hover:bg-gray-50 self-start sm:self-auto">
-              <input type="file" accept=".xlsx" className="hidden" onChange={onUpload} />
-              <span>อัปโหลดไฟล์ Excel</span>
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-white">↑</span>
-            </label>
+            <button
+              type="button"
+              onClick={exportDayoffSummary}
+              disabled={!filteredDayoffs.length}
+              className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed self-start sm:self-auto"
+            >
+              <span>ส่งออกไฟล์สรุป</span>
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-white">↓</span>
+            </button>
           </div>
 
           <div className="text-xs text-gray-700 mb-2">
-            {uploadedFileName ? (
-              <>
-                ไฟล์ที่เลือก: <b>{uploadedFileName}</b>
-              </>
-            ) : (
-              "ยังไม่ได้เลือกไฟล์"
-            )}
+            {filteredDayoffs.length
+              ? `พร้อมส่งออก ${filteredDayoffs.length} รายการตามตัวกรองปัจจุบัน`
+              : "ยังไม่มีข้อมูลให้ส่งออก"}
           </div>
           {dayoffError && <div className="text-xs text-red-600 mb-2">{dayoffError}</div>}
           <div className="text-xs text-gray-600 mb-3">
@@ -1284,8 +1184,18 @@ export default function CalendarClient({ homeHref }: { homeHref: string }) {
           </div>
 
           <div className="mt-4">
-            <Button className="w-full rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20">
-              ส่งแล้วเสร็จ
+            <Button
+              onClick={refreshDayoffSummary}
+              disabled={dayoffLoading || refreshingSummary}
+              className="w-full rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60"
+            >
+              {refreshingSummary ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> กำลังรีเฟรช...
+                </span>
+              ) : (
+                "เริ่มตรวจสอบใหม่"
+              )}
             </Button>
           </div>
         </div>
