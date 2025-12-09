@@ -14,11 +14,9 @@ export default function NewTaskPage() {
   const [checkinTime, setCheckinTime] = useState("");
   const [checkoutTime, setCheckoutTime] = useState("");
   const [locationName, setLocationName] = useState("");
-  const [locationError, setLocationError] = useState<string>("");
   const [sameLocationWarning, setSameLocationWarning] = useState<string>("");
   const [sameLocationExistingId, setSameLocationExistingId] = useState<string | null>(null);
   const [gps, setGps] = useState("");
-  const [checkinAddress, setCheckinAddress] = useState("");
   const [checkoutGps, setCheckoutGps] = useState("");
   const [checkoutAddress, setCheckoutAddress] = useState("");
   const [jobDetail, setJobDetail] = useState("");
@@ -39,16 +37,7 @@ export default function NewTaskPage() {
   const checkoutLockRef = useRef(false);
   const [submittedCheckin, setSubmittedCheckin] = useState(false);
   const [submittedCheckout, setSubmittedCheckout] = useState(false);
-  // Place picker state
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [placeQuery, setPlaceQuery] = useState("");
-  const [placeResults, setPlaceResults] = useState<Array<{ name: string; address?: string; lat?: number; lon?: number }>>([]);
-  const [pickerLoading, setPickerLoading] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  // Inline typeahead suggestions
-  const [suggestions, setSuggestions] = useState<Array<{ name: string; address?: string; lat?: number; lon?: number }>>([]);
-  const [suggestLoading, setSuggestLoading] = useState(false);
-  const [suggestOpen, setSuggestOpen] = useState(false);
   const [checkoutOutOfArea, setCheckoutOutOfArea] = useState(false);
   const [checkinCaptureAt, setCheckinCaptureAt] = useState<number | null>(null);
   // Auto-expire check-in location/GPS if not submitted within 10 minutes
@@ -72,21 +61,19 @@ export default function NewTaskPage() {
   }
 
   useEffect(() => {
-    // Start or reset a 10-minute timer when both location and GPS are present and check-in not yet submitted
+    // Start or reset a 10-minute timer when GPS is present and check-in not yet submitted
     clearCheckinTimeout();
-    if (!submittedCheckin && locationName.trim() && gps.trim()) {
+    if (!submittedCheckin && gps.trim()) {
       checkinTimeoutRef.current = setTimeout(() => {
-        // Timeout reached: clear location + GPS and notify user
         setLocationName("");
         setGps("");
-        setCheckinAddress("");
         alert("submit check-in timeout");
       }, 5 * 60 * 1000);
     }
     return () => {
       clearCheckinTimeout();
     };
-  }, [locationName, gps, submittedCheckin]);
+  }, [gps, submittedCheckin]);
 
   // Prefill current datetime as check-in time (display only; actual submit uses real-time now)
   useEffect(() => {
@@ -96,6 +83,19 @@ export default function NewTaskPage() {
       .slice(0, 16); // yyyy-MM-ddTHH:mm
     setCheckinTime(iso);
   }, []);
+
+  useEffect(() => {
+    getGPS();
+  }, []);
+
+  useEffect(() => {
+    if (submittedCheckin) return;
+    const fallback = gps.trim();
+    const desired = jobDetail.trim() || fallback;
+    if (desired !== locationName) {
+      setLocationName(desired);
+    }
+  }, [jobDetail, gps, submittedCheckin, locationName]);
 
   async function reverseGeocode(lat: number, lon: number): Promise<string> {
     try {
@@ -146,59 +146,6 @@ export default function NewTaskPage() {
     const v = (process.env.NEXT_PUBLIC_MAX_DISTANCE_KM as unknown as string) || "0.5";
     const n = Number(v);
     return isFinite(n) && n > 0 ? n : 0.5;
-  }
-
-  async function geocodeByName(name: string, bias?: { lat?: string; lon?: string }): Promise<[number, number] | null> {
-    try {
-      const q = name.trim();
-      if (!q) return null;
-      const url = `/api/maps/search?q=${encodeURIComponent(q)}${bias?.lat && bias?.lon ? `&lat=${encodeURIComponent(bias.lat)}&lon=${encodeURIComponent(bias.lon)}` : ''}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) return null;
-      const data = await res.json().catch(() => ({} as any));
-      const r = Array.isArray(data?.results) && data.results.length > 0 ? data.results[0] : null;
-      if (r && typeof r.lat === 'number' && typeof r.lon === 'number') return [r.lat, r.lon];
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  async function getCurrentPositionOnce(): Promise<[number, number] | null> {
-    if (!("geolocation" in navigator)) return null;
-    return new Promise((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => resolve([pos.coords.latitude, pos.coords.longitude]),
-        () => resolve(null),
-        { enableHighAccuracy: true, timeout: 12000 }
-      );
-    });
-  }
-
-  async function validateLocationMatch(nameArg?: string): Promise<boolean> {
-    const name = (nameArg ?? locationName).trim();
-    if (!name) return false;
-    const curr = await getCurrentPositionOnce();
-    if (!curr) {
-      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
-      setLocationName("");
-      return false;
-    }
-    const [ulat, ulon] = curr;
-    const place = await geocodeByName(name, { lat: String(ulat), lon: String(ulon) });
-    if (!place) {
-      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
-      setLocationName("");
-      return false;
-    }
-    const d = distanceKm([ulat, ulon], place);
-    if (d > maxDistanceKm()) {
-      setLocationError("พิกัดไม่ตรง กรุณาใส่พิกัดใหม่ให้ถูกต้อง");
-      setLocationName("");
-      return false;
-    }
-    setLocationError("");
-    return true;
   }
 
   async function validateNoOngoingSameLocation(nameArg?: string): Promise<boolean> {
@@ -254,45 +201,6 @@ export default function NewTaskPage() {
     }
   }
 
-  // Typeahead search when typing in Location input
-  useEffect(() => {
-    const q = locationName.trim();
-    if (q.length < 2) {
-      setSuggestions([]);
-      setSuggestOpen(false);
-      return;
-    }
-    let cancelled = false;
-    const h = setTimeout(async () => {
-      try {
-        setSuggestLoading(true);
-        let lat: string | undefined;
-        let lon: string | undefined;
-        const parts = gps.split(',');
-        if (parts.length >= 2) {
-          lat = parts[0].trim();
-          lon = parts[1].trim();
-        }
-        const url = `/api/maps/search?q=${encodeURIComponent(q)}${lat && lon ? `&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}` : ''}`;
-        const res = await fetch(url, { cache: 'no-store' });
-        const data = await res.json().catch(() => ({}));
-        if (!cancelled) {
-          const arr = Array.isArray(data?.results) ? data.results : [];
-          setSuggestions(arr);
-          setSuggestOpen(arr.length > 0);
-        }
-      } catch {
-        if (!cancelled) {
-          setSuggestions([]);
-          setSuggestOpen(false);
-        }
-      } finally {
-        if (!cancelled) setSuggestLoading(false);
-      }
-    }, 300);
-    return () => { cancelled = true; clearTimeout(h); };
-  }, [locationName, gps]);
-
   function getGPS() {
     if (!("geolocation" in navigator)) {
       alert("Geolocation not supported");
@@ -305,101 +213,10 @@ export default function NewTaskPage() {
         const coord = `${lat}, ${lon}`;
         setGps(coord);
         setCheckinCaptureAt(Date.now());
-        // Try nearby place name first; fallback to reverse geocode formatted address
-        (async () => {
-          try {
-            const near = await fetch(`/api/maps/nearby?lat=${lat}&lon=${lon}`, { cache: "no-store" });
-            if (near.ok) {
-              const j = await near.json();
-              if (j?.ok && j?.name) setLocationNameAuto(j.name);
-            }
-          } catch {}
-          const addr = await reverseGeocode(parseFloat(lat), parseFloat(lon));
-          setCheckinAddress(addr || "");
-          if (!locationNameAuto && addr) setLocationNameAuto(addr);
-        })();
       },
       (err) => alert(err.message),
       { enableHighAccuracy: true, timeout: 15000 }
     );
-  }
-
-  async function searchPlaces() {
-    if (!placeQuery.trim()) return;
-    try {
-      setPickerLoading(true);
-      const url = `/api/maps/search?q=${encodeURIComponent(placeQuery.trim())}${gps ? `&lat=${encodeURIComponent(gps.split(',')[0].trim())}&lon=${encodeURIComponent(gps.split(',')[1].trim())}` : ''}`;
-      const res = await fetch(url, { cache: "no-store" });
-      const data = await res.json();
-      if (res.ok && data?.ok && Array.isArray(data.results)) {
-        setPlaceResults(data.results);
-      } else if (res.ok && Array.isArray(data.results)) {
-        setPlaceResults(data.results);
-      } else {
-        setPlaceResults([]);
-      }
-    } catch {
-      setPlaceResults([]);
-    } finally {
-      setPickerLoading(false);
-    }
-  }
-
-  async function loadNearby() {
-    try {
-      setPickerLoading(true);
-      // If we don't have gps yet, try to capture for better nearby suggestions
-      let lat: string | null = null;
-      let lon: string | null = null;
-      if (gps) {
-        const parts = gps.split(",");
-        if (parts.length >= 2) {
-          lat = parts[0].trim();
-          lon = parts[1].trim();
-        }
-      }
-      if (!lat || !lon) {
-        // try to get geolocation silently via prompt
-        await new Promise<void>((resolve) => {
-          if (!("geolocation" in navigator)) return resolve();
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              lat = pos.coords.latitude.toFixed(6);
-              lon = pos.coords.longitude.toFixed(6);
-              setGps(`${lat}, ${lon}`);
-              setCheckinCaptureAt(Date.now());
-              resolve();
-            },
-            () => resolve(),
-            { enableHighAccuracy: true, timeout: 8000 }
-          );
-        });
-      }
-      const q = lat && lon ? `?lat=${lat}&lon=${lon}&full=1` : "";
-      const res = await fetch(`/api/maps/nearby${q}`, { cache: "no-store" });
-      const data = await res.json();
-      if (res.ok && data?.ok && Array.isArray(data.results)) {
-        setPlaceResults(data.results);
-      } else {
-        setPlaceResults([]);
-      }
-    } catch {
-      setPlaceResults([]);
-    } finally {
-      setPickerLoading(false);
-    }
-  }
-
-  async function selectPlace(p: { name: string; address?: string; lat?: number; lon?: number }) {
-    if (p.lat != null && p.lon != null) {
-      const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
-      setGps(coord);
-      setCheckinAddress(p.address || "");
-      setCheckinCaptureAt(Date.now());
-    }
-    setLocationName(p.name);
-    setPickerOpen(false);
-    await validateLocationMatch(p.name);
   }
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -454,13 +271,14 @@ export default function NewTaskPage() {
       if (checkinLockRef.current) return;
       checkinLockRef.current = true;
       setIsSubmitting(true);
-      if (!(await validateLocationMatch())) {
-        return;
-      }
       // Non-blocking reminder for same-location ongoing task
       await validateNoOngoingSameLocation();
       if (checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000) {
         alert("submit check-in timeout");
+        return;
+      }
+      if (!gps.trim()) {
+        alert("ไม่สามารถดึงพิกัดได้");
         return;
       }
       if (!locationName.trim()) {
@@ -483,7 +301,7 @@ export default function NewTaskPage() {
         checkin: iso,
         locationName,
         gps,
-        checkinAddress,
+        checkinAddress: "",
         jobDetail,
         photoUrl: uploadedUrl,
       });
@@ -638,175 +456,59 @@ export default function NewTaskPage() {
         </div>
 
         {/* Check-in time */}
-        <div className="mt-2">
-          <div className="text-sm sm:text-base font-semibold">เวลาเข้างาน (อัตโนมัติ)</div>
-          <Input
-            type="datetime-local"
-            value={checkinTime}
-            readOnly
-            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-            disabled
-          />
-        </div>
-
-        <div className="mt-4">
-          <div className="text-sm sm:text-base font-semibold">สถานที่</div>
-          <div className="mt-2">
-            <Input
-              value={locationName}
-              onChange={(e) => { setLocationName(e.target.value); if (locationError) setLocationError(""); if (sameLocationWarning) setSameLocationWarning(""); if (sameLocationExistingId) setSameLocationExistingId(null); }}
-              placeholder="ระบุหรือเลือกสถานที่"
-              className="rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-              disabled={isSubmitting || submittedCheckin}
-              onFocus={() => { if (suggestions.length > 0) setSuggestOpen(true); }}
-              onBlur={async () => {
-                setTimeout(() => setSuggestOpen(false), 120);
-                if (locationName.trim()) {
-                  const ok = await validateLocationMatch();
-                  if (ok) await validateNoOngoingSameLocation();
-                }
-              }}
-            />
-            {suggestOpen && suggestions.length > 0 && (
-              <div className="mt-1 max-h-64 overflow-auto divide-y divide-black/10 bg-white rounded border border-black/10">
-                {suggestLoading && suggestions.length === 0 ? (
-                  <div className="p-2 text-sm">กำลังค้นหา…</div>
-                ) : (
-                  suggestions.slice(0, 10).map((p, i) => (
-                    <button
-                      key={`${p.name}-${i}`}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={async () => {
-                        setLocationName(p.name);
-                        if (p.lat != null && p.lon != null) {
-                          const coord = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
-                          setGps(coord);
-                          setCheckinAddress(p.address || '');
-                        }
-                        setSuggestOpen(false);
-                        const ok = await validateLocationMatch(p.name);
-                        if (ok) await validateNoOngoingSameLocation(p.name);
-                      }}
-                      className="w-full text-left p-2 hover:bg-[#F0F5F2]"
-                    >
-                      <div className="font-medium truncate">{p.name}</div>
-                      {p.address ? <div className="text-xs text-gray-600 truncate">{p.address}</div> : null}
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-            {!locationName.trim() ? (
-              <div className="mt-1 text-xs text-red-700">กรุณาเลือกหรือระบุสถานที่</div>
-            ) : null}
-            {locationError ? (
-              <div className="mt-1 text-xs text-red-700">{locationError}</div>
-            ) : null}
-            {sameLocationWarning ? (
-              <div className="mt-1 text-xs text-red-700 flex items-center gap-2">
-                <span>{sameLocationWarning}</span>
-                {sameLocationExistingId ? (
-                  <Link
-                    href={`/checkin/${sameLocationExistingId}`}
-                    className="underline text-red-800 hover:text-red-900"
-                    title="เปิดงานเดิม"
-                  >
-                    เปิดงานเดิม
-                  </Link>
-                ) : null}
-              </div>
-            ) : null}
-            <div className="mt-2 flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full border-black/20 bg-white hover:bg-gray-50"
-                onClick={() => { setPickerOpen((v) => !v); if (!pickerOpen) { setPlaceResults([]); } }}
-                disabled={isSubmitting || submittedCheckin}
-                title="ค้นหาหรือเลือกสถานที่ใกล้ฉัน"
-              >
-                ค้นหาสถานที่
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full border-black/20 bg-white hover:bg-gray-50"
-                onClick={loadNearby}
-                disabled={isSubmitting || submittedCheckin}
-                title="โหลดสถานที่ใกล้ฉัน"
-              >
-                ใกล้ฉัน
-              </Button>
-            </div>
-            {pickerOpen && (
-              <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="ค้นหาสถานที่ (เช่น ห้าง บริษัท)"
-                    value={placeQuery}
-                    onChange={(e) => setPlaceQuery(e.target.value)}
-                    className="h-9 rounded-full border-black/10 bg-white"
-                  />
-                  <Button type="button" className="rounded-full" onClick={searchPlaces} disabled={pickerLoading}>ค้นหา</Button>
-                </div>
-                <div className="mt-2 max-h-56 overflow-auto divide-y divide-black/10 bg-white rounded">
-                  {pickerLoading ? (
-                    <div className="p-3 text-sm">กำลังโหลด…</div>
-                  ) : placeResults.length === 0 ? (
-                    <div className="p-3 text-sm text-gray-700">ไม่พบข้อมูล</div>
-                  ) : (
-                    placeResults.map((p, i) => (
-                      <div key={`${p.name}-${i}`} className="p-2 flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{p.name}</div>
-                          {p.address ? <div className="text-xs text-gray-600 truncate">{p.address}</div> : null}
-                        </div>
-                        <Button type="button" variant="outline" className="rounded-full" onClick={() => selectPlace(p)}>เลือก</Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-            <div className="mt-1 text-xs text-gray-700">เคล็ดลับ: เลือกสถานที่แล้วสามารถแก้ไขชื่อก่อนบันทึกได้</div>
-          </div>
-        </div>
-
-        {/* Selected Location details */}
-        <div className="mt-4">
-          <div className="flex items-center gap-2">
-            <div className="text-sm sm:text-base font-semibold">สถานที่ที่เลือก</div>
-            <button
-              type="button"
-              onClick={() => setShowDetails((v) => !v)}
-              className="ml-auto inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-2 py-1 text-xs hover:bg-gray-50"
-            >
-              {showDetails ? "ซ่อนรายละเอียด" : "แสดงรายละเอียด"}
-            </button>
-          </div>
-          <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[100px]">
-            <div className="text-sm sm:text-base font-semibold">
-              {locationName || "— ยังไม่ได้เลือกสถานที่"}
-            </div>
-            {showDetails && (
-              <div className="mt-2">
-                <div className="text-xs sm:text-sm break-words" title={gps || undefined}>พิกัด: {gps || "—"}</div>
-                {checkinAddress ? (
-                  <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkinAddress}>
-                    {checkinAddress}
-                  </div>
-                ) : null}
-                {gps && GMAPS_KEY ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={mapUrl(gps)} alt="check-in map" className="mt-2 rounded border border-black/10" />
-                ) : null}
-              </div>
-            )}
-            <div className="mt-2 text-xs text-gray-700">ใช้ปุ่ม “ค้นหาสถานที่” หรือ “ใกล้ฉัน” เพื่อเลือก จากนั้นแก้ไขชื่อได้ตามต้องการ</div>
-          </div>
-        </div>
-
+        <div className="mt-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="text-sm sm:text-base font-semibold">สถานที่</div>
+            <div className="flex gap-2 sm:ml-auto">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50"
+                onClick={getGPS}
+                disabled={isSubmitting || submittedCheckin}
+                title="จับพิกัดปัจจุบันอีกครั้ง"
+              >
+                จับพิกัดอีกครั้ง
+              </Button>
+              <button
+                type="button"
+                onClick={() => setShowDetails((v) => !v)}
+                className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-2 py-1 text-xs hover:bg-gray-50"
+              >
+                {showDetails ? "ซ่อนแผนที่" : "แสดงแผนที่"}
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[120px]">
+            <div className="text-sm sm:text-base font-semibold">
+              {gps ? `พิกัด: ${gps}` : "— ยังไม่ได้รับพิกัด"}
+            </div>
+            {showDetails && gps && GMAPS_KEY ? (
+              <div className="mt-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={mapUrl(gps)} alt="check-in map" className="rounded border border-black/10" />
+              </div>
+            ) : null}
+            <div className="mt-2 text-xs text-gray-700">
+              ระบบจะใช้พิกัดอัตโนมัติและบันทึกชื่อจากช่อง “รายละเอียดสถานที่” แทนการค้นหา
+            </div>
+          </div>
+          {sameLocationWarning ? (
+            <div className="mt-2 text-xs text-red-700 flex items-center gap-2">
+              <span>{sameLocationWarning}</span>
+              {sameLocationExistingId ? (
+                <Link
+                  href={`/checkin/${sameLocationExistingId}`}
+                  className="underline text-red-800 hover:text-red-900"
+                  title="เปิดงานเดิม"
+                >
+                  เปิดงานเดิม
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
         {/* Location Detail */}
         <div className="mt-5">
           <div className="text-sm sm:text-base font-semibold">รายละเอียดสถานที่</div>
@@ -817,6 +519,7 @@ export default function NewTaskPage() {
             className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
             disabled={isSubmitting || submittedCheckin}
           />
+          <div className="mt-1 text-xs text-gray-700">ระบบจะใช้ข้อความนี้เป็นชื่อสถานที่ที่บันทึก</div>
         </div>
 
         {/* Take a picture */}
@@ -867,9 +570,9 @@ export default function NewTaskPage() {
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <LoadingButton
             onClick={onSubmitCheckin}
-            disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired() || !!locationError}
+            disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired()}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "กรุณาระบุชื่อสถานที่" : !photoFile ? "กรุณาถ่ายรูปเพื่อเข้างาน" : isCheckinExpired() ? "หมดเวลาส่งเข้างาน" : locationError ? locationError : undefined}
+            title={!locationName.trim() ? "กรุณาระบุชื่อสถานที่" : !photoFile ? "กรุณาถ่ายรูปเพื่อเข้างาน" : isCheckinExpired() ? "หมดเวลาส่งเข้างาน" : undefined}
             loading={isSubmitting}
             loadingLabel="กำลังบันทึก..."
           >
@@ -1022,14 +725,5 @@ export default function NewTaskPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
 
 
