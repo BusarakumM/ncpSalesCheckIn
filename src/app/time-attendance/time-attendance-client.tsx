@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,9 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
   const [qSearch, setQSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   function mapUrl(coord?: string) {
     if (!coord || !GMAPS_KEY) return "";
@@ -149,6 +151,22 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const handleWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return;
+    if (e.deltaY === 0) return;
+    scrollRef.current.scrollLeft += e.deltaY;
+    e.preventDefault();
+  };
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
       <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
@@ -240,10 +258,21 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
 
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="mb-2 flex justify-end">
-            <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              ส่งออก
-            </Button>
+          <div className="mb-2 flex justify-between items-center">
+            <div />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleRefresh}
+                disabled={refreshing || loading || clearing}
+                variant="outline"
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2 disabled:opacity-60"
+              >
+                {refreshing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />รีเฟรช</> : "รีเฟรช"}
+              </Button>
+              <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
+                ส่งออก
+              </Button>
+            </div>
           </div>
 
           {/* Mobile stacked layout */}
@@ -286,9 +315,13 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
 
           {/* Desktop table */}
           <div className="hidden sm:block">
-          <div className="overflow-x-auto overflow-y-auto max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh] bg-white border border-black/20 rounded-md">
+          <div
+            ref={scrollRef}
+            onWheel={handleWheelScroll}
+            className="relative overflow-x-auto overflow-y-auto max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh] bg-white border border-black/20 rounded-md pb-1"
+          >
             <Table className="w-full text-sm">
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20 bg-[#C6E0CF]">
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="w-[9%]">วันที่/เวลา</TableHead>
                   <TableHead className="w-[8%]">กลุ่ม</TableHead>

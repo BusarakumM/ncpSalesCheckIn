@@ -471,92 +471,178 @@ export default function NewTaskPage() {
           </h1>
         </div>
 
-        {/* Check-in time */}
-        <div className="mt-3">
-          <div className="text-sm sm:text-base font-semibold">เวลาเข้างาน (อัตโนมัติ)</div>
-          <Input
-            value={checkinTimeDisplay}
-            readOnly
-            placeholder="mm/dd/yyyy --:-- --"
-            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
-          />
-        </div>
-
-        {/* Location */}
-        <div className="mt-4">
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-
-            <div className="text-sm sm:text-base font-semibold">สถานที่</div>
-
-            <div className="flex gap-2 sm:ml-auto">
-
-              <Button
-
-                type="button"
-
-                variant="outline"
-
-                className="rounded-full border-black/20 bg-white hover:bg-gray-50"
-
-                onClick={getGPS}
-
-                disabled={isSubmitting || submittedCheckin}
-
-                title="จับพิกัดปัจจุบันอีกครั้ง"
-
-              >
-
-                จับพิกัดอีกครั้ง
-
-              </Button>
-
-              <button
-
-                type="button"
-
-                onClick={() => setShowDetails((v) => !v)}
-
-                className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-2 py-1 text-xs hover:bg-gray-50"
-
-              >
-
-                {showDetails ? "ซ่อนแผนที่" : "แสดงแผนที่"}
-
-              </button>
-
-            </div>
-
-          </div>
-
-          <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[120px]">
-
-            <div className="text-sm sm:text-base font-semibold">
-
-              {gps ? `พิกัด: ${gps}` : "— ยังไม่ได้รับพิกัด"}
-
-            </div>
-
-            {showDetails && gps && GMAPS_KEY ? (
-
-              <div className="mt-2">
-
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-
-                <img src={mapUrl(gps)} alt="check-in map" className="rounded border border-black/10" />
-
-              </div>
-
-            ) : null}
-
-            <div className="mt-2 text-xs text-gray-700">
-
-              ระบบจะใช้พิกัดอัตโนมัติและบันทึกชื่อจากช่อง “รายละเอียดสถานที่” แทนการค้นหา
-
-            </div>
-
-          </div>
-
+        {/* Check-in time */}
+
+        <div className="mt-3">
+
+          <div className="text-sm sm:text-base font-semibold">เวลาเข้างาน (อัตโนมัติ)</div>
+
+          <Input
+
+            value={checkinTimeDisplay}
+
+            readOnly
+
+            placeholder="mm/dd/yyyy --:-- --"
+
+            className="mt-1 rounded-full border-black/10 bg-[#D8CBAF]/60 h-10 sm:h-11"
+
+          />
+
+        </div>
+
+
+
+        {/* Location */}
+
+        <div className="mt-4">
+
+
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+
+
+
+            <div className="text-sm sm:text-base font-semibold">สถานที่</div>
+
+
+
+            <div className="flex gap-2 sm:ml-auto">
+
+
+
+              <Button
+
+
+
+                type="button"
+
+
+
+                variant="outline"
+
+
+
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50"
+
+
+
+                onClick={getGPS}
+
+
+
+                disabled={isSubmitting || submittedCheckin}
+
+
+
+                title="จับพิกัดปัจจุบันอีกครั้ง"
+
+
+
+              >
+
+
+
+                จับพิกัดอีกครั้ง
+
+
+
+              </Button>
+
+
+
+              <button
+
+
+
+                type="button"
+
+
+
+                onClick={() => setShowDetails((v) => !v)}
+
+
+
+                className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-2 py-1 text-xs hover:bg-gray-50"
+
+
+
+              >
+
+
+
+                {showDetails ? "ซ่อนแผนที่" : "แสดงแผนที่"}
+
+
+
+              </button>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[120px]">
+
+
+
+            <div className="text-sm sm:text-base font-semibold">
+
+
+
+              {gps ? `พิกัด: ${gps}` : "— ยังไม่ได้รับพิกัด"}
+
+
+
+            </div>
+
+
+
+            {showDetails && gps && GMAPS_KEY ? (
+
+
+
+              <div className="mt-2">
+
+
+
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+
+
+
+                <img src={mapUrl(gps)} alt="check-in map" className="rounded border border-black/10" />
+
+
+
+              </div>
+
+
+
+            ) : null}
+
+
+
+            <div className="mt-2 text-xs text-gray-700">
+
+
+
+              ระบบจะใช้พิกัดอัตโนมัติและบันทึกชื่อจากช่อง “รายละเอียดสถานที่” แทนการค้นหา
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
           {sameLocationWarning ? (
 
             <div className="mt-2 text-xs text-red-700 flex items-center gap-2">
@@ -805,6 +891,8 @@ export default function NewTaskPage() {
     </div>
   );
 }
+
+
 
 
 

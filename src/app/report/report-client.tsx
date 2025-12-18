@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,12 @@ import { Loader2 } from "lucide-react";
 import { formatDateDisplay } from "@/lib/utils";
 
 type Row = {
+  id?: string;
   date: string;
   checkin?: string;
+  checkinIso?: string;
   checkout?: string;
+  checkoutIso?: string;
   location: string;
   detail?: string;
   problemDetail?: string;
@@ -27,6 +30,8 @@ type Row = {
   checkoutGps?: string;
   distanceKm?: number;
   remark?: string;
+  checkinRowIndex?: number;
+  checkoutRowIndex?: number;
 };
 
 const DATA: Row[] = [];
@@ -42,8 +47,20 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   const [district, setDistrict] = useState("");
   const [allDistricts, setAllDistricts] = useState<string[]>([]);
   const [isFiltering, setIsFiltering] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ checkin: string; checkout: string; detail: string; problemDetail: string; remark: string }>({
+    checkin: "",
+    checkout: "",
+    detail: "",
+    problemDetail: "",
+    remark: "",
+  });
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   function mapUrl(coord?: string) {
     if (!coord || !GMAPS_KEY) return "";
@@ -70,9 +87,12 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load report");
     const mapped: Row[] = (data.rows || []).map((r: any) => ({
+      id: r.id,
       date: r.date,
       checkin: r.checkin,
+      checkinIso: r.checkinIso,
       checkout: r.checkout,
+      checkoutIso: r.checkoutIso,
       location: r.location,
       detail: r.detail,
       problemDetail: r.problemDetail ?? r.problem,
@@ -86,6 +106,8 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
       checkinGps: r.checkinGps,
       checkoutGps: r.checkoutGps,
       distanceKm: r.distanceKm,
+      checkinRowIndex: r.checkinRowIndex,
+      checkoutRowIndex: r.checkoutRowIndex,
       remark: (() => {
         const d = typeof r.distanceKm === 'number' ? r.distanceKm : null;
         if (d != null && isFinite(d) && MAX_KM && d > MAX_KM) {
@@ -124,6 +146,18 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
       .finally(() => setIsFiltering(false));
   }
 
+  async function handleRefresh() {
+    setRefreshing(true);
+    setErrorMsg(null);
+    try {
+      await load();
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   useEffect(() => { load().catch(() => {}); }, []);
 
   // Auto-refresh when dropdowns change
@@ -142,6 +176,81 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
     }
   }, [district, group]);
 
+  function beginEdit(row: Row) {
+    if (!row.id) return;
+    setErrorMsg(null);
+    setEditingId(row.id);
+    setDraft({
+      checkin: row.checkin || "",
+      checkout: row.checkout || "",
+      detail: row.detail || "",
+      problemDetail: row.problemDetail || "",
+      remark: row.jobRemark || "",
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setDraft({ checkin: "", checkout: "", detail: "", problemDetail: "", remark: "" });
+  }
+
+  async function saveRow(row: Row) {
+    if (!row.id) {
+      setErrorMsg("Missing row identifier; cannot save changes.");
+      return;
+    }
+    const hasCheckinTarget = row.checkinRowIndex != null;
+    const hasCheckoutTarget = row.checkoutRowIndex != null;
+    const checkinVal = (draft.checkin || "").trim() || row.checkin || undefined;
+    const checkoutVal = (draft.checkout || "").trim() || row.checkout || undefined;
+    const payload = {
+      id: row.id,
+      date: row.date,
+      checkinRowIndex: row.checkinRowIndex,
+      checkoutRowIndex: row.checkoutRowIndex,
+      checkin: hasCheckinTarget ? checkinVal : undefined,
+      checkout: hasCheckoutTarget ? checkoutVal : undefined,
+      detail: hasCheckinTarget ? (draft.detail ?? row.detail ?? "") : undefined,
+      problemDetail: hasCheckoutTarget ? (draft.problemDetail ?? row.problemDetail ?? "") : undefined,
+      remark: hasCheckoutTarget ? (draft.remark ?? row.jobRemark ?? "") : undefined,
+    };
+    if (!hasCheckinTarget && !hasCheckoutTarget) {
+      setErrorMsg("Cannot edit this row because its source rows are missing.");
+      return;
+    }
+    setSavingId(row.id);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/pa/report/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Failed to save changes");
+      }
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? {
+                ...r,
+                ...(payload.checkin !== undefined ? { checkin: payload.checkin } : {}),
+                ...(payload.checkout !== undefined ? { checkout: payload.checkout } : {}),
+                ...(payload.detail !== undefined ? { detail: payload.detail } : {}),
+                ...(payload.problemDetail !== undefined ? { problemDetail: payload.problemDetail } : {}),
+                ...(payload.remark !== undefined ? { jobRemark: payload.remark } : {}),
+              }
+            : r
+        )
+      );
+      cancelEdit();
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to save changes");
+    } finally {
+      setSavingId(null);
+    }
+  }
 
   function exportCsv() {
     // Supervisor export includes Group column before District
@@ -177,6 +286,14 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  const columnCount = role === "SUPERVISOR" ? 18 : 17;
+  const handleWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return;
+    if (e.deltaY === 0) return;
+    scrollRef.current.scrollLeft += e.deltaY;
+    e.preventDefault();
+  };
 
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
@@ -275,15 +392,50 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
           {role === "SUPERVISOR" ? (
-            <div className="mb-2 flex justify-end">
-              <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-                ส่งออก
+            <div className="mb-2 flex justify-between items-center">
+              {errorMsg ? (
+                <div className="text-sm text-red-700 bg-red-100 border border-red-200 rounded px-3 py-2">
+                  {errorMsg}
+                </div>
+              ) : <div />}
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleRefresh}
+                  disabled={refreshing || isFiltering}
+                  variant="outline"
+                  className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2 disabled:opacity-60"
+                >
+                  {refreshing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />รีเฟรช</> : "รีเฟรช"}
+                </Button>
+                <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
+                  ส่งออก
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-2 flex justify-between items-center">
+              {errorMsg ? (
+                <div className="text-sm text-red-700 bg-red-100 border border-red-200 rounded px-3 py-2">
+                  {errorMsg}
+                </div>
+              ) : <div />}
+              <Button
+                onClick={handleRefresh}
+                disabled={refreshing || isFiltering}
+                variant="outline"
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2 disabled:opacity-60"
+              >
+                {refreshing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />รีเฟรช</> : "รีเฟรช"}
               </Button>
             </div>
-          ) : null}
-          <div className="overflow-x-auto overflow-y-auto max-h-[70vh] bg-white border border-black/20 rounded-md">
-            <Table className="min-w-[1120px] text-sm">
-              <TableHeader>
+          )}
+          <div
+            ref={scrollRef}
+            onWheel={handleWheelScroll}
+            className="relative overflow-x-auto overflow-y-auto max-h-[70vh] bg-white border border-black/20 rounded-md pb-1"
+          >
+            <Table className="min-w-[1200px] text-sm">
+              <TableHeader className="sticky top-0 z-20 bg-[#C6E0CF]">
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="min-w-[120px]">วัน/เวลา</TableHead>
                   <TableHead className="min-w-[120px]">Check-in</TableHead>
@@ -302,88 +454,168 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                   <TableHead className="min-w-[160px]">รูปออกงาน</TableHead>
                   <TableHead className="min-w-[220px]">Remark</TableHead>
                   <TableHead className="min-w-[120px]">สถานะ</TableHead>
+                  {role === "SUPERVISOR" ? <TableHead className="min-w-[140px] text-center">Actions</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center text-gray-500">
+                    <TableCell colSpan={columnCount} className="text-center text-gray-500">
                       No data for the selected range
                     </TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
-                      <TableCell>{r.checkin}</TableCell>
-                      <TableCell>{r.checkout || "-"}</TableCell>
-                      <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
-                      <TableCell>{r.detail}</TableCell>
-                      <TableCell className="whitespace-pre-wrap">{r.problemDetail || ""}</TableCell>
-                      <TableCell className="whitespace-pre-wrap">{r.jobRemark || ""}</TableCell>
-                      <TableCell>{r.name || ""}</TableCell>
-                      <TableCell>{(r as any).group || ""}</TableCell>
-                      <TableCell>{r.district || ""}</TableCell>
-                      <TableCell>
-                        {r.checkinGps ? (
-                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkinGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
-                            {r.checkinGps}
-                          </a>
-                        ) : ("")}
-                        {(r as any).checkinAddress ? (
-                          <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinAddress}>{(r as any).checkinAddress}</div>
-                        ) : null}
-                        {r.checkinGps && GMAPS_KEY ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        {r.checkoutGps ? (
-                          <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkoutGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
-                            {r.checkoutGps}
-                          </a>
-                        ) : ("")}
-                        {(r as any).checkoutAddress ? (
-                          <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutAddress}>{(r as any).checkoutAddress}</div>
-                        ) : null}
-                        {r.checkoutGps && GMAPS_KEY ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        {r.distanceKm != null ? (
-                          <span className={MAX_KM && r.distanceKm > MAX_KM ? "text-red-700 font-semibold" : ""}>
-                            {r.distanceKm.toFixed(3)}
-                            {MAX_KM && r.distanceKm > MAX_KM ? " !" : ""}
+                  rows.map((r, i) => {
+                    const isEditing = editingId === r.id;
+                    return (
+                      <TableRow key={r.id || i}>
+                        <TableCell title={formatDateDisplay(r.date) === "–" ? "Missing or invalid date" : undefined}>{formatDateDisplay(r.date)}</TableCell>
+                        <TableCell>
+                          {isEditing ? (
+                            <Input type="time" value={draft.checkin} onChange={(e) => setDraft({ ...draft, checkin: e.target.value })} className="h-9 bg-white" />
+                          ) : (
+                            r.checkin
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isEditing ? (
+                            <Input type="time" value={draft.checkout} onChange={(e) => setDraft({ ...draft, checkout: e.target.value })} className="h-9 bg-white" />
+                          ) : (
+                            r.checkout || "-"
+                          )}
+                        </TableCell>
+                        <TableCell title={[r.checkinGps, r.checkoutGps].filter(Boolean).join(' | ') || undefined}>{r.location}</TableCell>
+                        <TableCell className="whitespace-pre-wrap">
+                          {isEditing ? (
+                            <textarea
+                              value={draft.detail}
+                              onChange={(e) => setDraft({ ...draft, detail: e.target.value })}
+                              className="w-full min-h-[60px] rounded border border-black/20 px-2 py-1 text-sm"
+                            />
+                          ) : (
+                            r.detail
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-pre-wrap">
+                          {isEditing ? (
+                            <textarea
+                              value={draft.problemDetail}
+                              onChange={(e) => setDraft({ ...draft, problemDetail: e.target.value })}
+                              className="w-full min-h-[60px] rounded border border-black/20 px-2 py-1 text-sm"
+                            />
+                          ) : (
+                            r.problemDetail || ""
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-pre-wrap">
+                          {isEditing ? (
+                            <textarea
+                              value={draft.remark}
+                              onChange={(e) => setDraft({ ...draft, remark: e.target.value })}
+                              className="w-full min-h-[60px] rounded border border-black/20 px-2 py-1 text-sm"
+                            />
+                          ) : (
+                            r.jobRemark || ""
+                          )}
+                        </TableCell>
+                        <TableCell>{r.name || ""}</TableCell>
+                        <TableCell>{(r as any).group || ""}</TableCell>
+                        <TableCell>{r.district || ""}</TableCell>
+                        <TableCell>
+                          {r.checkinGps ? (
+                            <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkinGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                              {r.checkinGps}
+                            </a>
+                          ) : ("")}
+                          {(r as any).checkinAddress ? (
+                            <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinAddress}>{(r as any).checkinAddress}</div>
+                          ) : null}
+                          {r.checkinGps && GMAPS_KEY ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          {r.checkoutGps ? (
+                            <a href={`https://maps.google.com/?q=${encodeURIComponent(r.checkoutGps)}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                              {r.checkoutGps}
+                            </a>
+                          ) : ("")}
+                          {(r as any).checkoutAddress ? (
+                            <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutAddress}>{(r as any).checkoutAddress}</div>
+                          ) : null}
+                          {r.checkoutGps && GMAPS_KEY ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          {r.distanceKm != null ? (
+                            <span className={MAX_KM && r.distanceKm > MAX_KM ? "text-red-700 font-semibold" : ""}>
+                              {r.distanceKm.toFixed(3)}
+                              {MAX_KM && r.distanceKm > MAX_KM ? " !" : ""}
+                            </span>
+                          ) : ""}
+                        </TableCell>
+                        <TableCell>
+                          {r.imageIn ? (
+                            <a href={r.imageIn} target="_blank" rel="noopener noreferrer">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={r.imageIn} alt="check-in" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                            </a>
+                          ) : ("")}
+                        </TableCell>
+                        <TableCell>
+                          {r.imageOut ? (
+                            <a href={r.imageOut} target="_blank" rel="noopener noreferrer">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={r.imageOut} alt="check-out" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                            </a>
+                          ) : ("")}
+                        </TableCell>
+                        <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex w-full justify-center rounded px-2 py-1 text-sm font-medium ${statusClass(r.status)}`}>
+                            {r.status === 'completed' ? 'เสร็จสิ้น' : r.status === 'incomplete' ? 'ไม่เสร็จ' : 'กำลังทำ'}
                           </span>
-                        ) : ""}
-                      </TableCell>
-                      <TableCell>
-                        {r.imageIn ? (
-                          <a href={r.imageIn} target="_blank" rel="noopener noreferrer">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={r.imageIn} alt="check-in" className="mt-1 h-20 w-auto rounded border border-black/10" />
-                          </a>
-                        ) : ("")}
-                      </TableCell>
-                      <TableCell>
-                        {r.imageOut ? (
-                          <a href={r.imageOut} target="_blank" rel="noopener noreferrer">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={r.imageOut} alt="check-out" className="mt-1 h-20 w-auto rounded border border-black/10" />
-                          </a>
-                        ) : ("")}
-                      </TableCell>
-                      <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex w-full justify-center rounded px-2 py-1 text-sm font-medium ${statusClass(r.status)}`}>
-                          {r.status === 'completed' ? 'เสร็จสิ้น' : r.status === 'incomplete' ? 'ไม่เสร็จ' : 'กำลังทำ'}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        {role === "SUPERVISOR" ? (
+                          <TableCell>
+                            {isEditing ? (
+                              <div className="flex flex-col gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => saveRow(r)}
+                                  disabled={savingId === r.id}
+                                  className="w-full rounded-full bg-[#E8CC5C] text-gray-900 hover:bg-[#e3c54a] disabled:opacity-60"
+                                >
+                                  {savingId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={cancelEdit}
+                                  disabled={savingId === r.id}
+                                  className="w-full rounded-full border-black/20 bg-white hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => beginEdit(r)}
+                                disabled={!r.id || savingId != null}
+                                className="w-full rounded-full bg-white text-gray-900 hover:bg-gray-50 border border-black/20 disabled:opacity-60"
+                              >
+                                Edit
+                              </Button>
+                            )}
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

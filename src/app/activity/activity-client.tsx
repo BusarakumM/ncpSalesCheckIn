@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,8 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   const [qStatus, setQStatus] = useState<StatusFilter>(() => parseStatusParam(searchParams.get("status")));
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
+  const [refreshing, setRefreshing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   function mapUrl(coord?: string) {
     if (!coord || !GMAPS_KEY) return "";
@@ -217,6 +219,24 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     URL.revokeObjectURL(url);
   }
 
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await fetchRows();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const handleWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return;
+    if (e.deltaY === 0) return;
+    scrollRef.current.scrollLeft += e.deltaY;
+    e.preventDefault();
+  };
+
   useEffect(() => { fetchRows().catch(() => {}); }, []);
   const displayRows = useMemo(() => {
     const filtered = qStatus ? rows.filter((r) => r.status === qStatus) : rows;
@@ -370,14 +390,29 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
 
         {/* Table */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="mb-2 flex justify-end">
-            <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              ส่งออก
-            </Button>
+          <div className="mb-2 flex justify-between items-center">
+            <div />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleRefresh}
+                disabled={refreshing || isFiltering || isClearing}
+                variant="outline"
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2 disabled:opacity-60"
+              >
+                {refreshing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />รีเฟรช</> : "รีเฟรช"}
+              </Button>
+              <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
+                ส่งออก
+              </Button>
+            </div>
           </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
+          <div
+            ref={scrollRef}
+            onWheel={handleWheelScroll}
+            className="relative overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md pb-1"
+          >
             <Table className="min-w-[700px] text-sm">
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20 bg-[#E0D4B9]">
                 <TableRow className="[&>*]:bg-[#E0D4B9] [&>*]:text-black">
                   <TableHead className="min-w-[120px]">วันที่</TableHead>
                   <TableHead>เวลาเข้างาน</TableHead>

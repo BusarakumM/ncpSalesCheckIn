@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
   const [qSearch, setQSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const [rows, setRows] = useState<Row[]>([]);
 
@@ -78,6 +80,22 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
     const ongoing = rows.reduce((s, r) => s + r.ongoing, 0);
     return { members, total, completed, incomplete, ongoing };
   }, [rows]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const handleWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return;
+    if (e.deltaY === 0) return;
+    scrollRef.current.scrollLeft += e.deltaY;
+    e.preventDefault();
+  };
 
   const buildActivityHref = (status: "completed" | "incomplete" | "ongoing") => {
     const params = new URLSearchParams();
@@ -164,45 +182,60 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
 
         {/* Summary Table (beige panel with rounded rows) */}
         <div className="mt-6 rounded-3xl bg-[#D9CDAF] p-4">
-          <div className="mb-2 flex justify-end">
-            <Button
-              onClick={() => {
-                const header = ["กลุ่ม","เขต","รหัสพนักงาน","ชื่อเซลส์ซัพพอร์ต","รวมงาน","เสร็จสิ้น","ไม่เสร็จ","กำลังทำ"];
-                const lines = rows.map((r) => [
-                  r.group || "",
-                  r.district || "",
-                  r.employeeNo || "",
-                  r.name,
-                  r.total,
-                  r.completed,
-                  r.incomplete,
-                  r.ongoing,
-                ]);
-                const csv = [header, ...lines]
-                  .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-                  .join("\n");
-                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "summary.csv";
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              variant="outline"
-              className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2"
-            >
-              ส่งออก
-            </Button>
+          <div className="mb-2 flex justify-between items-center">
+            <div />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                variant="outline"
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2 disabled:opacity-60"
+              >
+                {refreshing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />รีเฟรช</> : "รีเฟรช"}
+              </Button>
+              <Button
+                onClick={() => {
+                  const header = ["กลุ่ม","เขต","รหัสพนักงาน","ชื่อเซลส์ซัพพอร์ต","รวมงาน","เสร็จสิ้น","ไม่เสร็จ","กำลังทำ"];
+                  const lines = rows.map((r) => [
+                    r.group || "",
+                    r.district || "",
+                    r.employeeNo || "",
+                    r.name,
+                    r.total,
+                    r.completed,
+                    r.incomplete,
+                    r.ongoing,
+                  ]);
+                  const csv = [header, ...lines]
+                    .map(row => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+                    .join("\n");
+                  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "summary.csv";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                variant="outline"
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2"
+              >
+                ส่งออก
+              </Button>
+            </div>
           </div>
           <h2 className="mb-3 text-center text-lg sm:text-xl font-extrabold">ตารางสรุป</h2>
 
           {/* Wrap in horizontal scroll on small screens */}
-          <div className="overflow-x-auto">
+          <div
+            ref={scrollRef}
+            onWheel={handleWheelScroll}
+            className="relative overflow-x-auto pb-1"
+          >
             {/* Use a min-width grid so columns don't squish on phones */}
             <div className="min-w-[900px]">
               {/* Header row */}
-              <div className="grid grid-cols-8 px-2 pb-2 text-sm font-medium">
+              <div className="sticky top-0 z-20 grid grid-cols-8 px-2 pb-2 text-sm font-medium bg-[#D9CDAF]">
                 <div className="text-center">กลุ่ม</div>
                 <div className="text-center">เขต</div>
                 <div className="text-center">รหัสพนักงาน</div>
@@ -302,7 +335,3 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
     </div>
   );
 }
-
-
-
-

@@ -1,7 +1,7 @@
  "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,8 @@ export default function LeaveManageClient() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   async function deleteRow(r: Row) {
     if (!r?.date) return;
@@ -108,6 +110,22 @@ export default function LeaveManageClient() {
     }
   }
 
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const handleWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return;
+    if (e.deltaY === 0) return;
+    scrollRef.current.scrollLeft += e.deltaY;
+    e.preventDefault();
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
       <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl">
@@ -175,15 +193,30 @@ export default function LeaveManageClient() {
 
         {/* Export */}
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
-          <div className="mb-2 flex justify-end">
-            <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
-              ส่งออก
-            </Button>
+          <div className="mb-2 flex justify-between items-center">
+            <div />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleRefresh}
+                disabled={refreshing || loading || clearing}
+                variant="outline"
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2 disabled:opacity-60"
+              >
+                {refreshing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />รีเฟรช</> : "รีเฟรช"}
+              </Button>
+              <Button onClick={exportCsv} variant="outline" className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2">
+                ส่งออก
+              </Button>
+            </div>
           </div>
-          <div className="bg-white border border-black/20 rounded-md">
+          <div
+            ref={scrollRef}
+            onWheel={handleWheelScroll}
+            className="relative bg-white border border-black/20 rounded-md overflow-x-auto pb-1"
+          >
             <div className="max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh] overflow-y-auto">
             <Table className="w-full text-xs sm:text-sm">
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20 bg-[#C6E0CF]">
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="w-[11%]">วันที่</TableHead>
                   <TableHead className="w-[11%]">รหัสพนักงาน</TableHead>

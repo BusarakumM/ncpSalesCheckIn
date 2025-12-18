@@ -259,6 +259,35 @@ async function listTableRows(tableName: string): Promise<Array<{ index: number; 
   return rows;
 }
 
+export async function updateTableRowByIndex(tableName: string, rowIndex: number, updates: Record<string, any>): Promise<void> {
+  if (rowIndex == null || rowIndex < 0) throw new Error("Invalid row index");
+  const headers = await getTableHeaders(tableName);
+  const base = workbookBasePath();
+  const rangePath = `${base}/tables/${encodeURIComponent(tableName)}/rows/${rowIndex}/range`;
+
+  const currentRes = await graphFetch(rangePath);
+  if (!currentRes.ok) {
+    const txt = await currentRes.text().catch(() => "");
+    throw new Error(`Read row failed ${currentRes.status}: ${txt}`);
+  }
+  const data = (await currentRes.json()) as any;
+  const currentValues = Array.isArray(data?.values?.[0]) ? data.values[0] : Array.isArray(data?.values) ? data.values : [];
+  if (!Array.isArray(currentValues) || currentValues.length === 0) {
+    throw new Error("Row has no values to update");
+  }
+
+  const next = headers.map((h, i) => (Object.prototype.hasOwnProperty.call(updates, h) ? (updates as any)[h] ?? "" : currentValues[i] ?? ""));
+  const patchRes = await graphFetch(rangePath, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ values: [next] }),
+  });
+  if (!patchRes.ok) {
+    const txt = await patchRes.text().catch(() => "");
+    throw new Error(`Update row failed ${patchRes.status}: ${txt}`);
+  }
+}
+
 export type ActivityRow = {
   date: string; // yyyy-mm-dd
   checkin?: string; // HH:mm or ISO
@@ -285,6 +314,12 @@ export type ActivityRow = {
   checkoutLon?: number;
   distanceKm?: number;
   issues?: string[]; // server-side flags for diagnostics
+  // Metadata for editing/upserts
+  id?: string;
+  checkinIso?: string;
+  checkoutIso?: string;
+  checkinRowIndex?: number;
+  checkoutRowIndex?: number;
 };
 
 export type UserLookupInfo = {
@@ -375,9 +410,9 @@ export async function listActivities(params: {
   const tCheckout = graphTables.checkout();
   const [ciHeaders, ciRows, coHeaders, coRows] = await Promise.all([
     getTableHeaders(tCheckin),
-    getTableValues(tCheckin),
+    listTableRows(tCheckin),
     getTableHeaders(tCheckout),
-    getTableValues(tCheckout),
+    listTableRows(tCheckout),
   ]);
 
   type Key = string;
@@ -469,7 +504,10 @@ export async function listActivities(params: {
     return Math.round(R * c * 1000) / 1000; // 3 decimals
   }
 
-  for (const r of ciRows) {
+  const valuesOf = (row: { values: any[][] }) => (Array.isArray(row?.values?.[0]) ? row.values[0] : Array.isArray(row?.values) ? row.values : []);
+
+  for (const entry of ciRows) {
+    const r = valuesOf(entry);
     const iso = String(idx.ci.iso != null ? r[idx.ci.iso] || "" : "");
     const date = toDatePart(iso);
     const time = toTimePart(iso);
@@ -482,8 +520,10 @@ export async function listActivities(params: {
       ? normalizeLatLon(Number(r[idx.ci.lat]), Number(r[idx.ci.lon]))
       : parseGps(gpsStr);
     map.set(key, {
+      id: key,
       date,
       checkin: time,
+      checkinIso: iso,
       location,
       checkinLocation: location,
       detail: String(idx.ci.detail != null ? r[idx.ci.detail] || "" : ""),
@@ -498,13 +538,15 @@ export async function listActivities(params: {
       checkinLat: parsed?.lat,
       checkinLon: parsed?.lon,
       issues: (!parsed && gpsStr) ? ["invalid_checkin_gps"] : [],
+      checkinRowIndex: entry.index,
     });
     if (!parsed && gpsStr) {
       console.warn("Invalid check-in GPS", { key, gps: gpsStr });
     }
   }
 
-  for (const r of coRows) {
+  for (const entry of coRows) {
+    const r = valuesOf(entry);
     const iso = String(idx.co.iso != null ? r[idx.co.iso] || "" : "");
     const date = toDatePart(iso);
     const time = toTimePart(iso);
@@ -561,12 +603,14 @@ export async function listActivities(params: {
     const row = map.get(key);
     if (row) {
       row.checkout = time;
+      row.checkoutIso = iso;
       row.status = row.checkin ? "completed" : "incomplete";
       row.checkoutLocation = location || row.checkoutLocation;
       row.imageOut = String(idx.co.photo != null ? r[idx.co.photo] || "" : "");
       // Pass-through problem/remark from checkout table if present
       (row as any).problemDetail = String(idx.co.problem != null ? r[idx.co.problem] || "" : "");
       (row as any).jobRemark = String(idx.co.remark != null ? r[idx.co.remark] || "" : "");
+      row.checkoutRowIndex = entry.index;
       if (!row.name) row.name = name;
       if (!row.email) row.email = email;
       if (!row.district) row.district = String(idx.co.district != null ? r[idx.co.district] || "" : "");
@@ -589,8 +633,10 @@ export async function listActivities(params: {
       }
     } else {
       map.set(key, {
+        id: key,
         date,
         checkout: time,
+        checkoutIso: iso,
         location,
         checkoutLocation: location,
         status: "incomplete",
@@ -606,6 +652,7 @@ export async function listActivities(params: {
         problemDetail: String(idx.co.problem != null ? r[idx.co.problem] || "" : ""),
         jobRemark: String(idx.co.remark != null ? r[idx.co.remark] || "" : ""),
         issues: (!parsed && gpsStr) ? ["invalid_checkout_gps"] : [],
+        checkoutRowIndex: entry.index,
       });
       if (!parsed && gpsStr) {
         console.warn("Invalid check-out GPS", { key, gps: gpsStr });

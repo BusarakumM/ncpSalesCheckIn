@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -15,6 +15,8 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
   const [to, setTo] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [isFiltering, setIsFiltering] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   function exportCsv() {
     const header = ["Date","Leave Type","Reason"];
@@ -53,6 +55,18 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
     try { await load(); } finally { setIsFiltering(false); }
   }
 
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
+
+  const handleWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return;
+    if (e.deltaY === 0) return;
+    scrollRef.current.scrollLeft += e.deltaY;
+    e.preventDefault();
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F4EA]">
       <div className="mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 pb-10 max-w-sm sm:max-w-md md:max-w-2xl">
@@ -82,13 +96,25 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
           >
             {isFiltering ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>ล้างตัวกรอง</>) : 'ล้างตัวกรอง'}
           </Button>
+          <Button
+            onClick={handleRefresh}
+            disabled={refreshing || isFiltering}
+            variant="outline"
+            className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+          >
+            {refreshing ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>รีเฟรช</>) : 'รีเฟรช'}
+          </Button>
         </div>
 
         <div className="mt-4 rounded-md border border-black/20 bg-[#E0D4B9] p-2">
           {/* Export hidden for sales support */}
-          <div className="overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md">
+          <div
+            ref={scrollRef}
+            onWheel={handleWheelScroll}
+            className="relative overflow-x-auto overflow-y-auto max-h-[240px] bg-white border border-black/20 rounded-md pb-1"
+          >
             <Table className="min-w-[600px] text-sm">
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20 bg-[#C6E0CF]">
                 <TableRow className="[&>*]:bg-[#C6E0CF] [&>*]:text-black">
                   <TableHead className="min-w-[160px]">วันที่</TableHead>
                   <TableHead className="min-w-[180px]">ประเภทการลา</TableHead>
