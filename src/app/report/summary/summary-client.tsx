@@ -247,9 +247,9 @@ export default function SummaryClient({ homeHref }: { homeHref: string }) {
               </div>
 
               <div className="space-y-3 overflow-y-auto pr-2 max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh]">
-                {rows.length === 0 ? (<div className="text-center text-gray-600">ไม่มีข้อมูล</div>) : rows.map((r) => (
+                {rows.length === 0 ? (<div className="text-center text-gray-600">ไม่มีข้อมูล</div>) : rows.map((r, idx) => (
                   <div
-                    key={`${r.employeeNo || r.name}`}
+                    key={`${r.employeeNo || r.name || "row"}-${idx}`}
                     className="grid grid-cols-8 items-center rounded-2xl bg-white px-3 py-3 shadow-sm gap-2"
                   >
                     <div className="text-center font-semibold">{r.group || "-"}</div>
