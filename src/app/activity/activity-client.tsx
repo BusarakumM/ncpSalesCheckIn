@@ -59,6 +59,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function mapUrl(coord?: string) {
     if (!coord || !GMAPS_KEY) return "";
@@ -141,19 +142,35 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     if (groupVal) payload.group = groupVal;
     const statusVal = overrides?.status ?? qStatus;
     if (statusVal) payload.status = statusVal;
-    const res = await fetch('/api/pa/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const data = await res.json();
-    if (!res.ok || !data?.ok) throw new Error(data?.error || 'Failed to load');
-    setRows(data.rows as Row[]);
+    const res = await fetch('/api/pa/activity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    const raw = await res.text();
+    let data: any = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      // fall through; will include raw in the error below
+    }
+    if (!res.ok || !data?.ok) {
+      const msg = data?.error || raw || res.statusText || 'Failed to load';
+      throw new Error(msg);
+    }
+    setRows((data.rows || []) as Row[]);
   }
 
   async function handleApply() {
     setIsFiltering(true);
     try {
+      setErrorMsg(null);
       await fetchRows();
       syncQueryParams();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setErrorMsg(err?.message || 'โหลดข้อมูลไม่สำเร็จ');
     } finally {
       setIsFiltering(false);
     }
@@ -176,10 +193,12 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     setQSearch("");
     updateStatusFilter("", { sync: false });
     try {
+      setErrorMsg(null);
       await fetchRows(defaults);
       syncQueryParams(defaults);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setErrorMsg(err?.message || 'โหลดข้อมูลไม่สำเร็จ');
     } finally {
       setIsClearing(false);
     }
@@ -222,9 +241,11 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   async function handleRefresh() {
     setRefreshing(true);
     try {
+      setErrorMsg(null);
       await fetchRows();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setErrorMsg(err?.message || 'โหลดข้อมูลไม่สำเร็จ');
     } finally {
       setRefreshing(false);
     }
@@ -237,7 +258,12 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     e.preventDefault();
   };
 
-  useEffect(() => { fetchRows().catch(() => {}); }, []);
+  useEffect(() => {
+    fetchRows().catch((err: any) => {
+      console.error(err);
+      setErrorMsg(err?.message || 'โหลดข้อมูลไม่สำเร็จ');
+    });
+  }, []);
   const displayRows = useMemo(() => {
     const filtered = qStatus ? rows.filter((r) => r.status === qStatus) : rows;
     const arr = [...filtered];
@@ -281,6 +307,12 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
             กิจกรรมเซลส์ซัพพอร์ต
           </h1>
         </div>
+
+        {errorMsg ? (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {errorMsg}
+          </div>
+        ) : null}
 
         {/* Status quick filter */}
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">

@@ -13,8 +13,8 @@ export async function POST(req: Request) {
     const cookieIdentity = c.get("username")?.value || c.get("email")?.value || "";
     const isSupervisor = role === "SUPERVISOR";
 
-    // Supervisors can override identity; sales support is locked to their own.
-    const identity = isSupervisor ? (email || username || cookieIdentity) : cookieIdentity;
+    // Supervisors see all by default; they only filter by identity when provided.
+    const identity = isSupervisor ? (email || username || "") : cookieIdentity;
 
     if (!identity && !isSupervisor) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       from,
       to,
       name: isSupervisor ? name : undefined,
-      email: identity,
+      email: isSupervisor ? (identity || undefined) : cookieIdentity,
       employeeNo: isSupervisor ? employeeNo : undefined,
       district: isSupervisor ? district : undefined,
       group: isSupervisor ? group : undefined,
