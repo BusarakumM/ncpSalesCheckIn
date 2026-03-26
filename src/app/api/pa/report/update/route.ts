@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { graphTables, updateTableRowByIndex } from "@/lib/graph";
+import { invalidatePaReadCaches } from "@/lib/serverCache";
 
 type UpdateBody = {
   id?: string;
@@ -87,6 +88,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ ok: false, error: "No changes to apply" }, { status: 400 });
     }
 
+    invalidatePaReadCaches();
     return NextResponse.json({ ok: true, updated: updateTargets });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Failed to update report row" }, { status: 500 });

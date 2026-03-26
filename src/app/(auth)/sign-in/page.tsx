@@ -55,7 +55,16 @@ export default function SignInPage() {
       });
 
       if (!res.ok) {
-        const message = await res.text().catch(() => "เข้าสู่ระบบไม่สำเร็จ");
+        let message = "เข้าสู่ระบบไม่สำเร็จ";
+        try {
+          const data = await res.json().catch(() => null);
+          if (data && typeof data === "object" && "error" in data && typeof data.error === "string" && data.error.trim()) {
+            message = data.error.trim();
+          } else {
+            const fallback = await res.text().catch(() => "");
+            if (fallback.trim()) message = fallback.trim();
+          }
+        } catch {}
         throw new Error(message || "เข้าสู่ระบบไม่สำเร็จ");
       }
 

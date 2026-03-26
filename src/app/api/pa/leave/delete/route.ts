@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { addLeaveDelete, deleteLeaveRow } from "@/lib/graph";
+import { invalidatePaReadCaches } from "@/lib/serverCache";
 
 export async function POST(req: Request) {
   try {
@@ -19,6 +20,7 @@ export async function POST(req: Request) {
     if (!deleted) {
       await addLeaveDelete({ dtISO: dt, employeeNo, email, username, by: c.get("username")?.value || c.get("email")?.value || "" });
     }
+    invalidatePaReadCaches();
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Delete failed" }, { status: 500 });

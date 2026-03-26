@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import LogoBadge from "@/components/LogoBadge";
 import Image from "next/image";
 import { ClipboardCheck, CalendarX, FileText } from "lucide-react";
-import SalesSupportCalendar from "@/components/SalesSupportCalendar";
+import HomeCalendarSection from "@/components/HomeCalendarSection";
 
 export default async function SalesSupportHome() {
   const cookieStore = cookies();
@@ -78,7 +78,7 @@ export default async function SalesSupportHome() {
 
         {/* Monthly calendar */}
         <div className="mt-6">
-          <SalesSupportCalendar employeeNo={employeeNo} email={email} />
+          <HomeCalendarSection employeeNo={employeeNo} email={email} />
         </div>
 
         {/* Bottom-right logo */}

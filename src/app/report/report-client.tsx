@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
 import { formatDateDisplay } from "@/lib/utils";
+import { useAdaptiveMediaToggle } from "@/hooks/useAdaptiveMediaToggle";
+import type { ActivityStatus } from "@/lib/gpsReview";
 
 type Row = {
   id?: string;
@@ -20,11 +22,12 @@ type Row = {
   detail?: string;
   problemDetail?: string;
   jobRemark?: string;
+  reviewNote?: string;
   name?: string;
   group?: string;
   imageIn?: string;
   imageOut?: string;
-  status: "completed" | "incomplete" | "ongoing";
+  status: ActivityStatus;
   district?: string;
   checkinGps?: string;
   checkoutGps?: string;
@@ -61,6 +64,10 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const { autoMode, isConstrained, showMedia, toggleShowMedia } = useAdaptiveMediaToggle();
+  const mediaToggleTitle = autoMode && isConstrained && !showMedia
+    ? "ปิดอัตโนมัติเพื่อประหยัดเน็ตบนมือถือหรือเน็ตช้า"
+    : undefined;
 
   function mapUrl(coord?: string) {
     if (!coord || !GMAPS_KEY) return "";
@@ -70,6 +77,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   function statusClass(s: Row["status"]) {
     if (s === "completed") return "bg-[#6EC3A1] text-white";
     if (s === "incomplete") return "bg-[#E9A0A0] text-black";
+    if (s === "pending_review") return "bg-[#D8CBAF] text-black";
     return "bg-[#E7D6B9] text-black";
   }
 
@@ -97,6 +105,7 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
       detail: r.detail,
       problemDetail: r.problemDetail ?? r.problem,
       jobRemark: r.jobRemark ?? r.remark,
+      reviewNote: r.reviewNote,
       name: r.name,
       group: r.group,
       imageIn: r.imageIn || "",
@@ -109,11 +118,13 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
       checkinRowIndex: r.checkinRowIndex,
       checkoutRowIndex: r.checkoutRowIndex,
       remark: (() => {
+        const parts: string[] = [];
+        if (r.reviewNote) parts.push(`รอตรวจ: ${r.reviewNote}`);
         const d = typeof r.distanceKm === 'number' ? r.distanceKm : null;
         if (d != null && isFinite(d) && MAX_KM && d > MAX_KM) {
-          return "Checkout location differs from check-in";
+          parts.push("Checkout location differs from check-in");
         }
-        return "";
+        return parts.join("\n");
       })(),
     }));
     setRows(mapped);
@@ -400,6 +411,14 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
               ) : <div />}
               <div className="flex gap-2">
                 <Button
+                  onClick={toggleShowMedia}
+                  variant="outline"
+                  title={mediaToggleTitle}
+                  className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2"
+                >
+                  {showMedia ? "ซ่อนรูป/แผนที่" : "โหลดรูป/แผนที่"}
+                </Button>
+                <Button
                   onClick={handleRefresh}
                   disabled={refreshing || isFiltering}
                   variant="outline"
@@ -419,14 +438,24 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                   {errorMsg}
                 </div>
               ) : <div />}
-              <Button
-                onClick={handleRefresh}
-                disabled={refreshing || isFiltering}
-                variant="outline"
-                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2 disabled:opacity-60"
-              >
-                {refreshing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />รีเฟรช</> : "รีเฟรช"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={toggleShowMedia}
+                  variant="outline"
+                  title={mediaToggleTitle}
+                  className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2"
+                >
+                  {showMedia ? "ซ่อนรูป/แผนที่" : "โหลดรูป/แผนที่"}
+                </Button>
+                <Button
+                  onClick={handleRefresh}
+                  disabled={refreshing || isFiltering}
+                  variant="outline"
+                  className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2 disabled:opacity-60"
+                >
+                  {refreshing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />รีเฟรช</> : "รีเฟรช"}
+                </Button>
+              </div>
             </div>
           )}
           <div
@@ -530,9 +559,9 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                           {(r as any).checkinAddress ? (
                             <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinAddress}>{(r as any).checkinAddress}</div>
                           ) : null}
-                          {r.checkinGps && GMAPS_KEY ? (
+                          {showMedia && r.checkinGps && GMAPS_KEY ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
+                            <img src={mapUrl(r.checkinGps)} alt="check-in map" loading="lazy" decoding="async" className="mt-1 rounded border border-black/10" />
                           ) : null}
                         </TableCell>
                         <TableCell>
@@ -544,9 +573,9 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                           {(r as any).checkoutAddress ? (
                             <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutAddress}>{(r as any).checkoutAddress}</div>
                           ) : null}
-                          {r.checkoutGps && GMAPS_KEY ? (
+                          {showMedia && r.checkoutGps && GMAPS_KEY ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />
+                            <img src={mapUrl(r.checkoutGps)} alt="check-out map" loading="lazy" decoding="async" className="mt-1 rounded border border-black/10" />
                           ) : null}
                         </TableCell>
                         <TableCell>
@@ -559,24 +588,36 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
                         </TableCell>
                         <TableCell>
                           {r.imageIn ? (
-                            <a href={r.imageIn} target="_blank" rel="noopener noreferrer">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={r.imageIn} alt="check-in" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                            <a href={r.imageIn} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                              {showMedia ? (
+                                <>
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={r.imageIn} alt="check-in" loading="lazy" decoding="async" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                                </>
+                              ) : (
+                                "เปิดรูป"
+                              )}
                             </a>
                           ) : ("")}
                         </TableCell>
                         <TableCell>
                           {r.imageOut ? (
-                            <a href={r.imageOut} target="_blank" rel="noopener noreferrer">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={r.imageOut} alt="check-out" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                            <a href={r.imageOut} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                              {showMedia ? (
+                                <>
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={r.imageOut} alt="check-out" loading="lazy" decoding="async" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                                </>
+                              ) : (
+                                "เปิดรูป"
+                              )}
                             </a>
                           ) : ("")}
                         </TableCell>
                         <TableCell className="whitespace-pre-wrap">{r.remark || ""}</TableCell>
                         <TableCell>
                           <span className={`inline-flex w-full justify-center rounded px-2 py-1 text-sm font-medium ${statusClass(r.status)}`}>
-                            {r.status === 'completed' ? 'เสร็จสิ้น' : r.status === 'incomplete' ? 'ไม่เสร็จ' : 'กำลังทำ'}
+                            {r.status === 'completed' ? 'เสร็จสิ้น' : r.status === 'incomplete' ? 'ไม่เสร็จ' : r.status === 'pending_review' ? 'รอตรวจ' : 'กำลังทำ'}
                           </span>
                         </TableCell>
                         {role === "SUPERVISOR" ? (

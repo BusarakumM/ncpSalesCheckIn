@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { listActivities } from "@/lib/graph";
+import { buildServerCacheKey, getOrSetServerCache, serverCacheNamespaces } from "@/lib/serverCache";
 
 export async function POST(req: Request) {
   try {
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const rows = await listActivities({
+    const listArgs = {
       from,
       to,
       name: isSupervisor ? name : undefined,
@@ -29,9 +30,28 @@ export async function POST(req: Request) {
       district: isSupervisor ? district : undefined,
       group: isSupervisor ? group : undefined,
       status,
+    };
+
+    const cacheKey = buildServerCacheKey(serverCacheNamespaces.activity, {
+      role: isSupervisor ? "SUPERVISOR" : "AGENT",
+      identity: isSupervisor ? (identity || "") : cookieIdentity,
+      filters: {
+        from: from || "",
+        to: to || "",
+        name: isSupervisor ? name || "" : "",
+        employeeNo: isSupervisor ? employeeNo || "" : "",
+        district: isSupervisor ? district || "" : "",
+        group: isSupervisor ? group || "" : "",
+        status: status || "",
+      },
     });
 
-    return NextResponse.json({ ok: true, rows });
+    const payload = await getOrSetServerCache(cacheKey, 30_000, async () => ({
+      ok: true as const,
+      rows: await listActivities(listArgs),
+    }));
+
+    return NextResponse.json(payload);
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Failed to load activities" }, { status: 500 });
   }

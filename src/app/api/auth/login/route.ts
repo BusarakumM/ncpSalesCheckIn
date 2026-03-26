@@ -11,8 +11,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Incorrect username or password" }, { status: 401 });
   }
 
-  function successResponse(payload: { role: "SUPERVISOR" | "AGENT"; name: string; email: string; metadata?: Record<string, any> }) {
-    const res = NextResponse.json({ ok: true, role: payload.role, name: payload.name, email: payload.email, username: payload.email });
+  function successResponse(payload: {
+    role: "SUPERVISOR" | "AGENT";
+    name: string;
+    email: string;
+    username?: string;
+    metadata?: Record<string, any>;
+  }) {
+    const username = payload.username || payload.email;
+    const res = NextResponse.json({ ok: true, role: payload.role, name: payload.name, email: payload.email, username });
     res.cookies.set("session", "1", {
       httpOnly: true,
       sameSite: "lax",
@@ -23,7 +30,7 @@ export async function POST(req: Request) {
     res.cookies.set("role", payload.role, { path: "/", sameSite: "lax" });
     res.cookies.set("name", payload.name, { path: "/", sameSite: "lax" });
     res.cookies.set("email", payload.email, { path: "/", sameSite: "lax" });
-    res.cookies.set("username", payload.email, { path: "/", sameSite: "lax" });
+    res.cookies.set("username", username, { path: "/", sameSite: "lax" });
     const meta = payload.metadata || {};
     if (meta.employeeNo) res.cookies.set("employeeNo", String(meta.employeeNo), { path: "/", sameSite: "lax" });
     if (meta.supervisorEmail) res.cookies.set("supervisorEmail", String(meta.supervisorEmail), { path: "/", sameSite: "lax" });
@@ -35,7 +42,13 @@ export async function POST(req: Request) {
 
   // Load Users row once if available (works with either username or email identity)
   let userRow: Awaited<ReturnType<typeof findUserByEmail>> | null = null;
-  try { userRow = await findUserByEmail(identity); } catch {}
+  let userLookupError = "";
+  try {
+    userRow = await findUserByEmail(identity);
+  } catch (error: any) {
+    userLookupError = error?.message || "Failed to read Users table";
+    console.error("auth login user lookup failed", error);
+  }
 
   const requested = (body.mode || "").toString().toUpperCase();
   const looksLikeEmail = identity.includes("@");
@@ -94,6 +107,9 @@ export async function POST(req: Request) {
 
   // Agent: require Users.username + Users.employeeNo to match
   if (!userRow) {
+    if (userLookupError) {
+      return NextResponse.json({ ok: false, error: "User sign-in is not configured" }, { status: 500 });
+    }
     return NextResponse.json({ ok: false, error: "Incorrect username or password" }, { status: 401 });
   }
   const expected = (userRow.employeeNo || "").toString().trim();
@@ -108,5 +124,11 @@ export async function POST(req: Request) {
     channel: userRow.channel,
     district: userRow.district,
   } as Record<string, any>;
-  return successResponse({ role: "AGENT", name, email: identity, metadata: meta });
+  return successResponse({
+    role: "AGENT",
+    name,
+    email: userRow.email || identity,
+    username: userRow.username || userRow.matchedIdentity || identity,
+    metadata: meta,
+  });
 }

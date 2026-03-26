@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { addRowToTableByObject, graphTables, getTableHeaders, getTableValues } from "@/lib/graph";
+import { encodeGpsReviewMeta } from "@/lib/gpsReview";
+import { invalidatePaReadCaches } from "@/lib/serverCache";
 
 export async function POST(req: Request) {
   try {
@@ -22,6 +24,19 @@ export async function POST(req: Request) {
 
     let checkinLat: number | undefined;
     let checkinLon: number | undefined;
+    const gpsAccuracy = Number(enriched.gpsAccuracy);
+    const gpsRetryCount = Number(enriched.gpsRetryCount);
+    const reviewNote = String(enriched.signalIssueReason ?? "").trim();
+    const reviewMeta = enriched.reviewStatus === "pending_review"
+      ? encodeGpsReviewMeta({
+          status: "pending_review",
+          kind: "checkin",
+          note: reviewNote,
+          accuracy: isFinite(gpsAccuracy) ? gpsAccuracy : undefined,
+          retries: isFinite(gpsRetryCount) ? gpsRetryCount : undefined,
+          reason: "weak_gps",
+        })
+      : "";
     if (enriched.gps && typeof enriched.gps === "string") {
       const parts = enriched.gps.split(',').map((s: string) => s.trim());
       if (parts.length === 2) {
@@ -36,7 +51,7 @@ export async function POST(req: Request) {
       locationName: enriched.locationName ?? "",
       gps: enriched.gps ?? "",
       checkinAddress: enriched.checkinAddress ?? "",
-      jobTitle: enriched.jobTitle ?? "",
+      jobTitle: reviewMeta || (enriched.jobTitle ?? ""),
       jobDetail: enriched.jobDetail ?? "",
       photoUrl: enriched.photoUrl ?? "",
       // write both keys to support either header in table
@@ -50,9 +65,18 @@ export async function POST(req: Request) {
       district: enriched.district ?? "",
       checkinLat,
       checkinLon,
+      reviewStatus: enriched.reviewStatus ?? "",
+      signalIssueReason: reviewNote,
+      gpsAccuracyM: isFinite(gpsAccuracy) ? gpsAccuracy : "",
+      gpsRetryCount: isFinite(gpsRetryCount) ? gpsRetryCount : "",
     };
 
     await addRowToTableByObject(graphTables.checkin(), rowObj);
+
+    if (enriched.reviewStatus === "pending_review") {
+      invalidatePaReadCaches();
+      return NextResponse.json({ ok: true, status: "pending_review" });
+    }
 
     // Compute current status by checking if a matching checkout exists
     let status: "ongoing" | "completed" = "ongoing";
@@ -78,6 +102,7 @@ export async function POST(req: Request) {
       }
     } catch {}
 
+    invalidatePaReadCaches();
     return NextResponse.json({ ok: true, status });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Check-in failed" }, { status: 500 });

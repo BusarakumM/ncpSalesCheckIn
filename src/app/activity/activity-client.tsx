@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateDisplay } from "@/lib/utils";
+import { useAdaptiveMediaToggle } from "@/hooks/useAdaptiveMediaToggle";
+import type { ActivityStatus } from "@/lib/gpsReview";
 
 type Row = {
   date: string;
@@ -18,7 +20,8 @@ type Row = {
   detail?: string;
   problemDetail?: string;
   jobRemark?: string;
-  status: "completed" | "incomplete" | "ongoing";
+  reviewNote?: string;
+  status: ActivityStatus;
   name?: string;
   email?: string;
   employeeNo?: string;
@@ -44,7 +47,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   };
 
   const parseStatusParam = (value: string | null): StatusFilter =>
-    value === "completed" || value === "incomplete" || value === "ongoing" ? value : "";
+    value === "completed" || value === "incomplete" || value === "ongoing" || value === "pending_review" ? value : "";
 
   const [qFrom, setQFrom] = useState(() => searchParams.get("from") || "");
   const [qTo, setQTo] = useState(() => searchParams.get("to") || "");
@@ -60,6 +63,15 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const {
+    autoMode,
+    isConstrained,
+    showMedia: showMaps,
+    toggleShowMedia: toggleShowMaps,
+  } = useAdaptiveMediaToggle();
+  const mediaToggleTitle = autoMode && isConstrained && !showMaps
+    ? "ปิดอัตโนมัติเพื่อประหยัดเน็ตบนมือถือหรือเน็ตช้า"
+    : undefined;
 
   function mapUrl(coord?: string) {
     if (!coord || !GMAPS_KEY) return "";
@@ -88,6 +100,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     { value: "completed", label: "เสร็จสิ้น" },
     { value: "incomplete", label: "ยังไม่เสร็จ" },
     { value: "ongoing", label: "กำลังทำ" },
+    { value: "pending_review", label: "รอตรวจ" },
   ];
 
   const statusChipStyles: Record<StatusFilter, string> = {
@@ -95,11 +108,13 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
     completed: "bg-[#BFD9C8] text-gray-900",
     incomplete: "bg-[#E9A0A0] text-gray-900",
     ongoing: "bg-[#F3E099] text-gray-900",
+    pending_review: "bg-[#D8CBAF] text-gray-900",
   };
   const statusText: Record<Row["status"], string> = {
     completed: "เสร็จสิ้น",
     incomplete: "ยังไม่เสร็จ",
     ongoing: "กำลังทำ",
+    pending_review: "รอตรวจ",
   };
   function syncQueryParams(overrides?: FilterOverrides) {
     const params = new URLSearchParams();
@@ -215,7 +230,10 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
       r.location || "",
       r.detail || "",
       (r as any).problemDetail || (r as any).problem || "",
-      (r as any).jobRemark || (r as any).remark || "",
+      [
+        (r as any).jobRemark || (r as any).remark || "",
+        (r as any).reviewNote ? `รอตรวจ: ${(r as any).reviewNote}` : "",
+      ].filter(Boolean).join(" | "),
       r.district || "",
       r.employeeNo || "",
       r.email || "",
@@ -288,6 +306,7 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
   function rowBg(status: Row["status"]) {
     if (status === "completed") return "bg-[#6EC3A1] text-white"; // green
     if (status === "incomplete") return "bg-[#E9A0A0] text-black"; // red
+    if (status === "pending_review") return "bg-[#D8CBAF] text-black";
     return "bg-[#E7D6B9] text-black"; // beige
   }
 
@@ -426,6 +445,14 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
             <div />
             <div className="flex gap-2">
               <Button
+                onClick={toggleShowMaps}
+                variant="outline"
+                title={mediaToggleTitle}
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2"
+              >
+                {showMaps ? "ซ่อนแผนที่" : "โหลดแผนที่"}
+              </Button>
+              <Button
                 onClick={handleRefresh}
                 disabled={refreshing || isFiltering || isClearing}
                 variant="outline"
@@ -482,7 +509,12 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                       <TableCell title={locationGps || undefined}>{r.location || "-"}</TableCell>
                       <TableCell>{r.detail || ""}</TableCell>
                       <TableCell>{(r as any).problemDetail || (r as any).problem || ""}</TableCell>
-                      <TableCell>{(r as any).jobRemark || (r as any).remark || ""}</TableCell>
+                      <TableCell>
+                        {(r as any).jobRemark || (r as any).remark || ""}
+                        {(r as any).reviewNote ? (
+                          <div className="mt-1 text-xs text-amber-800">รอตรวจ: {(r as any).reviewNote}</div>
+                        ) : null}
+                      </TableCell>
                       <TableCell>{r.district || ""}</TableCell>
                       <TableCell>{r.employeeNo || ""}</TableCell>
                       <TableCell className="truncate" title={r.email || undefined}>{r.email || ""}</TableCell>
@@ -502,9 +534,9 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                         {(r as any).checkinAddress ? (
                           <div className="mt-1 text-xs text-gray-700" title={(r as any).checkinAddress}>{(r as any).checkinAddress}</div>
                         ) : null}
-                        {r.checkinGps && GMAPS_KEY ? (
+                        {showMaps && r.checkinGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={mapUrl(r.checkinGps)} alt="check-in map" className="mt-1 rounded border border-black/10" />
+                          <img src={mapUrl(r.checkinGps)} alt="check-in map" loading="lazy" decoding="async" className="mt-1 rounded border border-black/10" />
                         ) : null}
                       </TableCell>
                       <TableCell>
@@ -521,9 +553,9 @@ export default function ActivityClient({ homeHref }: { homeHref: string }) {
                         {(r as any).checkoutAddress ? (
                           <div className="mt-1 text-xs text-gray-700" title={(r as any).checkoutAddress}>{(r as any).checkoutAddress}</div>
                         ) : null}
-                        {r.checkoutGps && GMAPS_KEY ? (
+                        {showMaps && r.checkoutGps && GMAPS_KEY ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={mapUrl(r.checkoutGps)} alt="check-out map" className="mt-1 rounded border border-black/10" />
+                          <img src={mapUrl(r.checkoutGps)} alt="check-out map" loading="lazy" decoding="async" className="mt-1 rounded border border-black/10" />
                         ) : null}
                       </TableCell>
                       <TableCell>

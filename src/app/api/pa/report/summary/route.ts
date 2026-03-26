@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listActivities, getUsersLookup, normalizeLookupKey, type UserLookupInfo } from "@/lib/graph";
+import { buildServerCacheKey, getOrSetServerCache, serverCacheNamespaces } from "@/lib/serverCache";
 
 type SummaryEntry = {
   name: string;
@@ -40,57 +41,71 @@ export async function POST(req: Request) {
   try {
     const raw = (await req.json().catch(() => ({}))) as any;
     const { from, to, district, group, search } = raw || {};
-    let nameFilter: string | undefined;
-    let employeeFilter: string | undefined;
-    if (typeof search === "string" && search.trim()) {
-      const trimmed = search.trim();
-      if (/^\d+$/.test(trimmed)) employeeFilter = trimmed;
-      else nameFilter = trimmed;
-    }
-    const [rows, userLookup] = await Promise.all([
-      listActivities({
-        from,
-        to,
-        district,
-        group,
-        name: nameFilter,
-        employeeNo: employeeFilter,
-      }),
-      getUsersLookup(),
-    ]);
+    const trimmedSearch = typeof search === "string" ? search.trim() : "";
+    const cacheKey = buildServerCacheKey(serverCacheNamespaces.reportSummary, {
+      filters: {
+        from: from || "",
+        to: to || "",
+        district: district || "",
+        group: group || "",
+        search: trimmedSearch,
+      },
+    });
 
-    const summaryMap = new Map<string, SummaryEntry>();
-    for (const r of rows) {
-      const key = identityKey(r);
-      const userInfo = resolveUserInfo(r, userLookup);
-      let s = summaryMap.get(key);
-      if (!s) {
-        s = {
-          name: r.name || userInfo?.name || "Unknown",
-          email: r.email || userInfo?.email,
-          employeeNo: r.employeeNo || userInfo?.employeeNo,
-          district: r.district || userInfo?.district,
-          group: r.group || userInfo?.group,
-          total: 0,
-          completed: 0,
-          incomplete: 0,
-          ongoing: 0,
-        };
-        summaryMap.set(key, s);
+    const payload = await getOrSetServerCache(cacheKey, 90_000, async () => {
+      let nameFilter: string | undefined;
+      let employeeFilter: string | undefined;
+      if (trimmedSearch) {
+        if (/^\d+$/.test(trimmedSearch)) employeeFilter = trimmedSearch;
+        else nameFilter = trimmedSearch;
       }
-      if (!s.name && (r.name || userInfo?.name)) s.name = r.name || userInfo?.name || s.name;
-      if (!s.email && (r.email || userInfo?.email)) s.email = r.email || userInfo?.email;
-      if (!s.employeeNo && (r.employeeNo || userInfo?.employeeNo)) s.employeeNo = r.employeeNo || userInfo?.employeeNo;
-      if (!s.district && (r.district || userInfo?.district)) s.district = r.district || userInfo?.district;
-      if (!s.group && (r.group || userInfo?.group)) s.group = r.group || userInfo?.group;
-      s.total += 1;
-      if (r.status === "completed") s.completed += 1;
-      else if (r.status === "incomplete") s.incomplete += 1;
-      else s.ongoing += 1;
-    }
+      const [rows, userLookup] = await Promise.all([
+        listActivities({
+          from,
+          to,
+          district,
+          group,
+          name: nameFilter,
+          employeeNo: employeeFilter,
+        }),
+        getUsersLookup(),
+      ]);
 
-    const summary = Array.from(summaryMap.values()).map(({ email, ...rest }) => rest);
-    return NextResponse.json({ ok: true, summary });
+      const summaryMap = new Map<string, SummaryEntry>();
+      for (const r of rows) {
+        const key = identityKey(r);
+        const userInfo = resolveUserInfo(r, userLookup);
+        let s = summaryMap.get(key);
+        if (!s) {
+          s = {
+            name: r.name || userInfo?.name || "Unknown",
+            email: r.email || userInfo?.email,
+            employeeNo: r.employeeNo || userInfo?.employeeNo,
+            district: r.district || userInfo?.district,
+            group: r.group || userInfo?.group,
+            total: 0,
+            completed: 0,
+            incomplete: 0,
+            ongoing: 0,
+          };
+          summaryMap.set(key, s);
+        }
+        if (!s.name && (r.name || userInfo?.name)) s.name = r.name || userInfo?.name || s.name;
+        if (!s.email && (r.email || userInfo?.email)) s.email = r.email || userInfo?.email;
+        if (!s.employeeNo && (r.employeeNo || userInfo?.employeeNo)) s.employeeNo = r.employeeNo || userInfo?.employeeNo;
+        if (!s.district && (r.district || userInfo?.district)) s.district = r.district || userInfo?.district;
+        if (!s.group && (r.group || userInfo?.group)) s.group = r.group || userInfo?.group;
+        s.total += 1;
+        if (r.status === "completed") s.completed += 1;
+        else if (r.status === "incomplete") s.incomplete += 1;
+        else s.ongoing += 1;
+      }
+
+      const summary = Array.from(summaryMap.values()).map(({ email, ...rest }) => rest);
+      return { ok: true as const, summary };
+    });
+
+    return NextResponse.json(payload);
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Failed to load summary" }, { status: 500 });
   }

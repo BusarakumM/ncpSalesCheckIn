@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateDisplay } from "@/lib/utils";
+import { useAdaptiveMediaToggle } from "@/hooks/useAdaptiveMediaToggle";
 
 type Row = { date: string; leaveType: string; reason: string; imageUrl?: string };
 
@@ -17,6 +18,10 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
   const [isFiltering, setIsFiltering] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const { autoMode, isConstrained, showMedia, toggleShowMedia } = useAdaptiveMediaToggle();
+  const mediaToggleTitle = autoMode && isConstrained && !showMedia
+    ? "ปิดอัตโนมัติเพื่อประหยัดเน็ตบนมือถือหรือเน็ตช้า"
+    : undefined;
 
   function exportCsv() {
     const header = ["Date","Leave Type","Reason"];
@@ -97,6 +102,14 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
             {isFiltering ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>ล้างตัวกรอง</>) : 'ล้างตัวกรอง'}
           </Button>
           <Button
+            onClick={toggleShowMedia}
+            variant="outline"
+            title={mediaToggleTitle}
+            className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-6 sm:px-10 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center"
+          >
+            {showMedia ? 'ซ่อนรูป' : 'โหลดรูป'}
+          </Button>
+          <Button
             onClick={handleRefresh}
             disabled={refreshing || isFiltering}
             variant="outline"
@@ -135,8 +148,14 @@ export default function LeaveHistoryClient({ email, employeeNo }: { email: strin
                     <TableCell>
                       {r.imageUrl ? (
                         <a href={r.imageUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={r.imageUrl} alt="leave" className="h-16 w-auto rounded border border-black/10" />
+                          {showMedia ? (
+                            <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={r.imageUrl} alt="leave" loading="lazy" decoding="async" className="h-16 w-auto rounded border border-black/10" />
+                            </>
+                          ) : (
+                            <span className="text-blue-700 underline">เปิดรูป</span>
+                          )}
                         </a>
                       ) : ("-")}
                     </TableCell>

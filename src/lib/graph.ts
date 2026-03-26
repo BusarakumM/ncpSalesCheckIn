@@ -1,3 +1,5 @@
+import { parseGpsReviewMeta, type ActivityStatus } from "@/lib/gpsReview";
+
 /*
   Microsoft Graph helper for server-side routes.
 
@@ -296,7 +298,7 @@ export type ActivityRow = {
   checkinLocation?: string;
   checkoutLocation?: string;
   detail?: string;
-  status: "completed" | "incomplete" | "ongoing";
+  status: ActivityStatus;
   name?: string;
   email?: string;
   employeeNo?: string;
@@ -313,6 +315,11 @@ export type ActivityRow = {
   checkoutLat?: number;
   checkoutLon?: number;
   distanceKm?: number;
+  reviewNote?: string;
+  reviewReason?: string;
+  gpsRetryCount?: number;
+  checkinGpsAccuracy?: number;
+  checkoutGpsAccuracy?: number;
   issues?: string[]; // server-side flags for diagnostics
   // Metadata for editing/upserts
   id?: string;
@@ -405,14 +412,20 @@ export async function listActivities(params: {
   location?: string;
   group?: string;
   status?: ActivityRow["status"];
+  includeRowIndexes?: boolean;
 }): Promise<ActivityRow[]> {
   const tCheckin = graphTables.checkin();
   const tCheckout = graphTables.checkout();
+  const includeRowIndexes = params.includeRowIndexes === true;
   const [ciHeaders, ciRows, coHeaders, coRows] = await Promise.all([
     getTableHeaders(tCheckin),
-    listTableRows(tCheckin),
+    includeRowIndexes
+      ? listTableRows(tCheckin)
+      : getTableValues(tCheckin).then((rows) => rows.map((values) => ({ values }))),
     getTableHeaders(tCheckout),
-    listTableRows(tCheckout),
+    includeRowIndexes
+      ? listTableRows(tCheckout)
+      : getTableValues(tCheckout).then((rows) => rows.map((values) => ({ values }))),
   ]);
 
   type Key = string;
@@ -449,6 +462,7 @@ export async function listActivities(params: {
       iso: findIdx(coHeaders, "checkoutISO", 0),
       location: findIdx(coHeaders, "locationName", 1),
       gps: findIdx(coHeaders, "checkoutGps", 2),
+      systemRemark: findIdx(coHeaders, "checkoutRemark", null),
       address: findIdx(coHeaders, "checkoutAddress", null),
       lat: findIdx(coHeaders, "checkoutLat", null),
       lon: findIdx(coHeaders, "checkoutLon", null),
@@ -504,7 +518,9 @@ export async function listActivities(params: {
     return Math.round(R * c * 1000) / 1000; // 3 decimals
   }
 
-  const valuesOf = (row: { values: any[][] }) => (Array.isArray(row?.values?.[0]) ? row.values[0] : Array.isArray(row?.values) ? row.values : []);
+  const valuesOf = (row: { values: any[][] | any[] }) => (
+    Array.isArray(row?.values?.[0]) ? row.values[0] : Array.isArray(row?.values) ? row.values : []
+  );
 
   for (const entry of ciRows) {
     const r = valuesOf(entry);
@@ -516,6 +532,7 @@ export async function listActivities(params: {
     const name = String(idx.ci.name != null ? r[idx.ci.name] || "" : "");
     const key = keyOfCheckin(email, date, time);
     const gpsStr = idx.ci.gps != null ? String(r[idx.ci.gps] || "") : "";
+    const reviewMeta = parseGpsReviewMeta(idx.ci.title != null ? String(r[idx.ci.title] || "") : "");
     const parsed = idx.ci.lat != null && idx.ci.lon != null
       ? normalizeLatLon(Number(r[idx.ci.lat]), Number(r[idx.ci.lon]))
       : parseGps(gpsStr);
@@ -527,7 +544,7 @@ export async function listActivities(params: {
       location,
       checkinLocation: location,
       detail: String(idx.ci.detail != null ? r[idx.ci.detail] || "" : ""),
-      status: "ongoing",
+      status: reviewMeta?.status === "pending_review" ? "pending_review" : "ongoing",
       name,
       email,
       employeeNo: String(idx.ci.employeeNo != null ? r[idx.ci.employeeNo] || "" : ""),
@@ -537,9 +554,15 @@ export async function listActivities(params: {
       checkinAddress: String(idx.ci.address != null ? r[idx.ci.address] || "" : ""),
       checkinLat: parsed?.lat,
       checkinLon: parsed?.lon,
+      reviewNote: reviewMeta?.note || "",
+      reviewReason: reviewMeta?.reason || "",
+      gpsRetryCount: typeof reviewMeta?.retries === "number" ? reviewMeta.retries : undefined,
+      checkinGpsAccuracy: typeof reviewMeta?.accuracy === "number" ? reviewMeta.accuracy : undefined,
       issues: (!parsed && gpsStr) ? ["invalid_checkin_gps"] : [],
-      checkinRowIndex: entry.index,
     });
+    if (includeRowIndexes && typeof entry.index === "number") {
+      map.get(key)!.checkinRowIndex = entry.index;
+    }
     if (!parsed && gpsStr) {
       console.warn("Invalid check-in GPS", { key, gps: gpsStr });
     }
@@ -555,6 +578,7 @@ export async function listActivities(params: {
     const name = String(idx.co.name != null ? r[idx.co.name] || "" : "");
     // Parse checkout GPS early for matching heuristics
     const gpsStr = idx.co.gps != null ? String(r[idx.co.gps] || "") : "";
+    const reviewMeta = parseGpsReviewMeta(idx.co.systemRemark != null ? String(r[idx.co.systemRemark] || "") : "");
     const parsed = idx.co.lat != null && idx.co.lon != null
       ? normalizeLatLon(Number(r[idx.co.lat]), Number(r[idx.co.lon]))
       : parseGps(gpsStr);
@@ -604,13 +628,25 @@ export async function listActivities(params: {
     if (row) {
       row.checkout = time;
       row.checkoutIso = iso;
-      row.status = row.checkin ? "completed" : "incomplete";
+      row.status = reviewMeta?.status === "pending_review"
+        ? "pending_review"
+        : row.status === "pending_review"
+          ? "pending_review"
+          : row.checkin
+            ? "completed"
+            : "incomplete";
       row.checkoutLocation = location || row.checkoutLocation;
       row.imageOut = String(idx.co.photo != null ? r[idx.co.photo] || "" : "");
       // Pass-through problem/remark from checkout table if present
       (row as any).problemDetail = String(idx.co.problem != null ? r[idx.co.problem] || "" : "");
       (row as any).jobRemark = String(idx.co.remark != null ? r[idx.co.remark] || "" : "");
-      row.checkoutRowIndex = entry.index;
+      if (reviewMeta?.note) row.reviewNote = reviewMeta.note;
+      if (reviewMeta?.reason) row.reviewReason = reviewMeta.reason;
+      if (typeof reviewMeta?.retries === "number") row.gpsRetryCount = reviewMeta.retries;
+      if (typeof reviewMeta?.accuracy === "number") row.checkoutGpsAccuracy = reviewMeta.accuracy;
+      if (includeRowIndexes && typeof entry.index === "number") {
+        row.checkoutRowIndex = entry.index;
+      }
       if (!row.name) row.name = name;
       if (!row.email) row.email = email;
       if (!row.district) row.district = String(idx.co.district != null ? r[idx.co.district] || "" : "");
@@ -639,7 +675,7 @@ export async function listActivities(params: {
         checkoutIso: iso,
         location,
         checkoutLocation: location,
-        status: "incomplete",
+        status: reviewMeta?.status === "pending_review" ? "pending_review" : "incomplete",
         name,
         email,
         employeeNo: String(idx.co.employeeNo != null ? r[idx.co.employeeNo] || "" : ""),
@@ -651,9 +687,15 @@ export async function listActivities(params: {
         checkoutLon: parsed?.lon,
         problemDetail: String(idx.co.problem != null ? r[idx.co.problem] || "" : ""),
         jobRemark: String(idx.co.remark != null ? r[idx.co.remark] || "" : ""),
+        reviewNote: reviewMeta?.note || "",
+        reviewReason: reviewMeta?.reason || "",
+        gpsRetryCount: typeof reviewMeta?.retries === "number" ? reviewMeta.retries : undefined,
+        checkoutGpsAccuracy: typeof reviewMeta?.accuracy === "number" ? reviewMeta.accuracy : undefined,
         issues: (!parsed && gpsStr) ? ["invalid_checkout_gps"] : [],
-        checkoutRowIndex: entry.index,
       });
+      if (includeRowIndexes && typeof entry.index === "number") {
+        map.get(key)!.checkoutRowIndex = entry.index;
+      }
       if (!parsed && gpsStr) {
         console.warn("Invalid check-out GPS", { key, gps: gpsStr });
       }
@@ -779,7 +821,9 @@ export async function healthCheckGraph() {
 // Look up a user from the Users table by identity (case-insensitive).
 // Supports either a `username` or `email` column; prefers `username` if present.
 export async function findUserByEmail(identity: string): Promise<{
-  email: string; // returns the matched identity (username or email) in this field for compatibility
+  email: string;
+  username?: string;
+  matchedIdentity: string;
   role?: "SUPERVISOR" | "AGENT" | string;
   name?: string;
   employeeNo?: string;
@@ -808,12 +852,15 @@ export async function findUserByEmail(identity: string): Promise<{
   for (const r of rows) {
     const userVal = cols.username >= 0 ? String(r[cols.username] || "").trim() : "";
     const emailVal = cols.email >= 0 ? String(r[cols.email] || "").trim() : "";
-    const idLower = (userVal || emailVal).trim().toLowerCase();
-    if (!idLower) continue;
-    if (idLower === target) {
+    const userLower = userVal.toLowerCase();
+    const emailLower = emailVal.toLowerCase();
+    const matchedIdentity = userLower === target ? userVal : emailLower === target ? emailVal : "";
+    if (!matchedIdentity) continue;
+    if (matchedIdentity) {
       return {
-        // For backward compatibility, expose the matched identity in `email`
-        email: (userVal || emailVal) || "",
+        email: emailVal || userVal || "",
+        username: userVal || undefined,
+        matchedIdentity,
         role: cols.role >= 0 ? (String(r[cols.role] || "").trim() as any) : undefined,
         name: cols.name >= 0 ? String(r[cols.name] || "").trim() : undefined,
         employeeNo: cols.employeeNo >= 0 ? String(r[cols.employeeNo] || "").trim() : undefined,

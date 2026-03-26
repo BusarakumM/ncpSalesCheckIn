@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { addRowToTableByObject, graphTables, getTableHeaders, getTableValues } from "@/lib/graph";
+import { encodeGpsReviewMeta } from "@/lib/gpsReview";
+import { invalidatePaReadCaches } from "@/lib/serverCache";
 
 export async function POST(req: Request) {
   try {
@@ -22,6 +24,20 @@ export async function POST(req: Request) {
 
     let checkoutLat: number | undefined;
     let checkoutLon: number | undefined;
+    const gpsAccuracy = Number(enriched.gpsAccuracy);
+    const gpsRetryCount = Number(enriched.gpsRetryCount);
+    const reviewNote = String(enriched.signalIssueReason ?? "").trim();
+    const reviewReason = enriched.reviewReason === "weak_gps_out_of_area" ? "weak_gps_out_of_area" : "weak_gps";
+    const reviewMeta = enriched.reviewStatus === "pending_review"
+      ? encodeGpsReviewMeta({
+          status: "pending_review",
+          kind: "checkout",
+          note: reviewNote,
+          accuracy: isFinite(gpsAccuracy) ? gpsAccuracy : undefined,
+          retries: isFinite(gpsRetryCount) ? gpsRetryCount : undefined,
+          reason: reviewReason,
+        })
+      : "";
     if (enriched.checkoutGps && typeof enriched.checkoutGps === "string") {
       const parts = enriched.checkoutGps.split(',').map((s: string) => s.trim());
       if (parts.length === 2) {
@@ -36,7 +52,7 @@ export async function POST(req: Request) {
       locationName: enriched.locationName ?? "",
       checkoutGps: enriched.checkoutGps ?? "",
       checkoutAddress: enriched.checkoutAddress ?? "",
-      checkoutRemark: enriched.checkoutRemark ?? "",
+      checkoutRemark: reviewMeta || (enriched.checkoutRemark ?? ""),
       // New optional fields (support either header name)
       problemDetail: enriched.problemDetail ?? enriched.problem ?? "",
       problem: enriched.problem ?? enriched.problemDetail ?? "",
@@ -53,9 +69,19 @@ export async function POST(req: Request) {
       district: enriched.district ?? "",
       checkoutLat,
       checkoutLon,
+      reviewStatus: enriched.reviewStatus ?? "",
+      reviewReason,
+      signalIssueReason: reviewNote,
+      gpsAccuracyM: isFinite(gpsAccuracy) ? gpsAccuracy : "",
+      gpsRetryCount: isFinite(gpsRetryCount) ? gpsRetryCount : "",
     };
 
     await addRowToTableByObject(graphTables.checkout(), rowObj);
+
+    if (enriched.reviewStatus === "pending_review") {
+      invalidatePaReadCaches();
+      return NextResponse.json({ ok: true, status: "pending_review" });
+    }
 
     // Compute current status by checking if a matching check-in exists
     let status: "incomplete" | "completed" = "incomplete";
@@ -81,6 +107,7 @@ export async function POST(req: Request) {
       }
     } catch {}
 
+    invalidatePaReadCaches();
     return NextResponse.json({ ok: true, status });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Checkout failed" }, { status: 500 });

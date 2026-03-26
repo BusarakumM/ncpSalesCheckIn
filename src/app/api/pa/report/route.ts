@@ -1,6 +1,23 @@
 import { NextResponse } from "next/server";
-import { listActivities, findUserByEmail } from "@/lib/graph";
+import { getUsersLookup, listActivities, normalizeLookupKey, type UserLookupInfo } from "@/lib/graph";
 import { cookies } from "next/headers";
+import { buildServerCacheKey, getOrSetServerCache, serverCacheNamespaces } from "@/lib/serverCache";
+
+function resolveUserInfo(
+  row: { email?: string; employeeNo?: string; name?: string },
+  userLookup: Map<string, UserLookupInfo>
+) {
+  const keys = [
+    normalizeLookupKey(row.email),
+    normalizeLookupKey(row.employeeNo),
+    normalizeLookupKey(row.name),
+  ].filter(Boolean) as string[];
+  for (const key of keys) {
+    const info = userLookup.get(key);
+    if (info) return info;
+  }
+  return null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -10,33 +27,52 @@ export async function POST(req: Request) {
     const role = (await c).get("role")?.value;
     const cookieIdentity = (await c).get("username")?.value || (await c).get("email")?.value;
     const email = role === "SUPERVISOR" ? (raw?.email || raw?.username || undefined) : (cookieIdentity || undefined);
-    let rows = await listActivities({
+    const listArgs = {
       from,
       to,
       name,
       email,
+      includeRowIndexes: true,
       district: role === "SUPERVISOR" ? (district || undefined) : undefined,
       group: role === "SUPERVISOR" ? (group || undefined) : undefined,
-      location: role === "SUPERVISOR" ? (location || undefined) : (location || undefined),
+      location: location || undefined,
+    };
+
+    const cacheKey = buildServerCacheKey(serverCacheNamespaces.report, {
+      role: role || "",
+      identity: email || "",
+      filters: {
+        from: from || "",
+        to: to || "",
+        name: name || "",
+        location: location || "",
+        district: district || "",
+        group: group || "",
+      },
     });
-    // Attach group from Users table when missing; and filter by group if requested
-    try {
-      const cache = new Map<string, string | undefined>();
-      for (const r of rows) {
-        const e = String((r as any).email || '').toLowerCase();
-        if (!e) continue;
-        if (!cache.has(e)) {
-          const u = await findUserByEmail(e);
-          cache.set(e, (u as any)?.group as string | undefined);
+
+    const payload = await getOrSetServerCache(cacheKey, 45_000, async () => {
+      let rows = await listActivities(listArgs);
+      // Reuse one users lookup instead of reading the Users table for every row.
+      try {
+        const userLookup = await getUsersLookup();
+        for (const r of rows) {
+          const info = resolveUserInfo(r, userLookup);
+          if (!info) continue;
+          if (!(r as any).group && info.group) (r as any).group = info.group;
+          if (!(r as any).district && info.district) (r as any).district = info.district;
+          if (!(r as any).name && info.name) (r as any).name = info.name;
+          if (!(r as any).employeeNo && info.employeeNo) (r as any).employeeNo = info.employeeNo;
         }
-        if ((r as any).group == null) (r as any).group = cache.get(e) || '';
-      }
-      if (role === "SUPERVISOR" && group) {
-        const g = String(group).toLowerCase();
-        rows = rows.filter((r: any) => String(r.group || '').toLowerCase().includes(g));
-      }
-    } catch {}
-    return NextResponse.json({ ok: true, rows });
+        if (role === "SUPERVISOR" && group) {
+          const g = String(group).toLowerCase();
+          rows = rows.filter((r: any) => String(r.group || "").toLowerCase().includes(g));
+        }
+      } catch {}
+      return { ok: true as const, rows };
+    });
+
+    return NextResponse.json(payload);
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Failed to load report" }, { status: 500 });
   }

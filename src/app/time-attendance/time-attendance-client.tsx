@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateDisplay } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { useAdaptiveMediaToggle } from "@/hooks/useAdaptiveMediaToggle";
 
 type Row = {
   date: string;
@@ -43,6 +44,10 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
   const [refreshing, setRefreshing] = useState(false);
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const { autoMode, isConstrained, showMedia, toggleShowMedia } = useAdaptiveMediaToggle();
+  const mediaToggleTitle = autoMode && isConstrained && !showMedia
+    ? "ปิดอัตโนมัติเพื่อประหยัดเน็ตบนมือถือหรือเน็ตช้า"
+    : undefined;
 
   function mapUrl(coord?: string) {
     if (!coord || !GMAPS_KEY) return "";
@@ -69,11 +74,13 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
       {formatLatLon(loc.gps) ? (
         <div className="text-xs text-gray-600">{formatLatLon(loc.gps)}</div>
       ) : null}
-      {loc.gps && GMAPS_KEY ? (
+      {showMedia && loc.gps && GMAPS_KEY ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={mapUrl(loc.gps)}
           alt="แผนที่สถานที่"
+          loading="lazy"
+          decoding="async"
           className="mt-1 h-20 w-auto rounded border border-black/10"
         />
       ) : null}
@@ -262,6 +269,14 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
             <div />
             <div className="flex gap-2">
               <Button
+                onClick={toggleShowMedia}
+                variant="outline"
+                title={mediaToggleTitle}
+                className="rounded-full border-black/20 bg-white hover:bg-gray-50 px-4 py-2"
+              >
+                {showMedia ? "ซ่อนรูป/แผนที่" : "โหลดรูป/แผนที่"}
+              </Button>
+              <Button
                 onClick={handleRefresh}
                 disabled={refreshing || loading || clearing}
                 variant="outline"
@@ -357,9 +372,15 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                       <TableCell>{renderLocationCell({ name: r.firstLocation, address: r.firstAddress, gps: r.firstGps })}</TableCell>
                       <TableCell>
                         {r.firstImage ? (
-                          <a href={r.firstImage} target="_blank" rel="noopener noreferrer">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={r.firstImage} alt="first location" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                          <a href={r.firstImage} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                            {showMedia ? (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={r.firstImage} alt="first location" loading="lazy" decoding="async" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                              </>
+                            ) : (
+                              "เปิดรูป"
+                            )}
                           </a>
                         ) : (
                           ""
@@ -370,9 +391,15 @@ export default function TimeAttendanceClient({ homeHref }: { homeHref: string })
                       <TableCell>{renderLocationCell({ name: r.lastLocation, address: r.lastAddress, gps: r.lastGps })}</TableCell>
                       <TableCell>
                         {r.lastCheckoutImage ? (
-                          <a href={r.lastCheckoutImage} target="_blank" rel="noopener noreferrer">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={r.lastCheckoutImage} alt="last location" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                          <a href={r.lastCheckoutImage} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                            {showMedia ? (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={r.lastCheckoutImage} alt="last location" loading="lazy" decoding="async" className="mt-1 h-20 w-auto rounded border border-black/10" />
+                              </>
+                            ) : (
+                              "เปิดรูป"
+                            )}
                           </a>
                         ) : (
                           ""

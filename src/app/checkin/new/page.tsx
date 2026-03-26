@@ -6,8 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import LoadingButton from "@/components/LoadingButton";
+import {
+  captureBestLocation,
+  getAccuracyHelpText,
+  getAccuracyStatusText,
+  isReliableAccuracy,
+  type CapturedLocation,
+} from "@/lib/geolocation";
+import {
+  evaluatePendingReviewOption,
+} from "@/lib/gpsReview";
 import { submitCheckin, submitCheckout, uploadPhoto } from "@/lib/paClient";
+import { deleteTaskDraft, draftToFile, fileToDraft, loadTaskDraft, saveTaskDraft } from "@/lib/taskDrafts";
 import { useRouter } from "next/navigation";
+
+const NEW_TASK_DRAFT_KEY = "checkin:new";
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -40,6 +53,17 @@ export default function NewTaskPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [checkoutOutOfArea, setCheckoutOutOfArea] = useState(false);
   const [checkinCaptureAt, setCheckinCaptureAt] = useState<number | null>(null);
+  const [gpsStatus, setGpsStatus] = useState("กำลังหาตำแหน่ง...");
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [checkinGpsAttempts, setCheckinGpsAttempts] = useState(0);
+  const [checkinReviewNote, setCheckinReviewNote] = useState("");
+  const [checkinMapFailed, setCheckinMapFailed] = useState(false);
+  const [checkoutGpsStatus, setCheckoutGpsStatus] = useState("");
+  const [checkoutGpsAccuracy, setCheckoutGpsAccuracy] = useState<number | null>(null);
+  const [checkoutGpsAttempts, setCheckoutGpsAttempts] = useState(0);
+  const [checkoutReviewNote, setCheckoutReviewNote] = useState("");
+  const [checkoutMapFailed, setCheckoutMapFailed] = useState(false);
+  const [draftNotice, setDraftNotice] = useState("");
   // Auto-expire check-in location/GPS if not submitted within 10 minutes
   const checkinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -67,7 +91,9 @@ export default function NewTaskPage() {
       checkinTimeoutRef.current = setTimeout(() => {
         setLocationName("");
         setGps("");
-        alert("submit check-in timeout");
+        setGpsAccuracy(null);
+        setGpsStatus("หมดเวลายืนยันตำแหน่ง กรุณาจับพิกัดใหม่");
+        alert("หมดเวลายืนยันตำแหน่ง กรุณาจับพิกัดใหม่");
       }, 5 * 60 * 1000);
     }
     return () => {
@@ -85,7 +111,49 @@ export default function NewTaskPage() {
   }, []);
 
   useEffect(() => {
-    getGPS();
+    void getGPS();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function restoreDraft() {
+      const draft = await loadTaskDraft(NEW_TASK_DRAFT_KEY).catch(() => null);
+      if (!draft || cancelled) return;
+      if (draft.checkinTime) setCheckinTime(draft.checkinTime);
+      if (draft.checkoutTime) setCheckoutTime(draft.checkoutTime);
+      if (draft.locationName) setLocationName(draft.locationName);
+      if (draft.gps) setGps(draft.gps);
+      if (draft.gpsStatus) setGpsStatus(draft.gpsStatus);
+      if (typeof draft.gpsAccuracy === "number") setGpsAccuracy(draft.gpsAccuracy);
+      if (typeof draft.gpsAttempts === "number") setCheckinGpsAttempts(draft.gpsAttempts);
+      if (typeof draft.checkinCaptureAt === "number") setCheckinCaptureAt(draft.checkinCaptureAt);
+      if (draft.jobDetail) setJobDetail(draft.jobDetail);
+      if (draft.checkinReviewNote) setCheckinReviewNote(draft.checkinReviewNote);
+      if (draft.checkoutGps) setCheckoutGps(draft.checkoutGps);
+      if (draft.checkoutAddress) setCheckoutAddress(draft.checkoutAddress);
+      if (draft.checkoutGpsStatus) setCheckoutGpsStatus(draft.checkoutGpsStatus);
+      if (typeof draft.checkoutGpsAccuracy === "number") setCheckoutGpsAccuracy(draft.checkoutGpsAccuracy);
+      if (typeof draft.checkoutGpsAttempts === "number") setCheckoutGpsAttempts(draft.checkoutGpsAttempts);
+      if (draft.checkoutRemark) setCheckoutRemark(draft.checkoutRemark);
+      if (draft.problemDetail) setProblemDetail(draft.problemDetail);
+      if (draft.jobRemark) setJobRemark(draft.jobRemark);
+      if (draft.checkoutReviewNote) setCheckoutReviewNote(draft.checkoutReviewNote);
+      const draftPhoto = draftToFile(draft.photo);
+      if (draftPhoto) {
+        setPhotoFile(draftPhoto);
+        setPhotoUrl(URL.createObjectURL(draftPhoto));
+      }
+      const draftCheckoutPhoto = draftToFile(draft.checkoutPhoto);
+      if (draftCheckoutPhoto) {
+        setCheckoutPhotoFile(draftCheckoutPhoto);
+        setCheckoutPhotoUrl(URL.createObjectURL(draftCheckoutPhoto));
+      }
+      setDraftNotice("พบข้อมูลที่บันทึกไว้ในเครื่อง ระบบนำกลับมาให้แล้ว");
+    }
+    void restoreDraft();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -135,6 +203,9 @@ export default function NewTaskPage() {
     return checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000;
   }
 
+  const hasReliableCheckinGps = gps.trim().length > 0 && isReliableAccuracy(gpsAccuracy);
+  const hasReliableCheckoutGps = checkoutGps.trim().length > 0 && isReliableAccuracy(checkoutGpsAccuracy);
+
   function toLatLonPair(coord?: string): [number, number] | null {
     if (!coord) return null;
     const parts = coord.split(',');
@@ -162,6 +233,119 @@ export default function NewTaskPage() {
     const v = (process.env.NEXT_PUBLIC_MAX_DISTANCE_KM as unknown as string) || "0.5";
     const n = Number(v);
     return isFinite(n) && n > 0 ? n : 0.5;
+  }
+
+  function getCheckoutDistanceKm(coord = checkoutGps): number | null {
+    const a = toLatLonPair(gps);
+    const b = toLatLonPair(coord);
+    if (!a || !b) return null;
+    return distanceKm(a, b);
+  }
+
+  function hasAnyDraftContent() {
+    return Boolean(
+      locationName.trim() ||
+      jobDetail.trim() ||
+      gps.trim() ||
+      checkoutGps.trim() ||
+      photoFile ||
+      checkoutPhotoFile ||
+      problemDetail.trim() ||
+      jobRemark.trim() ||
+      checkoutRemark.trim()
+    );
+  }
+
+  function buildDraftPayload() {
+    return {
+      checkinTime,
+      checkoutTime,
+      locationName,
+      gps,
+      gpsStatus,
+      gpsAccuracy,
+      gpsAttempts: checkinGpsAttempts,
+      checkinCaptureAt,
+      jobDetail,
+      checkinReviewNote,
+      photo: fileToDraft(photoFile),
+      checkoutGps,
+      checkoutAddress,
+      checkoutGpsStatus,
+      checkoutGpsAccuracy,
+      checkoutGpsAttempts,
+      checkoutRemark,
+      problemDetail,
+      jobRemark,
+      checkoutReviewNote,
+      checkoutPhoto: fileToDraft(checkoutPhotoFile),
+    };
+  }
+
+  function updateCheckoutDistanceState(coord: string) {
+    const a = toLatLonPair(gps);
+    const b = toLatLonPair(coord);
+    if (!a || !b) return false;
+    const d = distanceKm(a, b);
+    const threshold = maxDistanceKm();
+    if (d > threshold) {
+      const meters = Math.round(d * 1000);
+      setCheckoutRemark(`จุดออกงานห่างจากจุดเข้างานประมาณ ${meters} เมตร`);
+      setCheckoutOutOfArea(true);
+      return true;
+    }
+    setCheckoutRemark("");
+    setCheckoutOutOfArea(false);
+    return false;
+  }
+
+  async function applyCheckoutLocation(location: CapturedLocation) {
+    setCheckoutGps(location.coord);
+    setCheckoutGpsAccuracy(location.accuracy);
+    setCheckoutGpsStatus(getAccuracyStatusText(location.accuracy));
+    setCheckoutMapFailed(false);
+    const addr = await reverseGeocode(location.lat, location.lon);
+    setCheckoutAddress(addr || "");
+    return updateCheckoutDistanceState(location.coord);
+  }
+
+  const checkinReviewDecision = evaluatePendingReviewOption({
+    gps,
+    accuracy: gpsAccuracy,
+    retries: checkinGpsAttempts,
+    note: checkinReviewNote,
+    hasPhoto: !!photoFile,
+  });
+
+  const checkoutReviewDecision = evaluatePendingReviewOption({
+    gps: checkoutGps,
+    accuracy: checkoutGpsAccuracy,
+    retries: checkoutGpsAttempts,
+    note: checkoutReviewNote,
+    hasPhoto: !!checkoutPhotoFile,
+    distanceKm: getCheckoutDistanceKm(),
+    maxDistanceKm: maxDistanceKm(),
+  });
+
+  async function clearSavedDraft(showMessage = true) {
+    await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+    setDraftNotice("");
+    if (showMessage) alert("ลบข้อมูลที่บันทึกไว้แล้ว");
+  }
+
+  async function saveDraftAndLeave() {
+    if (!hasAnyDraftContent()) {
+      alert("ยังไม่มีข้อมูลให้บันทึก");
+      return;
+    }
+    try {
+      await saveTaskDraft(NEW_TASK_DRAFT_KEY, buildDraftPayload());
+      setDraftNotice("บันทึกข้อมูลไว้ในเครื่องแล้ว");
+      alert("บันทึกไว้ในเครื่องแล้ว ยังไม่ส่งเข้าระบบ กลับมาทำต่อภายหลังได้");
+      router.replace("/checkin");
+    } catch (e: any) {
+      alert(e?.message || "บันทึกชั่วคราวไม่สำเร็จ");
+    }
   }
 
   async function validateNoOngoingSameLocation(nameArg?: string): Promise<boolean> {
@@ -217,22 +401,20 @@ export default function NewTaskPage() {
     }
   }
 
-  function getGPS() {
-    if (!("geolocation" in navigator)) {
-      alert("Geolocation not supported");
-      return;
+  async function getGPS() {
+    setCheckinGpsAttempts((v) => v + 1);
+    setGpsStatus("กำลังหาตำแหน่ง...");
+    try {
+      const location = await captureBestLocation();
+      setGps(location.coord);
+      setGpsAccuracy(location.accuracy);
+      setGpsStatus(getAccuracyStatusText(location.accuracy));
+      setCheckinCaptureAt(location.capturedAt);
+      setCheckinMapFailed(false);
+    } catch (e: any) {
+      if (!gps.trim()) setGpsAccuracy(null);
+      setGpsStatus(e?.message || "ยังหาตำแหน่งไม่เจอ กรุณากดลองใหม่");
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude.toFixed(6);
-        const lon = pos.coords.longitude.toFixed(6);
-        const coord = `${lat}, ${lon}`;
-        setGps(coord);
-        setCheckinCaptureAt(Date.now());
-      },
-      (err) => alert(err.message),
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
   }
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -249,22 +431,17 @@ export default function NewTaskPage() {
     } catch {}
   }
 
-  function getCheckoutGPS() {
-    if (!("geolocation" in navigator)) {
-      alert("Geolocation not supported");
-      return;
+  async function getCheckoutGPS() {
+    setCheckoutGpsAttempts((v) => v + 1);
+    setCheckoutGpsStatus("กำลังหาตำแหน่ง...");
+    try {
+      const location = await captureBestLocation();
+      return await applyCheckoutLocation(location);
+    } catch (e: any) {
+      if (!checkoutGps.trim()) setCheckoutGpsAccuracy(null);
+      setCheckoutGpsStatus(e?.message || "ยังหาตำแหน่งไม่เจอ กรุณากดลองใหม่");
+      return false;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude.toFixed(6);
-        const lon = pos.coords.longitude.toFixed(6);
-        const coord = `${lat}, ${lon}`;
-        setCheckoutGps(coord);
-        reverseGeocode(parseFloat(lat), parseFloat(lon)).then((addr) => setCheckoutAddress(addr || ""));
-      },
-      (err) => alert(err.message),
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
   }
 
   function onPickCheckoutPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -290,19 +467,19 @@ export default function NewTaskPage() {
       // Non-blocking reminder for same-location ongoing task
       await validateNoOngoingSameLocation();
       if (checkinCaptureAt != null && Date.now() - checkinCaptureAt > 5 * 60 * 1000) {
-        alert("submit check-in timeout");
+        alert("หมดเวลายืนยันตำแหน่ง กรุณาจับพิกัดใหม่");
         return;
       }
-      if (!gps.trim()) {
-        alert("ไม่สามารถดึงพิกัดได้");
+      if (!hasReliableCheckinGps) {
+        alert(gps.trim() ? "ตำแหน่งยังไม่ชัด กรุณากดจับพิกัดอีกครั้ง" : "ยังหาตำแหน่งไม่เจอ กรุณากดลองใหม่");
         return;
       }
       if (!locationName.trim()) {
-        alert("Please enter a location name");
+        alert("กรุณากรอกชื่อสถานที่");
         return;
       }
       if (!photoFile) {
-        alert("Please attach a check-in photo");
+        alert("กรุณาถ่ายรูปเข้างาน");
         return;
       }
       let uploadedUrl: string | null = null;
@@ -321,12 +498,14 @@ export default function NewTaskPage() {
         jobDetail,
         photoUrl: uploadedUrl,
       });
+      await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+      setDraftNotice("");
       const st = resp?.status ? String(resp.status) : "";
-      alert(st ? `Saved (${st})` : "Saved");
+      alert(st ? `บันทึกแล้ว (${st})` : "บันทึกแล้ว");
       setSubmittedCheckin(true);
       router.replace("/checkin");
     } catch (e: any) {
-      alert(e?.message || "Submit failed");
+      alert(e?.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setIsSubmitting(false);
       checkinLockRef.current = false;
@@ -340,66 +519,67 @@ export default function NewTaskPage() {
       .slice(0, 16);
     setCheckoutTime(iso);
     setCheckoutRemark("");
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const lat = pos.coords.latitude.toFixed(6);
-          const lon = pos.coords.longitude.toFixed(6);
-          const coord = `${lat}, ${lon}`;
-          setCheckoutGps(coord);
-          const addr = await reverseGeocode(parseFloat(lat), parseFloat(lon));
-          setCheckoutAddress(addr || "");
-          const a = toLatLonPair(gps);
-          const b = toLatLonPair(coord);
-          if (a && b) {
-            const d = distanceKm(a, b);
-            const threshold = maxDistanceKm();
-            if (d > threshold) {
-              const meters = Math.round(d * 1000);
-              setCheckoutRemark(`Checkout location differs by ~${meters} m (>${threshold} km)`);
-              setCheckoutOutOfArea(true);
-              alert("จุด check-out อยู่นอกพื้นที่ check-in");
-            } else {
-              setCheckoutOutOfArea(false);
-            }
-          }
-        },
-        () => {
-          // ignore error; user can still submit manually
-        },
-        { enableHighAccuracy: true, timeout: 12000 }
-      );
+    void getCheckoutGPS().then((isOutOfArea) => {
+      if (isOutOfArea) {
+        alert("จุดออกงานห่างจากจุดเข้างานมากเกินไป กรุณาลองใหม่");
+      }
+    });
+  }
+
+  async function retryCheckoutGps() {
+    const isOutOfArea = await getCheckoutGPS();
+    if (isOutOfArea) {
+      alert("จุดออกงานห่างจากจุดเข้างานมากเกินไป กรุณาลองใหม่");
     }
   }
 
-  function retryCheckoutGps() {
-    if (!("geolocation" in navigator)) return;
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude.toFixed(6);
-        const lon = pos.coords.longitude.toFixed(6);
-        const coord = `${lat}, ${lon}`;
-        setCheckoutGps(coord);
-        const addr = await reverseGeocode(parseFloat(lat), parseFloat(lon));
-        setCheckoutAddress(addr || "");
-        const a = toLatLonPair(gps);
-        const b = toLatLonPair(coord);
-        if (a && b) {
-          const d = distanceKm(a, b);
-          const threshold = maxDistanceKm();
-          if (d > threshold) {
-            const meters = Math.round(d * 1000);
-            setCheckoutRemark(`Checkout location differs by ~${meters} m (>${threshold} km)`);
-            setCheckoutOutOfArea(true);
-          } else {
-            setCheckoutRemark("");
-            setCheckoutOutOfArea(false);
-          }
-        }
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 12000 }
-    );
+  async function onSubmitCheckinForReview() {
+    try {
+      if (checkinLockRef.current) return;
+      if (!checkinReviewDecision.allowed) {
+        alert(checkinReviewDecision.message || "ยังส่งให้หัวหน้าตรวจไม่ได้");
+        return;
+      }
+      checkinLockRef.current = true;
+      setIsSubmitting(true);
+      if (!locationName.trim()) {
+        alert("กรุณากรอกชื่อสถานที่");
+        return;
+      }
+      if (!photoFile) {
+        alert("กรุณาถ่ายรูปเข้างาน");
+        return;
+      }
+      const uploadedUrl = await uploadPhoto(photoFile);
+      const ms = checkinPhotoTakenAt ?? Date.now();
+      const iso = new Date(ms - new Date().getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+      setCheckinTime(iso);
+      const resp = await submitCheckin({
+        checkin: iso,
+        locationName,
+        gps,
+        checkinAddress: "",
+        jobDetail,
+        photoUrl: uploadedUrl,
+        reviewStatus: "pending_review",
+        signalIssueReason: checkinReviewNote.trim(),
+        gpsAccuracy,
+        gpsRetryCount: checkinGpsAttempts,
+      });
+      await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+      setDraftNotice("");
+      const st = resp?.status ? String(resp.status) : "";
+      alert(st ? `ส่งให้หัวหน้าตรวจแล้ว (${st})` : "ส่งให้หัวหน้าตรวจแล้ว");
+      setSubmittedCheckin(true);
+      router.replace("/checkin");
+    } catch (e: any) {
+      alert(e?.message || "ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setIsSubmitting(false);
+      checkinLockRef.current = false;
+    }
   }
 
   async function onSubmitCheckout() {
@@ -409,11 +589,15 @@ export default function NewTaskPage() {
       checkoutLockRef.current = true;
       setIsSubmitting(true);
       if (!locationName.trim()) {
-        alert("Please enter a location name");
+        alert("กรุณากรอกชื่อสถานที่");
+        return;
+      }
+      if (!hasReliableCheckoutGps) {
+        alert(checkoutGps.trim() ? "ตำแหน่งออกงานยังไม่ชัด กรุณากดลองใหม่" : "ยังหาตำแหน่งออกงานไม่เจอ กรุณากดลองใหม่");
         return;
       }
       if (!checkoutPhotoFile) {
-        alert("Please attach a checkout photo");
+        alert("กรุณาถ่ายรูปออกงาน");
         return;
       }
       // Validate distance before submit
@@ -424,7 +608,7 @@ export default function NewTaskPage() {
         const threshold = maxDistanceKm();
         if (d > threshold) {
           setCheckoutOutOfArea(true);
-          alert("จุด check-out อยู่นอกพื้นที่ check-in");
+          alert("จุดออกงานห่างจากจุดเข้างานมากเกินไป กรุณาลองใหม่");
           return;
         }
       }
@@ -442,12 +626,66 @@ export default function NewTaskPage() {
         jobRemark,
         remark: jobRemark,
       });
+      await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+      setDraftNotice("");
       const st = resp?.status ? String(resp.status) : "";
-      alert(st ? `Saved (${st})` : "Saved");
+      alert(st ? `บันทึกแล้ว (${st})` : "บันทึกแล้ว");
       setSubmittedCheckout(true);
       router.replace("/checkin");
     } catch (e: any) {
-      alert(e?.message || "Submit failed");
+      alert(e?.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setIsSubmitting(false);
+      checkoutLockRef.current = false;
+    }
+  }
+
+  async function onSubmitCheckoutForReview() {
+    try {
+      if (checkoutLockRef.current) return;
+      if (!checkoutReviewDecision.allowed) {
+        alert(checkoutReviewDecision.message || "ยังส่งให้หัวหน้าตรวจไม่ได้");
+        return;
+      }
+      checkoutLockRef.current = true;
+      setIsSubmitting(true);
+      if (!locationName.trim()) {
+        alert("กรุณากรอกชื่อสถานที่");
+        return;
+      }
+      if (!checkoutPhotoFile) {
+        alert("กรุณาถ่ายรูปออกงาน");
+        return;
+      }
+      const uploadedUrl = await uploadPhoto(checkoutPhotoFile);
+      const resp = await submitCheckout({
+        checkout: (() => {
+          const ms = checkoutPhotoTakenAt ?? Date.now();
+          return new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        })(),
+        checkoutGps,
+        checkoutAddress,
+        checkoutPhotoUrl: uploadedUrl,
+        locationName,
+        checkoutRemark,
+        problemDetail,
+        problem: problemDetail,
+        jobRemark,
+        remark: jobRemark,
+        reviewStatus: "pending_review",
+        reviewReason: checkoutReviewDecision.reason,
+        signalIssueReason: checkoutReviewNote.trim(),
+        gpsAccuracy: checkoutGpsAccuracy,
+        gpsRetryCount: checkoutGpsAttempts,
+      });
+      await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+      setDraftNotice("");
+      const st = resp?.status ? String(resp.status) : "";
+      alert(st ? `ส่งให้หัวหน้าตรวจแล้ว (${st})` : "ส่งให้หัวหน้าตรวจแล้ว");
+      setSubmittedCheckout(true);
+      router.replace("/checkin");
+    } catch (e: any) {
+      alert(e?.message || "ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setIsSubmitting(false);
       checkoutLockRef.current = false;
@@ -470,6 +708,19 @@ export default function NewTaskPage() {
             สร้างงานใหม่
           </h1>
         </div>
+
+        {draftNotice ? (
+          <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div>{draftNotice}</div>
+            <button
+              type="button"
+              onClick={() => void clearSavedDraft()}
+              className="mt-2 inline-flex rounded-full border border-amber-400 bg-white px-3 py-1 text-xs hover:bg-amber-100"
+            >
+              ลบข้อมูลที่บันทึกไว้
+            </button>
+          </div>
+        ) : null}
 
         {/* Check-in time */}
 
@@ -603,7 +854,19 @@ export default function NewTaskPage() {
 
 
 
-            {showDetails && gps && GMAPS_KEY ? (
+            <div className={`mt-2 text-xs ${hasReliableCheckinGps ? "text-green-800" : gps ? "text-amber-800" : "text-gray-700"}`}>
+
+
+
+              {gpsStatus || "กำลังหาตำแหน่ง..."}
+
+
+
+            </div>
+
+
+
+            {showDetails && gps && GMAPS_KEY && !checkinMapFailed ? (
 
 
 
@@ -615,7 +878,32 @@ export default function NewTaskPage() {
 
 
 
-                <img src={mapUrl(gps)} alt="check-in map" className="rounded border border-black/10" />
+                <img
+                  src={mapUrl(gps)}
+                  alt="check-in map"
+                  className="rounded border border-black/10"
+                  onError={() => setCheckinMapFailed(true)}
+                />
+
+
+
+              </div>
+
+
+
+            ) : null}
+
+
+
+            {showDetails && gps && (checkinMapFailed || !GMAPS_KEY) ? (
+
+
+
+              <div className="mt-2 rounded border border-dashed border-black/20 bg-white/70 px-3 py-2 text-xs text-gray-700">
+
+
+
+                แผนที่ไม่ขึ้น แต่บันทึกตำแหน่งได้แล้ว
 
 
 
@@ -631,7 +919,19 @@ export default function NewTaskPage() {
 
 
 
-              ระบบจะใช้พิกัดอัตโนมัติและบันทึกชื่อจากช่อง “รายละเอียดสถานที่” แทนการค้นหา
+              {gps ? getAccuracyHelpText(gpsAccuracy) : "ถ้ารอนาน ให้ขยับไปที่โล่งหรือใกล้หน้าต่าง แล้วกดจับพิกัดอีกครั้ง"}
+
+
+
+            </div>
+
+
+
+            <div className="mt-2 text-xs text-gray-700">
+
+
+
+              ลองจับพิกัดแล้ว {checkinGpsAttempts} ครั้ง
 
 
 
@@ -732,18 +1032,61 @@ export default function NewTaskPage() {
           <div className="mt-1 text-xs text-red-700">ต้องถ่ายรูปเข้างาน</div>
         ) : null}
 
+        {gps.trim() && !hasReliableCheckinGps && !submittedCheckin ? (
+          <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3">
+            <div className="text-sm font-semibold text-amber-900">ถ้าสัญญาณไม่ดีจริงๆ</div>
+            <div className="mt-1 text-xs text-amber-900">
+              ลองจับพิกัดอีกครั้งก่อน ถ้ายังไม่ได้ ให้พิมพ์เหตุผลสั้นๆ แล้วส่งให้หัวหน้าตรวจ
+            </div>
+            <Input
+              placeholder="เช่น อยู่ในอาคาร สัญญาณอ่อน"
+              value={checkinReviewNote}
+              onChange={(e) => setCheckinReviewNote(e.target.value)}
+              className="mt-2 rounded-full border-amber-300 bg-white h-10"
+              disabled={isSubmitting}
+            />
+            <div className="mt-2 text-xs text-amber-900">
+              {checkinReviewDecision.allowed ? "ส่งให้หัวหน้าตรวจได้" : checkinReviewDecision.message}
+            </div>
+          </div>
+        ) : null}
+
         {/* Action buttons */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <LoadingButton
             onClick={onSubmitCheckin}
-            disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired()}
+            disabled={!locationName.trim() || !photoFile || isSubmitting || isCheckinExpired() || !hasReliableCheckinGps}
             className="w-full rounded-full bg-[#BFD9C8] px-6 text-gray-900 hover:bg-[#b3d0bf] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={!locationName.trim() ? "กรุณาระบุชื่อสถานที่" : !photoFile ? "กรุณาถ่ายรูปเพื่อเข้างาน" : isCheckinExpired() ? "หมดเวลาส่งเข้างาน" : undefined}
+            title={
+              !locationName.trim()
+                ? "กรุณาระบุชื่อสถานที่"
+                : !hasReliableCheckinGps
+                  ? gps.trim()
+                    ? "ตำแหน่งยังไม่ชัด กรุณาจับพิกัดใหม่"
+                    : "กำลังหาตำแหน่งอยู่ กรุณารอสักครู่"
+                  : !photoFile
+                    ? "กรุณาถ่ายรูปเพื่อเข้างาน"
+                    : isCheckinExpired()
+                      ? "หมดเวลายืนยันตำแหน่ง"
+                      : undefined
+            }
             loading={isSubmitting}
             loadingLabel="กำลังบันทึก..."
           >
             บันทึกเข้างาน
           </LoadingButton>
+          {!submittedCheckin ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void saveDraftAndLeave()}
+              disabled={isSubmitting || !hasAnyDraftContent()}
+              className="w-full rounded-full border-black/20 bg-white hover:bg-gray-50"
+              title="บันทึกข้อมูลไว้ในเครื่อง แล้วค่อยกลับมาทำต่อ"
+            >
+              บันทึกไว้ก่อน
+            </Button>
+          ) : null}
           {submittedCheckin ? (
             <Button
               onClick={onCheckout}
@@ -753,6 +1096,16 @@ export default function NewTaskPage() {
             </Button>
           ) : null}
         </div>
+        {gps.trim() && !hasReliableCheckinGps && !submittedCheckin ? (
+          <Button
+            type="button"
+            onClick={onSubmitCheckinForReview}
+            disabled={isSubmitting || !checkinReviewDecision.allowed}
+            className="mt-3 w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#ccb995] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            ส่งให้หัวหน้าตรวจ
+          </Button>
+        ) : null}
 
         {/* Checkout time */}
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
@@ -773,20 +1126,33 @@ export default function NewTaskPage() {
             <div className="mt-4">
               <div className="text-sm sm:text-base font-semibold">พิกัดออกงาน</div>
               <div className="mt-2 rounded-md border border-black/10 bg-[#BFD9C8] p-3 sm:p-4 min-h-[140px]">
-                <div className="text-sm sm:text-base break-words" title={checkoutGps || undefined}>{checkoutGps || "�"}</div>
+                <div className="text-sm sm:text-base break-words" title={checkoutGps || undefined}>{checkoutGps || "ยังไม่ได้รับพิกัด"}</div>
+                <div className={`mt-2 text-xs ${hasReliableCheckoutGps ? "text-green-800" : checkoutGps ? "text-amber-800" : "text-gray-700"}`}>
+                  {checkoutGpsStatus || "กดออกงานเพื่อจับพิกัด"}
+                </div>
                 {checkoutAddress ? (
                   <div className="mt-1 text-xs sm:text-sm text-gray-700 break-words" title={checkoutAddress}>
                     {checkoutAddress}
                   </div>
                 ) : null}
-                {checkoutGps && GMAPS_KEY ? (
+                {checkoutGps && GMAPS_KEY && !checkoutMapFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={mapUrl(checkoutGps)} alt="checkout map" className="mt-2 rounded border border-black/10" />
+                  <img
+                    src={mapUrl(checkoutGps)}
+                    alt="checkout map"
+                    className="mt-2 rounded border border-black/10"
+                    onError={() => setCheckoutMapFailed(true)}
+                  />
+                ) : null}
+                {checkoutGps && (checkoutMapFailed || !GMAPS_KEY) ? (
+                  <div className="mt-2 rounded border border-dashed border-black/20 bg-white/70 px-3 py-2 text-xs text-gray-700">
+                    แผนที่ไม่ขึ้น แต่บันทึกตำแหน่งได้แล้ว
+                  </div>
                 ) : null}
                 {checkoutOutOfArea ? (
                   <div className="mt-2 flex items-center gap-2">
               <div className="rounded border border-red-300 bg-red-100 px-3 py-1 text-xs sm:text-sm text-red-800">
-                      จุดออกงานอยู่นอกพื้นที่เข้างาน
+                      จุดออกงานห่างจากจุดเข้างานมากเกินไป
               </div>
                     <Button
                       type="button"
@@ -801,6 +1167,12 @@ export default function NewTaskPage() {
                 {checkoutRemark ? (
                   <div className="mt-2 text-xs text-red-700">{checkoutRemark}</div>
                 ) : null}
+                <div className="mt-2 text-xs text-gray-700">
+                  {checkoutGps ? getAccuracyHelpText(checkoutGpsAccuracy) : "ถ้ารอนาน ให้ขยับไปที่โล่งหรือใกล้หน้าต่าง แล้วกดลองใหม่"}
+                </div>
+                <div className="mt-2 text-xs text-gray-700">
+                  ลองจับพิกัดแล้ว {checkoutGpsAttempts} ครั้ง
+                </div>
               </div>
             </div>
 
@@ -869,21 +1241,71 @@ export default function NewTaskPage() {
               </div>
             </div>
             {!checkoutPhotoFile && !isSubmitting && !submittedCheckout ? (
-              <div className="mt-1 text-xs text-red-700">Checkout photo is required</div>
+              <div className="mt-1 text-xs text-red-700">ต้องถ่ายรูปออกงาน</div>
+            ) : null}
+
+            {checkoutGps.trim() && !hasReliableCheckoutGps ? (
+              <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3">
+                <div className="text-sm font-semibold text-amber-900">ถ้าสัญญาณไม่ดีจริงๆ</div>
+                <div className="mt-1 text-xs text-amber-900">
+                  ถ้ายังจับพิกัดได้ไม่ชัด ให้พิมพ์เหตุผลสั้นๆ แล้วส่งให้หัวหน้าตรวจ
+                </div>
+                <Input
+                  placeholder="เช่น อยู่ในอาคาร สัญญาณอ่อน"
+                  value={checkoutReviewNote}
+                  onChange={(e) => setCheckoutReviewNote(e.target.value)}
+                  className="mt-2 rounded-full border-amber-300 bg-white h-10"
+                  disabled={isSubmitting || submittedCheckout}
+                />
+                <div className="mt-2 text-xs text-amber-900">
+                  {checkoutReviewDecision.allowed ? "ส่งให้หัวหน้าตรวจได้" : checkoutReviewDecision.message}
+                </div>
+              </div>
             ) : null}
 
             {/* Submit Checkout */}
             <div className="mt-4">
               <LoadingButton
                 onClick={onSubmitCheckout}
-                disabled={!locationName.trim() || !checkoutPhotoFile || checkoutOutOfArea || isSubmitting}
+                disabled={!locationName.trim() || !checkoutPhotoFile || checkoutOutOfArea || isSubmitting || !hasReliableCheckoutGps}
                 className="w-full rounded-full bg-[#E8CC5C] px-6 text-gray-900 hover:bg-[#e3c54a] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
                 loading={isSubmitting}
                 loadingLabel="กำลังบันทึก..."
-                title={!locationName.trim() ? "Please enter a location name" : !checkoutPhotoFile ? "Please take a checkout selfie" : checkoutOutOfArea ? "จุด check-out อยู่นอกพื้นที่ check-in" : undefined}
+                title={
+                  !locationName.trim()
+                    ? "กรุณาระบุชื่อสถานที่"
+                    : !hasReliableCheckoutGps
+                      ? checkoutGps.trim()
+                        ? "ตำแหน่งออกงานยังไม่ชัด กรุณาลองใหม่"
+                        : "กำลังหาตำแหน่งออกงานอยู่ กรุณารอสักครู่"
+                      : !checkoutPhotoFile
+                        ? "กรุณาถ่ายรูปออกงาน"
+                        : checkoutOutOfArea
+                          ? "จุดออกงานห่างจากจุดเข้างานมากเกินไป"
+                          : undefined
+                }
               >
-                Submit Checkout
+                บันทึกออกงาน
               </LoadingButton>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void saveDraftAndLeave()}
+                disabled={isSubmitting || !hasAnyDraftContent()}
+                className="mt-3 w-full rounded-full border-black/20 bg-white hover:bg-gray-50"
+              >
+                บันทึกไว้ก่อน
+              </Button>
+              {checkoutGps.trim() && !hasReliableCheckoutGps ? (
+                <Button
+                  type="button"
+                  onClick={onSubmitCheckoutForReview}
+                  disabled={isSubmitting || !checkoutReviewDecision.allowed}
+                  className="mt-3 w-full rounded-full bg-[#D8CBAF] text-gray-900 hover:bg-[#ccb995] border border-black/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  ส่งให้หัวหน้าตรวจ
+                </Button>
+              ) : null}
             </div>
           </>
         )}

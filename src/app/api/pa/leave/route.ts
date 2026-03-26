@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { addRowToTableByObject, graphTables, listLeaves } from "@/lib/graph";
+import { invalidatePaReadCaches } from "@/lib/serverCache";
 
 export async function POST(req: Request) {
   try {
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
       district: enriched.district ?? "",
     };
     await addRowToTableByObject(graphTables.leave(), rowObj);
+    invalidatePaReadCaches();
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Leave submit failed" }, { status: 500 });
