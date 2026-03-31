@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { submitCheckin, submitCheckout, uploadPhoto } from "@/lib/paClient";
 import { createNewTaskDraftKey, deleteTaskDraft, draftToFile, fileToDraft, loadTaskDraft, saveTaskDraft } from "@/lib/taskDrafts";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function NewTaskPage() {
+function NewTaskPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const draftParam = searchParams.get("draft")?.trim() || "";
@@ -1322,6 +1322,14 @@ export default function NewTaskPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function NewTaskPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F7F4EA]" />}>
+      <NewTaskPageContent />
+    </Suspense>
   );
 }
 
