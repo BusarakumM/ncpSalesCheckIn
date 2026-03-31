@@ -3,6 +3,46 @@ import { getUsersLookup, listActivities, normalizeLookupKey, type UserLookupInfo
 import { cookies } from "next/headers";
 import { buildServerCacheKey, getOrSetServerCache, serverCacheNamespaces } from "@/lib/serverCache";
 
+const AGENT_MAX_DAYS = 7;
+
+function getBangkokIsoDate() {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value || "";
+  const month = parts.find((part) => part.type === "month")?.value || "";
+  const day = parts.find((part) => part.type === "day")?.value || "";
+  return `${year}-${month}-${day}`;
+}
+
+function shiftIsoDate(iso: string, days: number) {
+  const base = new Date(`${iso}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+function clampIsoDate(iso: string, minIso: string, maxIso: string) {
+  if (!iso) return "";
+  if (iso < minIso) return minIso;
+  if (iso > maxIso) return maxIso;
+  return iso;
+}
+
+function normalizeAgentRange(from?: string, to?: string) {
+  const max = getBangkokIsoDate();
+  const min = shiftIsoDate(max, -(AGENT_MAX_DAYS - 1));
+  let nextFrom = clampIsoDate(String(from || ""), min, max) || min;
+  let nextTo = clampIsoDate(String(to || ""), min, max) || max;
+  if (nextFrom > nextTo) {
+    nextTo = nextFrom;
+  }
+  return { from: nextFrom, to: nextTo };
+}
+
 function resolveUserInfo(
   row: { email?: string; employeeNo?: string; name?: string },
   userLookup: Map<string, UserLookupInfo>
@@ -27,9 +67,10 @@ export async function POST(req: Request) {
     const role = (await c).get("role")?.value;
     const cookieIdentity = (await c).get("username")?.value || (await c).get("email")?.value;
     const email = role === "SUPERVISOR" ? (raw?.email || raw?.username || undefined) : (cookieIdentity || undefined);
+    const effectiveRange = role === "SUPERVISOR" ? { from, to } : normalizeAgentRange(from, to);
     const listArgs = {
-      from,
-      to,
+      from: effectiveRange.from,
+      to: effectiveRange.to,
       name,
       email,
       includeRowIndexes: true,
@@ -42,8 +83,8 @@ export async function POST(req: Request) {
       role: role || "",
       identity: email || "",
       filters: {
-        from: from || "",
-        to: to || "",
+        from: effectiveRange.from || "",
+        to: effectiveRange.to || "",
         name: name || "",
         location: location || "",
         district: district || "",

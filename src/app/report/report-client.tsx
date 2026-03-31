@@ -39,9 +39,43 @@ type Row = {
 
 const DATA: Row[] = [];
 
-export default function ReportClient({ homeHref, role, email }: { homeHref: string; role?: "SUPERVISOR" | string; email?: string }) {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+const AGENT_MAX_DAYS = 7;
+
+function shiftIsoDate(iso: string, days: number) {
+  const base = new Date(`${iso}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+function getAgentRange(todayIso: string) {
+  return {
+    from: shiftIsoDate(todayIso, -(AGENT_MAX_DAYS - 1)),
+    to: todayIso,
+  };
+}
+
+function clampIsoDate(iso: string, minIso: string, maxIso: string) {
+  if (!iso) return "";
+  if (iso < minIso) return minIso;
+  if (iso > maxIso) return maxIso;
+  return iso;
+}
+
+function normalizeAgentRange(from: string, to: string, todayIso: string) {
+  const allowed = getAgentRange(todayIso);
+  let nextFrom = clampIsoDate(from, allowed.from, allowed.to) || allowed.from;
+  let nextTo = clampIsoDate(to, allowed.from, allowed.to) || allowed.to;
+  if (nextFrom > nextTo) {
+    nextTo = nextFrom;
+  }
+  return { from: nextFrom, to: nextTo, min: allowed.from, max: allowed.to };
+}
+
+export default function ReportClient({ homeHref, role, email, todayIso }: { homeHref: string; role?: "SUPERVISOR" | string; email?: string; todayIso: string }) {
+  const isSupervisor = role === "SUPERVISOR";
+  const initialAgentRange = normalizeAgentRange("", "", todayIso);
+  const [from, setFrom] = useState(() => (isSupervisor ? "" : initialAgentRange.from));
+  const [to, setTo] = useState(() => (isSupervisor ? "" : initialAgentRange.to));
   const [rows, setRows] = useState<Row[]>([]);
   const [location, setLocation] = useState("");
   const [allLocations, setAllLocations] = useState<string[]>([]);
@@ -64,6 +98,8 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   const MAX_KM = parseFloat(process.env.NEXT_PUBLIC_MAX_DISTANCE_KM || "");
   const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY;
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const agentLocationEffectReady = useRef(false);
+  const supervisorFilterEffectReady = useRef(false);
   const { autoMode, isConstrained, showMedia, toggleShowMedia } = useAdaptiveMediaToggle();
   const mediaToggleTitle = autoMode && isConstrained && !showMedia
     ? "ปิดอัตโนมัติเพื่อประหยัดเน็ตบนมือถือหรือเน็ตช้า"
@@ -82,15 +118,24 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   }
 
   async function load(override?: { from?: string; to?: string; location?: string; district?: string; group?: string }) {
-    const sendFrom = override?.from ?? from;
-    const sendTo = override?.to ?? to;
+    const requestedFrom = override?.from ?? from;
+    const requestedTo = override?.to ?? to;
     const sendLocation = override?.location ?? location;
     const sendDistrict = override?.district ?? district;
     const sendGroup = override?.group ?? group;
+    const range = isSupervisor
+      ? { from: requestedFrom, to: requestedTo }
+      : normalizeAgentRange(requestedFrom, requestedTo, todayIso);
+
+    if (!isSupervisor) {
+      if (range.from !== from) setFrom(range.from);
+      if (range.to !== to) setTo(range.to);
+    }
+
     const res = await fetch("/api/pa/report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: sendFrom, to: sendTo, location: sendLocation, district: sendDistrict, group: sendGroup }),
+      body: JSON.stringify({ from: range.from, to: range.to, location: sendLocation, district: sendDistrict, group: sendGroup }),
     });
     const data = await res.json();
     if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load report");
@@ -146,13 +191,15 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
   }
 
   function clearFilters() {
-    setFrom("");
-    setTo("");
+    const nextFrom = isSupervisor ? "" : initialAgentRange.from;
+    const nextTo = isSupervisor ? "" : initialAgentRange.to;
+    setFrom(nextFrom);
+    setTo(nextTo);
     setLocation("");
     setDistrict("");
     setGroup("");
     setIsFiltering(true);
-    load({ from: "", to: "", location: "", district: "", group: "" })
+    load({ from: nextFrom, to: nextTo, location: "", district: "", group: "" })
       .catch(() => {})
       .finally(() => setIsFiltering(false));
   }
@@ -173,19 +220,22 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
 
   // Auto-refresh when dropdowns change
   useEffect(() => {
-    if (role === "SUPERVISOR") return; // agent mode uses location
-    // noop for supervisors in this effect
-    if (location !== undefined) {
-      load({ location }).catch(() => {});
+    if (isSupervisor) return;
+    if (!agentLocationEffectReady.current) {
+      agentLocationEffectReady.current = true;
+      return;
     }
-  }, [location]);
+    load({ location }).catch(() => {});
+  }, [isSupervisor, location]);
 
   useEffect(() => {
-    if (role !== "SUPERVISOR") return; // supervisor mode uses district
-    if (district !== undefined || group !== undefined) {
-      load({ district, group }).catch(() => {});
+    if (!isSupervisor) return;
+    if (!supervisorFilterEffectReady.current) {
+      supervisorFilterEffectReady.current = true;
+      return;
     }
-  }, [district, group]);
+    load({ district, group }).catch(() => {});
+  }, [district, group, isSupervisor]);
 
   function beginEdit(row: Row) {
     if (!row.id) return;
@@ -324,14 +374,33 @@ export default function ReportClient({ homeHref, role, email }: { homeHref: stri
         {/* Filter */}
         <div className="mt-4">
           <div className="text-sm font-medium mb-2">ตัวกรอง : วันที่</div>
+          {!isSupervisor ? (
+            <div className="mb-2 text-sm text-gray-700">
+              ดูข้อมูลย้อนหลังได้ไม่เกิน 7 วัน เพื่อลดการโหลดข้อมูล
+            </div>
+          ) : null}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <Label className="mb-1 block">จากวันที่</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-white" />
+            <Input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="bg-white"
+              min={!isSupervisor ? initialAgentRange.min : undefined}
+              max={!isSupervisor ? initialAgentRange.max : undefined}
+            />
           </div>
           <div>
             <Label className="mb-1 block">ถึงวันที่</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-white" />
+            <Input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="bg-white"
+              min={!isSupervisor ? initialAgentRange.min : undefined}
+              max={!isSupervisor ? initialAgentRange.max : undefined}
+            />
           </div>
           {role === "SUPERVISOR" ? (
             <>
