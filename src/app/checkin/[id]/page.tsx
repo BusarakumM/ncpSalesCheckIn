@@ -243,6 +243,10 @@ export default function TaskDetailPage() {
 
   function buildDraftPayload() {
     return {
+      kind: "task" as const,
+      stage: (hasExistingCheckin || checkoutTime || checkoutGps || checkoutPhotoFile) ? "checkout" as const : "checkin" as const,
+      taskId: id,
+      resumeHref: `/checkin/${id}`,
       checkinTime,
       checkoutTime,
       locationName,

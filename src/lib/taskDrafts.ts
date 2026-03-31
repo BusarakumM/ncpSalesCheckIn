@@ -8,6 +8,10 @@ export type DraftFile = {
 export type TaskDraft = {
   key: string;
   updatedAt: number;
+  kind?: "new" | "task";
+  stage?: "checkin" | "checkout";
+  taskId?: string;
+  resumeHref?: string;
   checkinTime?: string;
   checkoutTime?: string;
   locationName?: string;
@@ -34,6 +38,19 @@ export type TaskDraft = {
 
 const DB_NAME = "ncp-sales-checkin";
 const STORE_NAME = "task-drafts";
+const TASK_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function createNewTaskDraftKey() {
+  const id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `checkin:new:${id}`;
+}
+
+function isExpiredDraft(updatedAt?: number) {
+  if (typeof updatedAt !== "number" || !isFinite(updatedAt) || updatedAt <= 0) return false;
+  return Date.now() - updatedAt > TASK_DRAFT_TTL_MS;
+}
 
 function hasIndexedDb() {
   return typeof window !== "undefined" && typeof window.indexedDB !== "undefined";
@@ -94,11 +111,35 @@ export async function loadTaskDraft(key: string): Promise<TaskDraft | null> {
   if (!hasIndexedDb()) return null;
   const db = await openDatabase();
   try {
-    const tx = db.transaction(STORE_NAME, "readonly");
+    const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     const item = await requestToPromise<TaskDraft | undefined>(store.get(key));
+    if (item && isExpiredDraft(item.updatedAt)) {
+      store.delete(key);
+      await transactionDone(tx);
+      return null;
+    }
     await transactionDone(tx);
     return item ?? null;
+  } finally {
+    db.close();
+  }
+}
+
+export async function listTaskDrafts(): Promise<TaskDraft[]> {
+  if (!hasIndexedDb()) return [];
+  const db = await openDatabase();
+  try {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const items = await requestToPromise<TaskDraft[]>(store.getAll());
+    const filtered = (Array.isArray(items) ? items : []).filter((item) => {
+      if (!isExpiredDraft(item?.updatedAt)) return true;
+      if (item?.key) store.delete(item.key);
+      return false;
+    });
+    await transactionDone(tx);
+    return filtered;
   } finally {
     db.close();
   }

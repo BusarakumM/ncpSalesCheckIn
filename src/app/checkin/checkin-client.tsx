@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import LogoBadge from "@/components/LogoBadge";
+import { listLocalTaskSummaries, syncTaskDraft, type LocalTaskSummary } from "@/lib/localTaskQueue";
 
 type Task = {
   id: string; // encoded stable key for URL
@@ -22,8 +23,14 @@ function todayUtcDate(): string {
 export default function CheckinClient({ homeHref, email }: { homeHref: string; email: string }) {
   const [qDate, setQDate] = useState<string>(todayUtcDate());
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [localDrafts, setLocalDrafts] = useState<LocalTaskSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localMessage, setLocalMessage] = useState<string | null>(null);
+  const [syncingKey, setSyncingKey] = useState<string | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const statusLabel: Record<Task["status"], string> = {
     "In Progress": "กำลังดำเนินการ",
     Completed: "สำเร็จ",
@@ -44,7 +51,7 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
           cache: 'no-store',
         });
         if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to load activities'));
-        const data = (await res.json()) as { ok: boolean; rows?: Array<{ date: string; location: string; status: 'completed' | 'incomplete' | 'ongoing' }> };
+        const data = (await res.json()) as { ok: boolean; rows?: Array<{ date: string; location: string; checkin?: string; checkout?: string; status: 'completed' | 'incomplete' | 'ongoing' }> };
         if (!data?.ok) throw new Error('Failed to load activities');
         const mapped: Task[] = (data.rows || []).map((r, i) => ({
           id: typeof window !== 'undefined'
@@ -66,9 +73,27 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
     }
     load();
     return () => { cancelled = true; };
-  }, [qDate, email]);
+  }, [qDate, email, reloadKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLocalDrafts() {
+      try {
+        setDraftLoading(true);
+        const rows = await listLocalTaskSummaries();
+        if (!cancelled) setLocalDrafts(rows);
+      } catch (e: any) {
+        if (!cancelled) setLocalMessage(e?.message || "โหลดข้อมูลงานในเครื่องไม่สำเร็จ");
+      } finally {
+        if (!cancelled) setDraftLoading(false);
+      }
+    }
+    void loadLocalDrafts();
+    return () => { cancelled = true; };
+  }, [reloadKey]);
 
   const filtered = useMemo(() => tasks, [tasks]);
+  const readyDrafts = useMemo(() => localDrafts.filter((item) => item.mode === "ready"), [localDrafts]);
   // Allow creating a new task even if there are ongoing ones; enforcement will occur in the New page
   const hasInProgress = useMemo(() => false, []);
 
@@ -81,6 +106,58 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
   function rowBg(s: Task["status"]) {
     if (s === "Completed") return "bg-[#8ac7a9] text-white"; // green highlight like mock
     return "bg-white";
+  }
+
+  function formatUpdatedAt(value: number) {
+    if (!value) return "";
+    try {
+      return new Date(value).toLocaleString("th-TH", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "";
+    }
+  }
+
+  async function handleSyncDraft(key: string) {
+    setLocalMessage(null);
+    setSyncingKey(key);
+    try {
+      await syncTaskDraft(key);
+      setLocalMessage("ส่งข้อมูลงานที่ค้างไว้สำเร็จแล้ว");
+      setReloadKey((value) => value + 1);
+    } catch (e: any) {
+      setLocalMessage(e?.message || "ส่งข้อมูลงานที่ค้างไว้ไม่สำเร็จ");
+    } finally {
+      setSyncingKey(null);
+    }
+  }
+
+  async function handleSyncAll() {
+    if (readyDrafts.length === 0) return;
+    setLocalMessage(null);
+    setSyncingAll(true);
+    let success = 0;
+    let lastError = "";
+    for (const item of readyDrafts) {
+      try {
+        await syncTaskDraft(item.key);
+        success += 1;
+      } catch (e: any) {
+        lastError = e?.message || "บางรายการส่งไม่สำเร็จ";
+      }
+    }
+    if (success > 0) {
+      setLocalMessage(lastError ? `ส่งสำเร็จ ${success} รายการ บางรายการยังไม่สำเร็จ` : `ส่งสำเร็จ ${success} รายการ`);
+      setReloadKey((value) => value + 1);
+    } else if (lastError) {
+      setLocalMessage(lastError);
+    }
+    setSyncingAll(false);
   }
 
   return (
@@ -121,6 +198,80 @@ export default function CheckinClient({ homeHref, email }: { homeHref: string; e
             </Link>
           </div>
         </div>
+
+        {draftLoading || localDrafts.length > 0 || localMessage ? (
+          <div className="mt-4 rounded-2xl border border-black/10 bg-[#E9DFC7] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-base font-semibold">งานที่บันทึกไว้ในเครื่อง</div>
+                <div className="text-xs text-gray-700">งานส่วนนี้ยังอยู่ในโทรศัพท์เครื่องนี้เท่านั้น</div>
+              </div>
+              {readyDrafts.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void handleSyncAll()}
+                  disabled={syncingAll || !!syncingKey}
+                  className="rounded-full border border-black/20 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {syncingAll ? "กำลังส่ง..." : `ส่งทั้งหมด (${readyDrafts.length})`}
+                </button>
+              ) : null}
+            </div>
+
+            {localMessage ? (
+              <div className="mt-3 rounded-md border border-black/10 bg-white/80 px-3 py-2 text-sm text-gray-800">
+                {localMessage}
+              </div>
+            ) : null}
+
+            <div className="mt-3 space-y-3">
+              {draftLoading ? (
+                <div className="text-sm text-gray-700">กำลังโหลดงานที่บันทึกไว้...</div>
+              ) : localDrafts.length === 0 ? (
+                <div className="text-sm text-gray-700">ยังไม่มีงานที่บันทึกไว้ในเครื่อง</div>
+              ) : localDrafts.map((item) => (
+                <div key={item.key} className="rounded-2xl border border-black/10 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-semibold text-base">{item.locationName}</div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        {item.stage === "checkout" ? "งานออกงาน" : "งานเข้างาน"}
+                        {item.timeLabel ? ` • ${item.timeLabel}` : ""}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        บันทึกล่าสุด {formatUpdatedAt(item.updatedAt)}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full px-2 py-1 text-xs font-semibold ${item.mode === "ready" ? "bg-[#E8CC5C] text-gray-900" : "bg-[#D9E0DB] text-gray-900"}`}>
+                          {item.statusLabel}
+                        </span>
+                        <span className="text-xs text-gray-700">{item.note}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:min-w-[170px]">
+                      <Link
+                        href={item.resumeHref}
+                        className="inline-flex items-center justify-center rounded-full border border-black/20 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                      >
+                        ทำต่อ
+                      </Link>
+                      {item.mode === "ready" ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleSyncDraft(item.key)}
+                          disabled={syncingAll || syncingKey === item.key}
+                          className="inline-flex items-center justify-center rounded-full border border-black/20 bg-[#BFD9C8] px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-[#b3d0bf] disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {syncingKey === item.key ? "กำลังส่ง..." : "ส่งรายการนี้"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {/* List */}
         <div className="mt-4 space-y-3">

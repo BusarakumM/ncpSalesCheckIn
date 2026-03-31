@@ -17,13 +17,19 @@ import {
   evaluatePendingReviewOption,
 } from "@/lib/gpsReview";
 import { submitCheckin, submitCheckout, uploadPhoto } from "@/lib/paClient";
-import { deleteTaskDraft, draftToFile, fileToDraft, loadTaskDraft, saveTaskDraft } from "@/lib/taskDrafts";
-import { useRouter } from "next/navigation";
-
-const NEW_TASK_DRAFT_KEY = "checkin:new";
+import { createNewTaskDraftKey, deleteTaskDraft, draftToFile, fileToDraft, loadTaskDraft, saveTaskDraft } from "@/lib/taskDrafts";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function NewTaskPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const draftParam = searchParams.get("draft")?.trim() || "";
+  const generatedDraftKeyRef = useRef("");
+  if (!generatedDraftKeyRef.current) {
+    generatedDraftKeyRef.current = createNewTaskDraftKey();
+  }
+  const activeDraftKey = draftParam || generatedDraftKeyRef.current;
+  const resumeHref = `/checkin/new?draft=${encodeURIComponent(activeDraftKey)}`;
   const [checkinTime, setCheckinTime] = useState("");
   const [checkoutTime, setCheckoutTime] = useState("");
   const [locationName, setLocationName] = useState("");
@@ -111,13 +117,15 @@ export default function NewTaskPage() {
   }, []);
 
   useEffect(() => {
-    void getGPS();
-  }, []);
+    if (!draftParam) {
+      void getGPS();
+    }
+  }, [draftParam]);
 
   useEffect(() => {
     let cancelled = false;
     async function restoreDraft() {
-      const draft = await loadTaskDraft(NEW_TASK_DRAFT_KEY).catch(() => null);
+      const draft = await loadTaskDraft(activeDraftKey).catch(() => null);
       if (!draft || cancelled) return;
       if (draft.checkinTime) setCheckinTime(draft.checkinTime);
       if (draft.checkoutTime) setCheckoutTime(draft.checkoutTime);
@@ -154,7 +162,7 @@ export default function NewTaskPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeDraftKey]);
 
   useEffect(() => {
     if (submittedCheckin) return;
@@ -258,6 +266,9 @@ export default function NewTaskPage() {
 
   function buildDraftPayload() {
     return {
+      kind: "new" as const,
+      stage: (checkoutTime || checkoutGps || checkoutPhotoFile) ? "checkout" as const : "checkin" as const,
+      resumeHref,
       checkinTime,
       checkoutTime,
       locationName,
@@ -328,7 +339,7 @@ export default function NewTaskPage() {
   });
 
   async function clearSavedDraft(showMessage = true) {
-    await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+    await deleteTaskDraft(activeDraftKey);
     setDraftNotice("");
     if (showMessage) alert("ลบข้อมูลที่บันทึกไว้แล้ว");
   }
@@ -339,7 +350,7 @@ export default function NewTaskPage() {
       return;
     }
     try {
-      await saveTaskDraft(NEW_TASK_DRAFT_KEY, buildDraftPayload());
+      await saveTaskDraft(activeDraftKey, buildDraftPayload());
       setDraftNotice("บันทึกข้อมูลไว้ในเครื่องแล้ว");
       alert("บันทึกไว้ในเครื่องแล้ว ยังไม่ส่งเข้าระบบ กลับมาทำต่อภายหลังได้");
       router.replace("/checkin");
@@ -498,7 +509,7 @@ export default function NewTaskPage() {
         jobDetail,
         photoUrl: uploadedUrl,
       });
-      await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+      await deleteTaskDraft(activeDraftKey);
       setDraftNotice("");
       const st = resp?.status ? String(resp.status) : "";
       alert(st ? `บันทึกแล้ว (${st})` : "บันทึกแล้ว");
@@ -568,7 +579,7 @@ export default function NewTaskPage() {
         gpsAccuracy,
         gpsRetryCount: checkinGpsAttempts,
       });
-      await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+      await deleteTaskDraft(activeDraftKey);
       setDraftNotice("");
       const st = resp?.status ? String(resp.status) : "";
       alert(st ? `ส่งให้หัวหน้าตรวจแล้ว (${st})` : "ส่งให้หัวหน้าตรวจแล้ว");
@@ -626,7 +637,7 @@ export default function NewTaskPage() {
         jobRemark,
         remark: jobRemark,
       });
-      await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+      await deleteTaskDraft(activeDraftKey);
       setDraftNotice("");
       const st = resp?.status ? String(resp.status) : "";
       alert(st ? `บันทึกแล้ว (${st})` : "บันทึกแล้ว");
@@ -678,7 +689,7 @@ export default function NewTaskPage() {
         gpsAccuracy: checkoutGpsAccuracy,
         gpsRetryCount: checkoutGpsAttempts,
       });
-      await deleteTaskDraft(NEW_TASK_DRAFT_KEY);
+      await deleteTaskDraft(activeDraftKey);
       setDraftNotice("");
       const st = resp?.status ? String(resp.status) : "";
       alert(st ? `ส่งให้หัวหน้าตรวจแล้ว (${st})` : "ส่งให้หัวหน้าตรวจแล้ว");
